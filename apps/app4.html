@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stimulus Clicker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                        fun: ['Comic Sans MS', 'Chalkboard SE', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tone.js for Web Audio SFX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); }
+        ::-webkit-scrollbar-thumb { background: rgba(150, 150, 150, 0.3); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(150, 150, 150, 0.5); }
+        
+        .floating-text {
+            position: absolute;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            font-weight: 800;
+            z-index: 50;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-60px) scale(1.2); }
+        }
+
+        /* Pulse glow animation */
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
+            50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.8); }
+        }
+        .btn-glow {
+            animation: pulseGlow 2s infinite;
+        }
+
+        /* Canvas overlay for DVD bouncing elements */
+        #dvdCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 20;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 min-h-screen flex flex-col font-sans transition-colors duration-200 select-none overflow-x-hidden">
+
+    <canvas id="dvdCanvas"></canvas>
+
+    <header class="sticky top-0 z-40 backdrop-blur-md bg-white/80 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-800 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-bolt text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                        Stimulus Clicker
+                    </h1>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Jeu de stimulation interactive</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <!-- Theme toggle -->
+                <button id="themeToggleBtn" class="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition" title="Basculer le thème">
+                    <i class="fa-solid fa-moon text-indigo-500 dark:hidden"></i>
+                    <i class="fa-solid fa-sun text-yellow-400 hidden dark:block"></i>
+                </button>
+                
+                <!-- Audio toggle -->
+                <button id="audioToggleBtn" class="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition" title="Activer/Désactiver les sons">
+                    <i id="audioIcon" class="fa-solid fa-volume-high text-emerald-500"></i>
+                </button>
+
+                <!-- Tweaks / Settings Button -->
+                <button id="openTweaksBtn" class="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center space-x-1">
+                    <i class="fa-solid fa-sliders text-indigo-500"></i>
+                    <span class="text-xs font-semibold hidden md:inline">Personnaliser</span>
+                </button>
+
+                <!-- Save status indicator -->
+                <div id="saveIndicator" class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center space-x-1">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    <span class="hidden sm:inline">Sauvegardé</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 z-30">
+        
+        <!-- LEFT / CENTER COLUMN: Clicker & Display -->
+        <div class="lg:col-span-7 flex flex-col space-y-6">
+            
+            <!-- Main Score Board -->
+            <div class="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-xl border border-gray-100 dark:border-gray-800 flex flex-col items-center justify-center text-center relative overflow-hidden">
+                <div class="absolute -top-12 -left-12 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="absolute -bottom-12 -right-12 w-32 h-32 bg-pink-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                <span class="text-xs font-bold uppercase tracking-wider text-indigo-500 dark:text-indigo-400 mb-1">Total de Stimulus</span>
+                <div id="stimulusCounter" class="text-4xl md:text-6xl font-black tracking-tight text-gray-900 dark:text-white my-2 font-mono">
+                    0
+                </div>
+
+                <div id="spsContainer" class="hidden flex items-center space-x-3 text-sm text-gray-500 dark:text-gray-400 font-medium">
+                    <span class="flex items-center"><i class="fa-solid fa-gauge-high mr-1.5 text-indigo-500"></i> <span id="spsDisplay">0</span> / sec</span>
+                    <span>•</span>
+                    <span class="flex items-center"><i class="fa-solid fa-hand-pointer mr-1.5 text-pink-500"></i> +<span id="cpcDisplay">1</span> / clic</span>
+                </div>
+            </div>
+
+            <!-- Main Interactive Clicker Area -->
+            <div id="clickerArea" class="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-xl border border-gray-100 dark:border-gray-800 flex-1 flex flex-col items-center justify-center relative min-h-[300px]">
+                
+                <!-- Main Button -->
+                <button id="mainClickBtn" class="group relative w-48 h-48 md:w-56 md:h-56 rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-pink-500 text-white shadow-2xl hover:scale-105 active:scale-95 transition-all duration-150 flex flex-col items-center justify-center focus:outline-none btn-glow cursor-pointer">
+                    <div class="absolute inset-2 rounded-full bg-white/10 backdrop-blur-xs flex flex-col items-center justify-center border border-white/20">
+                        <i class="fa-solid fa-bolt-lightning text-5xl md:text-6xl group-hover:rotate-12 transition-transform duration-300 drop-shadow-md"></i>
+                        <span class="mt-3 font-extrabold text-lg uppercase tracking-wider">STIMULUS</span>
+                    </div>
+                </button>
+
+                <!-- DVD Counter Widget if unlocked -->
+                <div id="dvdWidget" class="hidden absolute bottom-4 left-4 right-4 bg-gray-50 dark:bg-gray-800/60 backdrop-blur border border-gray-200 dark:border-gray-700 rounded-xl p-3 flex justify-between items-center text-xs">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-tv text-indigo-500"></i>
+                        <span>Rebonds DVD: <strong id="dvdBounceCount" class="text-indigo-500 font-mono">0</strong></span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button id="addDvdBtn" class="px-2.5 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-xs font-semibold">
+                            + DVD
+                        </button>
+                        <button id="clearDvdBtn" class="px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition text-xs">
+                            Réinitialiser
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="miniGamesContainer" class="space-y-6">
+                <!-- Plinko Mini Game (Hidden by default) -->
+                <div id="plinkoCard" class="hidden bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-xl border border-gray-100 dark:border-gray-800">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-chart-simple text-emerald-500 text-xl"></i>
+                            <h2 class="font-bold text-lg">Mini-Jeu Plinko</h2>
+                        </div>
+                        <span class="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-full font-medium">Multiplicateurs!</span>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row gap-4 items-center">
+                        <canvas id="plinkoCanvas" width="300" height="280" class="bg-gray-900 rounded-xl border border-gray-800 w-full md:w-[300px] h-[280px] shadow-inner"></canvas>
+                        
+                        <div class="flex-1 w-full flex flex-col justify-between space-y-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Mise Stimulus</label>
+                                <div class="flex space-x-2">
+                                    <input type="number" id="plinkoBetInput" min="10" value="50" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                    <button id="plinkoDropBtn" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition flex items-center shrink-0">
+                                        <i class="fa-solid fa-circle-dot mr-2"></i> Lancer
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Plinko green upgrade -->
+                            <div class="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400">Bonus Slots Verts</div>
+                                        <div class="text-[10px] text-gray-500">Augmente la valeur des cibles</div>
+                                    </div>
+                                    <button id="upgradePlinkoGreenBtn" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition">
+                                        <span id="plinkoGreenCost">500</span> St.
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rocket Crash Mini Game (Hidden by default) -->
+                <div id="rocketCard" class="hidden bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-xl border border-gray-100 dark:border-gray-800">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-rocket text-rose-500 text-xl"></i>
+                            <h2 class="font-bold text-lg">Fusée Crash</h2>
+                        </div>
+                        <span id="rocketStatus" class="text-xs bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2.5 py-1 rounded-full font-medium">Prêt</span>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row gap-4 items-center">
+                        <div class="relative w-full md:w-[300px] h-[220px]">
+                            <canvas id="rocketCanvas" width="300" height="220" class="bg-gray-950 rounded-xl border border-gray-800 w-full h-full shadow-inner"></canvas>
+                            <div id="rocketMultiplierText" class="absolute inset-0 flex items-center justify-center font-mono font-black text-3xl text-white pointer-events-none drop-shadow-md">
+                                1.00x
+                            </div>
+                        </div>
+
+                        <div class="flex-1 w-full space-y-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Mise Fusée</label>
+                                <input type="number" id="rocketBetInput" min="10" value="100" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-rose-500">
+                            </div>
+
+                            <div class="flex space-x-2">
+                                <button id="rocketLaunchBtn" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-lg transition">
+                                    Lancer Fusée
+                                </button>
+                                <button id="rocketCashoutBtn" disabled class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition opacity-50 cursor-not-allowed">
+                                    Encaisser
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Upgrades panel -->
+        <div class="lg:col-span-5 flex flex-col space-y-4">
+            <div class="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-xl border border-gray-100 dark:border-gray-800 flex-1">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-extrabold flex items-center">
+                        <i class="fa-solid fa-arrow-up-right-dots text-indigo-500 mr-2"></i>
+                        Améliorations
+                    </h2>
+                    <span id="upgradeCountBadge" class="text-xs bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold px-2.5 py-1 rounded-full">
+                        0 Débloqués
+                    </span>
+                </div>
+
+                <div id="upgradesList" class="space-y-3">
+                    <!-- Upgrades dynamically rendered here -->
+                </div>
+            </div>
+
+            <!-- Debug / Cheat Menu (If unlocked) -->
+            <div id="debugCard" class="hidden bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center">
+                        <i class="fa-solid fa-bug mr-1.5"></i> Menu Triche / Débogage
+                    </span>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="cheatAddStimulus" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition">
+                        +10,000 St.
+                    </button>
+                    <button id="cheatReset" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition">
+                        Réinitialiser Tout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- TWEAKS SIDEBAR PANEL -->
+    <div id="tweaksOverlay" class="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+    <div id="tweaksSidebar" class="fixed top-0 right-0 h-full w-full max-w-md bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 z-50 transform translate-x-full transition-transform duration-300 flex flex-col shadow-2xl">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
+            <h3 class="font-bold text-lg flex items-center">
+                <i class="fa-solid fa-sliders text-indigo-500 mr-2"></i>
+                Panneau de Réglages
+            </h3>
+            <button id="closeTweaksBtn" class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+            <!-- Appearance tweaks -->
+            <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Apparence</h4>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Police de caractère</label>
+                        <select id="tweakFontSelect" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none">
+                            <option value="font-sans">Inter (Sans-serif)</option>
+                            <option value="font-mono">JetBrains Mono (Monospace)</option>
+                            <option value="font-fun">Comic Sans / Fun</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Couleur du bouton principal</label>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button data-color="indigo" class="tweak-color-btn h-10 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 border-2 border-white dark:border-gray-800 ring-2 ring-indigo-500"></button>
+                            <button data-color="emerald" class="tweak-color-btn h-10 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500"></button>
+                            <button data-color="rose" class="tweak-color-btn h-10 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500"></button>
+                            <button data-color="amber" class="tweak-color-btn h-10 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500"></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toggles tweaks -->
+            <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Préférences</h4>
+                <div class="space-y-3">
+                    <label class="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 cursor-pointer">
+                        <span class="text-sm font-medium">Textes flottants (+1)</span>
+                        <input type="checkbox" id="tweakFloatingTextToggle" checked class="w-4 h-4 text-indigo-600 rounded">
+                    </label>
+
+                    <label class="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 cursor-pointer">
+                        <span class="text-sm font-medium">Sons au clic</span>
+                        <input type="checkbox" id="tweakSoundToggle" checked class="w-4 h-4 text-indigo-600 rounded">
+                    </label>
+                </div>
+            </div>
+
+            <!-- Reset Data -->
+            <div class="pt-6 border-t border-gray-200 dark:border-gray-800">
+                <button id="resetAllDataBtn" class="w-full py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold rounded-xl transition text-sm flex items-center justify-center">
+                    <i class="fa-solid fa-trash-can mr-2"></i> Effacer la sauvegarde
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message notification toast -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 bg-gray-900 text-white dark:bg-white dark:text-gray-900 px-4 py-3 rounded-xl shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 flex items-center space-x-2 text-sm font-medium pointer-events-none">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-indigo-400"></i>
+        <span id="toastMessage">Notification</span>
+    </div>
+
+    <script>
+        // GAME STATE MODEL
+        const DEFAULT_STATE = {
+            stimulus: 0,
+            sps: 0,
+            clickMultiplier: 1,
+            unlockedDarkMode: false,
+            unlockedSpsDisplay: false,
+            unlockedDvd: false,
+            unlockedPlinko: false,
+            unlockedRocket: false,
+            unlockedDebug: false,
+            purchasedUpgrades: {},
+            dvdCount: 0,
+            dvdBounceCount: 0,
+            plinkoGreenMultiplier: 2,
+            plinkoGreenCost: 500,
+            settings: {
+                theme: 'dark',
+                soundEnabled: true,
+                floatingText: true,
+                font: 'font-sans',
+                buttonTheme: 'indigo'
+            }
+        };
+
+        let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+
+        // UPGRADES DEFINITION MODEL
+        const UPGRADES = [
+            {
+                id: 'sps_display',
+                title: 'Compteur SPS',
+                description: 'Affiche la vitesse de génération des Stimulus par seconde.',
+                cost: 15,
+                icon: 'fa-gauge-high',
+                color: 'text-indigo-500',
+                single: true,
+                action: () => {
+                    gameState.unlockedSpsDisplay = true;
+                    document.getElementById('spsContainer').classList.remove('hidden');
+                }
+            },
+            {
+                id: 'click_1',
+                title: 'Amplificateur Tactile',
+                description: 'Augmente de +1 le stimulus par clic.',
+                cost: 25,
+                icon: 'fa-hand-pointer',
+                color: 'text-pink-500',
+                multiplier: 1.5,
+                action: () => {
+                    gameState.clickMultiplier += 1;
+                }
+            },
+            {
+                id: 'autoclicker_1',
+                title: 'Auto-Stimulateur Alpha',
+                description: 'Génère 1 Stimulus par seconde.',
+                cost: 50,
+                icon: 'fa-robot',
+                color: 'text-blue-500',
+                multiplier: 1.6,
+                action: () => {
+                    gameState.sps += 1;
+                }
+            },
+            {
+                id: 'dvd_screensaver',
+                title: 'Écran de Veille DVD',
+                description: 'Débloque un DVD rebondissant sur votre écran! Chaque rebond génère des stimulus.',
+                cost: 150,
+                icon: 'fa-tv',
+                color: 'text-purple-500',
+                single: false,
+                action: () => {
+                    gameState.unlockedDvd = true;
+                    gameState.dvdCount += 1;
+                    addDvdLogo();
+                    document.getElementById('dvdWidget').classList.remove('hidden');
+                }
+            },
+            {
+                id: 'dark_mode_unlock',
+                title: 'Thème Sombre Céleste',
+                description: 'Débloque l\'accès aux modes sombres et clairs dans l\'interface.',
+                cost: 200,
+                icon: 'fa-moon',
+                color: 'text-amber-500',
+                single: true,
+                action: () => {
+                    gameState.unlockedDarkMode = true;
+                    showToast("Mode Sombre débloqué!");
+                }
+            },
+            {
+                id: 'click_2',
+                title: 'Hyper Pulsion (+5)',
+                description: 'Ajoute +5 Stimulus supplémentaires par clic.',
+                cost: 500,
+                icon: 'fa-bolt',
+                color: 'text-yellow-500',
+                multiplier: 1.8,
+                action: () => {
+                    gameState.clickMultiplier += 5;
+                }
+            },
+            {
+                id: 'autoclicker_2',
+                title: 'Générateur Quantique',
+                description: 'Génère +10 Stimulus par seconde.',
+                cost: 1000,
+                icon: 'fa-microchip',
+                color: 'text-emerald-500',
+                multiplier: 1.7,
+                action: () => {
+                    gameState.sps += 10;
+                }
+            },
+            {
+                id: 'plinko_unlock',
+                title: 'Mini-Jeu Plinko',
+                description: 'Débloque la table de Plinko physique interactive pour multiplier vos mises!',
+                cost: 2500,
+                icon: 'fa-chart-simple',
+                color: 'text-emerald-500',
+                single: true,
+                action: () => {
+                    gameState.unlockedPlinko = true;
+                    document.getElementById('plinkoCard').classList.remove('hidden');
+                    initPlinkoCanvas();
+                }
+            },
+            {
+                id: 'rocket_unlock',
+                title: 'Mini-Jeu Fusée Crash',
+                description: 'Débloque le mini-jeu de la fusée spatiale. Récupérez vos gains avant l\'explosion!',
+                cost: 5000,
+                icon: 'fa-rocket',
+                color: 'text-rose-500',
+                single: true,
+                action: () => {
+                    gameState.unlockedRocket = true;
+                    document.getElementById('rocketCard').classList.remove('hidden');
+                    initRocketCanvas();
+                }
+            },
+            {
+                id: 'debug_unlock',
+                title: 'Menu de Débogage / Triche',
+                description: 'Débloque les options avancées de test et de triche.',
+                cost: 20000,
+                icon: 'fa-bug',
+                color: 'text-amber-500',
+                single: true,
+                action: () => {
+                    gameState.unlockedDebug = true;
+                    document.getElementById('debugCard').classList.remove('hidden');
+                }
+            }
+        ];
+
+        let synth = null;
+        function initAudio() {
+            if (!synth && typeof Tone !== 'undefined') {
+                try {
+                    synth = new Tone.Synth({
+                        oscillator: { type: "triangle" },
+                        envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+                    }).toDestination();
+                    Tone.Master.volume.value = -12;
+                } catch(e) { console.log(e); }
+            }
+        }
+
+        function playClickSound() {
+            if (!gameState.settings.soundEnabled) return;
+            initAudio();
+            if (synth) {
+                try {
+                    if (Tone.context.state !== 'running') {
+                        Tone.start();
+                    }
+                    synth.triggerAttackRelease("C5", "8n");
+                } catch(e) {}
+            }
+        }
+
+        function playWinSound() {
+            if (!gameState.settings.soundEnabled) return;
+            initAudio();
+            if (synth) {
+                try {
+                    synth.triggerAttackRelease("G5", "8n");
+                } catch(e) {}
+            }
+        }
+
+        function formatNumber(num) {
+            if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'k';
+            return Math.floor(num).toLocaleString('fr-FR');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMessage');
+            toastMsg.textContent = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2500);
+        }
+
+        function updateUI() {
+            document.getElementById('stimulusCounter').textContent = formatNumber(gameState.stimulus);
+            document.getElementById('spsDisplay').textContent = formatNumber(gameState.sps);
+            document.getElementById('cpcDisplay').textContent = formatNumber(gameState.clickMultiplier);
+            document.getElementById('dvdBounceCount').textContent = gameState.dvdBounceCount;
+            document.getElementById('plinkoGreenCost').textContent = formatNumber(gameState.plinkoGreenCost);
+
+            // Render Upgrades list
+            const list = document.getElementById('upgradesList');
+            list.innerHTML = '';
+
+            let unlockedCount = 0;
+
+            UPGRADES.forEach(upg => {
+                const purchasedTimes = gameState.purchasedUpgrades[upg.id] || 0;
+                if (upg.single && purchasedTimes >= 1) {
+                    unlockedCount++;
+                    return; // Skip rendered if single and already bought
+                }
+
+                // Calculate scaled cost
+                const currentCost = Math.floor(upg.cost * Math.pow(upg.multiplier || 1, purchasedTimes));
+                const canAfford = gameState.stimulus >= currentCost;
+
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-xl border transition-all duration-200 flex items-center justify-between ${
+                    canAfford 
+                    ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm hover:border-indigo-500' 
+                    : 'bg-gray-50 dark:bg-gray-800/40 border-gray-100 dark:border-gray-800 opacity-60'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-center space-x-3.5">
+                        <div class="p-3 rounded-xl bg-gray-100 dark:bg-gray-700/50 ${upg.color}">
+                            <i class="fa-solid ${upg.icon} text-lg"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-sm flex items-center">
+                                ${upg.title}
+                                ${purchasedTimes > 0 ? `<span class="ml-2 text-[10px] bg-indigo-500/10 text-indigo-500 px-2 py-0.5 rounded-full font-extrabold">x${purchasedTimes}</span>` : ''}
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 max-w-[220px] sm:max-w-xs mt-0.5">${upg.description}</div>
+                        </div>
+                    </div>
+                    <button class="buy-upg-btn px-4 py-2 rounded-xl text-xs font-bold transition shrink-0 ml-2 ${
+                        canAfford 
+                        ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md' 
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                    }" data-id="${upg.id}">
+                        ${formatNumber(currentCost)} St.
+                    </button>
+                `;
+
+                card.querySelector('.buy-upg-btn').addEventListener('click', () => buyUpgrade(upg, currentCost));
+                list.appendChild(card);
+            });
+
+            document.getElementById('upgradeCountBadge').textContent = `${unlockedCount} / ${UPGRADES.length} Débloqués`;
+        }
+
+        function buyUpgrade(upg, cost) {
+            if (gameState.stimulus >= cost) {
+                gameState.stimulus -= cost;
+                gameState.purchasedUpgrades[upg.id] = (gameState.purchasedUpgrades[upg.id] || 0) + 1;
+                upg.action();
+                playWinSound();
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 30, spread: 60, origin: { y: 0.8 } });
+                }
+                saveGameState();
+                updateUI();
+            }
+        }
+
+        function spawnFloatingText(x, y, text) {
+            if (!gameState.settings.floatingText) return;
+            const el = document.createElement('div');
+            el.className = 'floating-text text-indigo-500 dark:text-indigo-400';
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            el.textContent = text;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 1000);
+        }
+
+        let dvdLogos = [];
+        const dvdCanvas = document.getElementById('dvdCanvas');
+        const dvdCtx = dvdCanvas.getContext('2d');
+
+        function resizeDvdCanvas() {
+            dvdCanvas.width = window.innerWidth;
+            dvdCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeDvdCanvas);
+        resizeDvdCanvas();
+
+        const DVD_COLORS = ['#3B82F6', '#EC4899', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'];
+
+        function addDvdLogo() {
+            dvdLogos.push({
+                x: Math.random() * (dvdCanvas.width - 100),
+                y: Math.random() * (dvdCanvas.height - 50),
+                dx: (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 2),
+                dy: (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 2),
+                width: 80,
+                height: 40,
+                color: DVD_COLORS[Math.floor(Math.random() * DVD_COLORS.length)]
+            });
+        }
+
+        function updateDvdCanvas() {
+            dvdCtx.clearRect(0, 0, dvdCanvas.width, dvdCanvas.height);
+
+            dvdLogos.forEach(logo => {
+                logo.x += logo.dx;
+                logo.y += logo.dy;
+
+                let bounced = false;
+
+                if (logo.x <= 0 || logo.x + logo.width >= dvdCanvas.width) {
+                    logo.dx *= -1;
+                    bounced = true;
+                }
+                if (logo.y <= 0 || logo.y + logo.height >= dvdCanvas.height) {
+                    logo.dy *= -1;
+                    bounced = true;
+                }
+
+                if (bounced) {
+                    logo.color = DVD_COLORS[Math.floor(Math.random() * DVD_COLORS.length)];
+                    gameState.dvdBounceCount += 1;
+                    const reward = 5 * gameState.clickMultiplier;
+                    gameState.stimulus += reward;
+                    spawnFloatingText(logo.x + logo.width / 2, logo.y, `+${reward} DVD!`);
+                    updateUI();
+                }
+
+                // Draw DVD logo box
+                dvdCtx.fillStyle = logo.color;
+                dvdCtx.beginPath();
+                dvdCtx.roundRect(logo.x, logo.y, logo.width, logo.height, 8);
+                dvdCtx.fill();
+
+                dvdCtx.fillStyle = '#FFFFFF';
+                dvdCtx.font = 'bold 14px sans-serif';
+                dvdCtx.textAlign = 'center';
+                dvdCtx.textBaseline = 'middle';
+                dvdCtx.fillText('DVD', logo.x + logo.width / 2, logo.y + logo.height / 2);
+            });
+
+            requestAnimationFrame(updateDvdCanvas);
+        }
+
+        let plinkoCanvas, plinkoCtx;
+        let plinkoBalls = [];
+        let plinkoPegs = [];
+
+        function initPlinkoCanvas() {
+            plinkoCanvas = document.getElementById('plinkoCanvas');
+            if (!plinkoCanvas) return;
+            plinkoCtx = plinkoCanvas.getContext('2d');
+
+            // Generate Pegs
+            plinkoPegs = [];
+            const rows = 6;
+            for (let r = 0; r < rows; r++) {
+                const count = r + 3;
+                const spacing = plinkoCanvas.width / (count + 1);
+                for (let c = 0; c < count; c++) {
+                    plinkoPegs.push({
+                        x: spacing * (c + 1),
+                        y: 40 + r * 35,
+                        radius: 4
+                    });
+                }
+            }
+        }
+
+        function dropPlinkoBall() {
+            const betInput = document.getElementById('plinkoBetInput');
+            const bet = parseInt(betInput.value) || 10;
+
+            if (gameState.stimulus < bet) {
+                showToast("Stimulus insuffisants!");
+                return;
+            }
+
+            gameState.stimulus -= bet;
+            updateUI();
+
+            plinkoBalls.push({
+                x: plinkoCanvas.width / 2 + (Math.random() * 20 - 10),
+                y: 10,
+                vx: (Math.random() - 0.5) * 2,
+                vy: 2,
+                radius: 6,
+                bet: bet
+            });
+        }
+
+        function updatePlinko() {
+            if (!plinkoCtx) return;
+            plinkoCtx.clearRect(0, 0, plinkoCanvas.width, plinkoCanvas.height);
+
+            // Draw Pegs
+            plinkoCtx.fillStyle = '#94A3B8';
+            plinkoPegs.forEach(peg => {
+                plinkoCtx.beginPath();
+                plinkoCtx.arc(peg.x, peg.y, peg.radius, 0, Math.PI * 2);
+                plinkoCtx.fill();
+            });
+
+            // Draw Bottom Slots
+            const slots = [0.2, 0.5, gameState.plinkoGreenMultiplier, 0.5, 0.2];
+            const slotWidth = plinkoCanvas.width / slots.length;
+            
+            slots.forEach((mult, i) => {
+                const x = i * slotWidth;
+                const isGreen = mult >= 2;
+                plinkoCtx.fillStyle = isGreen ? '#10B981' : '#334155';
+                plinkoCtx.fillRect(x + 2, plinkoCanvas.height - 25, slotWidth - 4, 25);
+
+                plinkoCtx.fillStyle = '#FFFFFF';
+                plinkoCtx.font = 'bold 11px sans-serif';
+                plinkoCtx.textAlign = 'center';
+                plinkoCtx.fillText(`${mult}x`, x + slotWidth / 2, plinkoCanvas.height - 8);
+            });
+
+            // Physics Update Balls
+            for (let i = plinkoBalls.length - 1; i >= 0; i--) {
+                const ball = plinkoBalls[i];
+                ball.vy += 0.15; // Gravity
+                ball.x += ball.vx;
+                ball.y += ball.vy;
+
+                // Collide with pegs
+                plinkoPegs.forEach(peg => {
+                    const dx = ball.x - peg.x;
+                    const dy = ball.y - peg.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < ball.radius + peg.radius) {
+                        const angle = Math.atan2(dy, dx);
+                        ball.vx = Math.cos(angle) * 2.5;
+                        ball.vy = Math.sin(angle) * 2.5;
+                    }
+                });
+
+                // Wall collisions
+                if (ball.x <= ball.radius || ball.x >= plinkoCanvas.width - ball.radius) {
+                    ball.vx *= -0.8;
+                }
+
+                // Render Ball
+                plinkoCtx.fillStyle = '#EC4899';
+                plinkoCtx.beginPath();
+                plinkoCtx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+                plinkoCtx.fill();
+
+                // Check Bottom Hit
+                if (ball.y >= plinkoCanvas.height - 25) {
+                    const slotIdx = Math.floor(ball.x / slotWidth);
+                    const clampedIdx = Math.max(0, Math.min(slots.length - 1, slotIdx));
+                    const mult = slots[clampedIdx];
+                    const winAmount = Math.floor(ball.bet * mult);
+
+                    gameState.stimulus += winAmount;
+                    showToast(`Plinko: +${winAmount} St. (${mult}x)`);
+                    playWinSound();
+                    updateUI();
+                    plinkoBalls.splice(i, 1);
+                }
+            }
+
+            requestAnimationFrame(updatePlinko);
+        }
+
+        let rocketCanvas, rocketCtx;
+        let rocketState = 'idle'; // idle, running, crashed
+        let rocketMultiplier = 1.0;
+        let rocketCrashPoint = 0;
+        let rocketBet = 0;
+        let rocketAnimFrame;
+
+        function initRocketCanvas() {
+            rocketCanvas = document.getElementById('rocketCanvas');
+            if (!rocketCanvas) return;
+            rocketCtx = rocketCanvas.getContext('2d');
+            drawRocketScene(0, 0);
+        }
+
+        function drawRocketScene(progress, crashed = false) {
+            if (!rocketCtx) return;
+            rocketCtx.clearRect(0, 0, rocketCanvas.width, rocketCanvas.height);
+
+            // Draw Stars background
+            rocketCtx.fillStyle = '#1E293B';
+            rocketCtx.fillRect(0, 0, rocketCanvas.width, rocketCanvas.height);
+
+            // Rocket Trajectory curve
+            rocketCtx.strokeStyle = crashed ? '#EF4444' : '#F43F5E';
+            rocketCtx.lineWidth = 3;
+            rocketCtx.beginPath();
+            rocketCtx.moveTo(20, rocketCanvas.height - 20);
+
+            const endX = 20 + (rocketCanvas.width - 40) * Math.min(progress, 1);
+            const endY = (rocketCanvas.height - 20) - (rocketCanvas.height - 50) * Math.min(progress, 1);
+
+            rocketCtx.quadraticCurveTo(
+                rocketCanvas.width / 2, rocketCanvas.height - 20,
+                endX, endY
+            );
+            rocketCtx.stroke();
+
+            // Draw Rocket Icon or Explosion
+            if (crashed) {
+                rocketCtx.fillStyle = '#EF4444';
+                rocketCtx.beginPath();
+                rocketCtx.arc(endX, endY, 12, 0, Math.PI * 2);
+                rocketCtx.fill();
+            } else {
+                rocketCtx.fillStyle = '#38BDF8';
+                rocketCtx.beginPath();
+                rocketCtx.arc(endX, endY, 6, 0, Math.PI * 2);
+                rocketCtx.fill();
+            }
+        }
+
+        function startRocket() {
+            if (rocketState === 'running') return;
+
+            const betInput = document.getElementById('rocketBetInput');
+            rocketBet = parseInt(betInput.value) || 10;
+
+            if (gameState.stimulus < rocketBet) {
+                showToast("Stimulus insuffisants!");
+                return;
+            }
+
+            gameState.stimulus -= rocketBet;
+            updateUI();
+
+            rocketState = 'running';
+            rocketMultiplier = 1.0;
+            // Weighted random crash point
+            rocketCrashPoint = 1.0 + Math.random() * Math.random() * 8.0;
+
+            document.getElementById('rocketLaunchBtn').disabled = true;
+            document.getElementById('rocketLaunchBtn').classList.add('opacity-50');
+            document.getElementById('rocketCashoutBtn').disabled = false;
+            document.getElementById('rocketCashoutBtn').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('rocketStatus').textContent = 'En vol...';
+
+            let startTime = Date.now();
+
+            function loop() {
+                if (rocketState !== 'running') return;
+
+                let elapsed = (Date.now() - startTime) / 1000;
+                rocketMultiplier = parseFloat((1.0 + elapsed * 0.4).toFixed(2));
+
+                document.getElementById('rocketMultiplierText').textContent = `${rocketMultiplier.toFixed(2)}x`;
+                drawRocketScene(elapsed / 5);
+
+                if (rocketMultiplier >= rocketCrashPoint) {
+                    // Crash logic
+                    rocketState = 'crashed';
+                    document.getElementById('rocketStatus').textContent = 'CRASH!';
+                    document.getElementById('rocketMultiplierText').textContent = 'CRASH!';
+                    drawRocketScene(elapsed / 5, true);
+
+                    document.getElementById('rocketLaunchBtn').disabled = false;
+                    document.getElementById('rocketLaunchBtn').classList.remove('opacity-50');
+                    document.getElementById('rocketCashoutBtn').disabled = true;
+                    document.getElementById('rocketCashoutBtn').classList.add('opacity-50', 'cursor-not-allowed');
+                    showToast("La fusée a explosé!");
+                    return;
+                }
+
+                rocketAnimFrame = requestAnimationFrame(loop);
+            }
+
+            loop();
+        }
+
+        function cashoutRocket() {
+            if (rocketState !== 'running') return;
+
+            rocketState = 'idle';
+            cancelAnimationFrame(rocketAnimFrame);
+
+            const winnings = Math.floor(rocketBet * rocketMultiplier);
+            gameState.stimulus += winnings;
+
+            showToast(`Gagné! +${winnings} St. (${rocketMultiplier}x)`);
+            playWinSound();
+
+            document.getElementById('rocketStatus').textContent = 'Encaissé!';
+            document.getElementById('rocketLaunchBtn').disabled = false;
+            document.getElementById('rocketLaunchBtn').classList.remove('opacity-50');
+            document.getElementById('rocketCashoutBtn').disabled = true;
+            document.getElementById('rocketCashoutBtn').classList.add('opacity-50', 'cursor-not-allowed');
+
+            updateUI();
+        }
+
+        const SAVE_KEY = 'stimulus_clicker_save_v1';
+
+        function saveGameState() {
+            try {
+                localStorage.setItem(SAVE_KEY, JSON.stringify(gameState));
+            } catch(e) {}
+        }
+
+        function loadGameState() {
+            try {
+                const saved = localStorage.getItem(SAVE_KEY);
+                if (saved) {
+                    gameState = Object.assign({}, DEFAULT_STATE, JSON.parse(saved));
+                }
+            } catch(e) {}
+        }
+
+        window.onload = function() {
+            loadGameState();
+
+            // Main Click Event
+            const mainClickBtn = document.getElementById('mainClickBtn');
+            mainClickBtn.addEventListener('click', (e) => {
+                const amount = gameState.clickMultiplier;
+                gameState.stimulus += amount;
+                playClickSound();
+
+                // Spawn float text
+                const rect = mainClickBtn.getBoundingClientRect();
+                spawnFloatingText(
+                    rect.left + rect.width / 2 + (Math.random() * 40 - 20),
+                    rect.top + 20,
+                    `+${amount}`
+                );
+
+                updateUI();
+            });
+
+            // Theme toggle
+            document.getElementById('themeToggleBtn').addEventListener('click', () => {
+                if (!gameState.unlockedDarkMode) {
+                    showToast("Débloquez le 'Thème Sombre' dans les améliorations!");
+                    return;
+                }
+                document.documentElement.classList.toggle('dark');
+                gameState.settings.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+                saveGameState();
+            });
+
+            // Audio toggle
+            document.getElementById('audioToggleBtn').addEventListener('click', () => {
+                gameState.settings.soundEnabled = !gameState.settings.soundEnabled;
+                document.getElementById('audioIcon').className = gameState.settings.soundEnabled 
+                    ? 'fa-solid fa-volume-high text-emerald-500' 
+                    : 'fa-solid fa-volume-xmark text-rose-500';
+                saveGameState();
+            });
+
+            // Tweaks Drawer Open/Close
+            const tweaksSidebar = document.getElementById('tweaksSidebar');
+            const tweaksOverlay = document.getElementById('tweaksOverlay');
+
+            document.getElementById('openTweaksBtn').addEventListener('click', () => {
+                tweaksSidebar.classList.remove('translate-x-full');
+                tweaksOverlay.classList.remove('opacity-0', 'pointer-events-none');
+            });
+
+            const closeTweaks = () => {
+                tweaksSidebar.classList.add('translate-x-full');
+                tweaksOverlay.classList.add('opacity-0', 'pointer-events-none');
+            };
+
+            document.getElementById('closeTweaksBtn').addEventListener('click', closeTweaks);
+            tweaksOverlay.addEventListener('click', closeTweaks);
+
+            // Tweaks Controls
+            document.getElementById('tweakFontSelect').addEventListener('change', (e) => {
+                document.body.classList.remove('font-sans', 'font-mono', 'font-fun');
+                document.body.classList.add(e.target.value);
+                gameState.settings.font = e.target.value;
+                saveGameState();
+            });
+
+            document.getElementById('tweakFloatingTextToggle').addEventListener('change', (e) => {
+                gameState.settings.floatingText = e.target.checked;
+                saveGameState();
+            });
+
+            document.getElementById('tweakSoundToggle').addEventListener('change', (e) => {
+                gameState.settings.soundEnabled = e.target.checked;
+                saveGameState();
+            });
+
+            // Reset Data
+            document.getElementById('resetAllDataBtn').addEventListener('click', () => {
+                if (confirm("Voulez-vous vraiment réinitialiser toute votre progression?")) {
+                    localStorage.removeItem(SAVE_KEY);
+                    location.reload();
+                }
+            });
+
+            // Mini Games buttons
+            document.getElementById('plinkoDropBtn').addEventListener('click', dropPlinkoBall);
+            document.getElementById('upgradePlinkoGreenBtn').addEventListener('click', () => {
+                if (gameState.stimulus >= gameState.plinkoGreenCost) {
+                    gameState.stimulus -= gameState.plinkoGreenCost;
+                    gameState.plinkoGreenMultiplier += 1;
+                    gameState.plinkoGreenCost *= 2;
+                    showToast("Slots verts améliorés!");
+                    updateUI();
+                }
+            });
+
+            document.getElementById('rocketLaunchBtn').addEventListener('click', startRocket);
+            document.getElementById('rocketCashoutBtn').addEventListener('click', cashoutRocket);
+
+            // Cheats
+            document.getElementById('cheatAddStimulus').addEventListener('click', () => {
+                gameState.stimulus += 10000;
+                updateUI();
+            });
+            document.getElementById('cheatReset').addEventListener('click', () => {
+                localStorage.removeItem(SAVE_KEY);
+                location.reload();
+            });
+
+            // DVD Buttons
+            document.getElementById('addDvdBtn').addEventListener('click', () => {
+                addDvdLogo();
+                gameState.dvdCount++;
+            });
+            document.getElementById('clearDvdBtn').addEventListener('click', () => {
+                dvdLogos = [];
+                gameState.dvdCount = 0;
+            });
+
+            // Restore unlocked widgets state
+            if (gameState.unlockedSpsDisplay) document.getElementById('spsContainer').classList.remove('hidden');
+            if (gameState.unlockedDvd) {
+                document.getElementById('dvdWidget').classList.remove('hidden');
+                for (let i = 0; i < (gameState.dvdCount || 1); i++) addDvdLogo();
+            }
+            if (gameState.unlockedPlinko) {
+                document.getElementById('plinkoCard').classList.remove('hidden');
+                initPlinkoCanvas();
+            }
+            if (gameState.unlockedRocket) {
+                document.getElementById('rocketCard').classList.remove('hidden');
+                initRocketCanvas();
+            }
+            if (gameState.unlockedDebug) document.getElementById('debugCard').classList.remove('hidden');
+
+            // Game Loop (SPS Generation & Auto-save every sec)
+            setInterval(() => {
+                if (gameState.sps > 0) {
+                    gameState.stimulus += gameState.sps;
+                    updateUI();
+                }
+                saveGameState();
+            }, 1000);
+
+            // Start animation loops
+            updateDvdCanvas();
+            updatePlinko();
+            updateUI();
+        };
+    </script>
+</body>
+</html>
