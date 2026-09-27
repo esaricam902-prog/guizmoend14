@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-slate-900 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cercle Musical & Physique - Sound & Physics Sandbox</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js for Audio Synthesis -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+        canvas {
+            touch-action: none;
+        }
+        /* Custom Scrollbar for Settings Menu */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(129, 140, 248, 0.8);
+        }
+    </style>
+</head>
+<body class="h-full w-full flex flex-col md:flex-row overflow-hidden bg-slate-950 text-slate-100">
+
+    <script>
+        // Gizmo Runtime Fallback Emulator
+        if (!window.gizmoRuntime) {
+            window.gizmoRuntime = {
+                activeApp: 'app3',
+                version: '1.2.0',
+                sendMessage: function(type, payload) {
+                    console.log('[GizmoRuntime Message]', type, payload);
+                },
+                onMessage: function(callback) {
+                    window.addEventListener('message', (e) => callback(e.data));
+                }
+            };
+        }
+    </script>
+
+    <!-- Main Interactive Area -->
+    <main class="relative flex-1 h-full w-full flex flex-col items-center justify-center p-2 sm:p-4 bg-radial from-slate-900 to-slate-950">
+        
+        <!-- Top Toolbar -->
+        <header class="absolute top-3 left-3 right-3 z-10 flex items-center justify-between gap-2 pointer-events-none">
+            <div class="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-800/80 shadow-lg pointer-events-auto">
+                <span class="text-xl">🎵</span>
+                <h1 class="text-sm font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-pink-400">
+                    Symphonie Circulaire
+                </h1>
+            </div>
+
+            <!-- Header Action Controls -->
+            <div class="flex items-center gap-2 pointer-events-auto">
+                <button id="btn-audio-toggle" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition text-xs font-semibold shadow-md shadow-indigo-600/30">
+                    <i data-lucide="volume-2" class="w-4 h-4"></i>
+                    <span id="audio-status-text">Démarrer Audio</span>
+                </button>
+
+                <button id="btn-toggle-menu" class="p-2 rounded-full bg-slate-800/90 hover:bg-slate-700 active:scale-95 transition text-slate-200 border border-slate-700 shadow-md">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Canvas Container -->
+        <div id="canvas-container" class="relative w-full h-full max-w-4xl max-h-[85vh] flex items-center justify-center">
+            <canvas id="gameCanvas" class="rounded-2xl cursor-crosshair shadow-2xl shadow-indigo-950/40"></canvas>
+            
+            <!-- Canvas Overlay Helper / Hints -->
+            <div id="canvas-hint" class="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none bg-slate-900/70 backdrop-blur-sm px-4 py-1.5 rounded-full text-xs text-slate-300 border border-slate-800 flex items-center gap-2 transition-opacity duration-300">
+                <i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5 text-indigo-400"></i>
+                <span>Cliquez sur le cercle pour créer/fermer une ouverture</span>
+            </div>
+        </div>
+
+        <!-- Floating Quick Controls -->
+        <div class="absolute bottom-4 right-4 z-10 flex items-center gap-2 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-full border border-slate-800 shadow-xl">
+            <button id="btn-add-ball" title="Ajouter une bille" class="p-2 rounded-full bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white transition active:scale-95">
+                <i data-lucide="circle-plus" class="w-5 h-5"></i>
+            </button>
+            <button id="btn-reset-balls" title="Réinitialiser les billes" class="p-2 rounded-full bg-rose-600/30 hover:bg-rose-600 text-rose-300 hover:text-white transition active:scale-95">
+                <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+            </button>
+            <button id="btn-pause-sim" title="Pause / Reprendre" class="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 transition active:scale-95">
+                <i id="pause-icon" data-lucide="pause" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </main>
+
+    <!-- Slide-out Settings Menu -->
+    <aside id="settings-drawer" class="fixed inset-y-0 right-0 z-30 w-full max-w-sm bg-slate-900/95 backdrop-blur-xl border-l border-slate-800 shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
+        
+        <!-- Drawer Header -->
+        <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i data-lucide="sliders" class="w-5 h-5 text-indigo-400"></i>
+                <h2 class="font-bold text-base text-slate-100">Paramètres & Musiques</h2>
+            </div>
+            <button id="btn-close-drawer" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Drawer Content (Scrollable) -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-6">
+            
+            <!-- Preset Tunes Section -->
+            <section class="space-y-2">
+                <label class="text-xs font-semibold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                    <i data-lucide="music" class="w-3.5 h-3.5"></i>
+                    Mélodie / Musique
+                </label>
+                <select id="select-melody" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+                    <option value="mario">Super Mario Bros Theme</option>
+                    <option value="megalovania">Megalovania (Undertale)</option>
+                    <option value="tetris">Tetris Theme (Korobeiniki)</option>
+                    <option value="starwars">Star Wars Imperial March</option>
+                    <option value="rushe">Rush E</option>
+                    <option value="zelda">Zelda Lullaby</option>
+                    <option value="scale">Gamme Pentatonique Libre</option>
+                </select>
+            </section>
+
+            <!-- Sound Instrument Synth Config -->
+            <section class="space-y-2">
+                <label class="text-xs font-semibold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                    <i data-lucide="radio" class="w-3.5 h-3.5"></i>
+                    Instrument
+                </label>
+                <select id="select-synth" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+                    <option value="synth">Synthétiseur Polyphonique</option>
+                    <option value="fm">Synthé FM (Électro)</option>
+                    <option value="am">Synthé AM (Rétro Arcade)</option>
+                    <option value="duo">Duo Synthé (Riche)</option>
+                </select>
+            </section>
+
+            <hr class="border-slate-800/80" />
+
+            <!-- Physics Parameters Section -->
+            <section class="space-y-4">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                    <i data-lucide="orbit" class="w-3.5 h-3.5"></i>
+                    Physique & Gravité
+                </h3>
+
+                <!-- Gravity Slider -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-400">Gravité</span>
+                        <span id="val-gravity" class="font-mono text-indigo-400">0.3</span>
+                    </div>
+                    <input id="slider-gravity" type="range" min="0" max="1" step="0.05" value="0.3" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <!-- Acceleration on Hit -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-400">Accélération aux rebonds (+%)</span>
+                        <span id="val-accel" class="font-mono text-indigo-400">2%</span>
+                    </div>
+                    <input id="slider-accel" type="range" min="1" max="1.15" step="0.01" value="1.02" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <!-- Bounciness (Restitution) -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-400">Élasticité du Rebond</span>
+                        <span id="val-bounciness" class="font-mono text-indigo-400">0.98</span>
+                    </div>
+                    <input id="slider-bounciness" type="range" min="0.5" max="1.05" step="0.01" value="0.98" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <!-- Max Ball Speed Limit -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-400">Vitesse maximale des billes</span>
+                        <span id="val-max-speed" class="font-mono text-indigo-400">25</span>
+                    </div>
+                    <input id="slider-max-speed" type="range" min="10" max="60" step="1" value="25" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </section>
+
+            <hr class="border-slate-800/80" />
+
+            <!-- Circle Geometry & Motion -->
+            <section class="space-y-4">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                    <i data-lucide="circle-dot" class="w-3.5 h-3.5"></i>
+                    Conteneur Circulaire
+                </h3>
+
+                <!-- Circle Radius -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-400">Taille du Cercle</span>
+                        <span id="val-radius" class="font-mono text-indigo-400">200px</span>
+                    </div>
+                    <input id="slider-radius" type="range" min="100" max="350" step="10" value="200" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <!-- Circle Rotation Speed -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-400">Vitesse de Rotation</span>
+                        <span id="val-rotation" class="font-mono text-indigo-400">0.01 rad/f</span>
+                    </div>
+                    <input id="slider-rotation" type="range" min="-0.05" max="0.05" step="0.002" value="0.01" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <!-- Hole Arc Angle Size -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-400">Taille de la Porte / Trou</span>
+                        <span id="val-hole-size" class="font-mono text-indigo-400">45°</span>
+                    </div>
+                    <input id="slider-hole-size" type="range" min="15" max="120" step="5" value="45" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </section>
+
+            <!-- Visual Effects Section -->
+            <section class="space-y-3">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                    Effets Visuels
+                </h3>
+                
+                <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 cursor-pointer hover:border-slate-700 transition">
+                    <span class="text-xs text-slate-300">Traînée lumineuse (Trail)</span>
+                    <input id="chk-trails" type="checkbox" checked class="w-4 h-4 accent-indigo-500 rounded bg-slate-800 border-slate-700">
+                </label>
+
+                <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 cursor-pointer hover:border-slate-700 transition">
+                    <span class="text-xs text-slate-300">Particules lors de l'impact</span>
+                    <input id="chk-particles" type="checkbox" checked class="w-4 h-4 accent-indigo-500 rounded bg-slate-800 border-slate-700">
+                </label>
+            </section>
+        </div>
+
+        <!-- Drawer Footer Action -->
+        <div class="p-4 border-t border-slate-800 bg-slate-950/50">
+            <button id="btn-clear-holes" class="w-full py-2.5 px-4 rounded-xl bg-rose-950/50 hover:bg-rose-900/60 border border-rose-800/50 text-rose-300 hover:text-rose-100 font-medium text-xs flex items-center justify-center gap-2 transition active:scale-98">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                Effacer toutes les ouvertures
+            </button>
+        </div>
+    </aside>
+
+    <script>
+        // Preset Musical Tunes & Frequencies
+        const MELODIES = {
+            mario: {
+                name: "Super Mario Bros",
+                notes: ["E5", "E5", "E5", "C5", "E5", "G5", "G4", "C5", "G4", "E4", "A4", "B4", "A#4", "A4", "G4", "E5", "G5", "A5", "F5", "G5", "E5", "C5", "D5", "B4"]
+            },
+            megalovania: {
+                name: "Megalovania",
+                notes: ["D4", "D4", "D5", "A4", "G#4", "G4", "F4", "D4", "F4", "G4", "C4", "C4", "D5", "A4", "G#4", "G4", "F4", "D4", "F4", "G4", "B3", "B3", "D5", "A4"]
+            },
+            tetris: {
+                name: "Tetris (Korobeiniki)",
+                notes: ["E5", "B4", "C5", "D5", "C5", "B4", "A4", "A4", "C5", "E5", "D5", "C5", "B4", "C5", "D5", "E5", "C5", "A4", "A4", "D5", "F5", "A5", "G5", "F5", "E5", "C5", "E5", "D5", "C5", "B4"]
+            },
+            starwars: {
+                name: "Star Wars Imperial March",
+                notes: ["G4", "G4", "G4", "D#4", "A#4", "G4", "D#4", "A#4", "G4", "D5", "D5", "D5", "D#5", "A#4", "F#4", "D#4", "A#4", "G4"]
+            },
+            rushe: {
+                name: "Rush E",
+                notes: ["E5", "E5", "E5", "E5", "E5", "E5", "E5", "E5", "E5", "E5", "B4", "C5", "D5", "E5", "D5", "C5", "B4", "A4", "A4", "C5", "E5", "A5", "G5", "F5", "E5"]
+            },
+            zelda: {
+                name: "Zelda Lullaby",
+                notes: ["B4", "D5", "A4", "B4", "D5", "A4", "B4", "D5", "A6", "G5", "D5", "C5", "B4", "A4"]
+            },
+            scale: {
+                name: "Gamme Pentatonique",
+                notes: ["C4", "D4", "E4", "G4", "A4", "C5", "D5", "E5", "G5", "A5", "C6"]
+            }
+        };
+
+        // Application State
+        const state = {
+            audioReady: false,
+            currentMelody: 'mario',
+            melodyIndex: 0,
+            currentSynthType: 'synth',
+            
+            // Physics Engine Parameters
+            gravity: 0.3,
+            accelOnHit: 1.02,
+            bounciness: 0.98,
+            maxSpeed: 25,
+            
+            // Container Properties
+            circleRadius: 200,
+            circleAngle: 0,
+            circleRotSpeed: 0.01,
+            holeSizeDeg: 45,
+            holes: [], // Array of hole objects { startAngle, endAngle }
+            
+            // Visual Toggle Options
+            enableTrails: true,
+            enableParticles: true,
+            isPaused: false
+        };
+
+        // DOM Element References
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvas-container');
+
+        // Audio Synth Instances
+        let synth = null;
+
+        // Dynamic Physics Objects
+        let balls = [];
+        let particles = [];
+
+        // Color Palettes for Balls
+        const BALL_COLORS = [
+            '#6366f1', '#ec4899', '#8b5cf6', '#06b6d4', 
+            '#10b981', '#f59e0b', '#f43f5e', '#a855f7'
+        ];
+
+        function initAudioEngine() {
+            if (synth) synth.dispose();
+
+            switch(state.currentSynthType) {
+                case 'fm':
+                    synth = new Tone.PolySynth(Tone.FMSynth, {
+                        harmonicity: 3,
+                        modulationIndex: 10,
+                        envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.5 }
+                    }).toDestination();
+                    break;
+                case 'am':
+                    synth = new Tone.PolySynth(Tone.AMSynth, {
+                        harmonicity: 2,
+                        oscillator: { type: 'square' }
+                    }).toDestination();
+                    break;
+                case 'duo':
+                    synth = new Tone.PolySynth(Tone.DuoSynth, {
+                        vibratoAmount: 0.2,
+                        harmonicity: 1.5
+                    }).toDestination();
+                    break;
+                case 'synth':
+                default:
+                    synth = new Tone.PolySynth(Tone.Synth, {
+                        oscillator: { type: 'triangle' },
+                        envelope: { attack: 0.005, decay: 0.3, sustain: 0.1, release: 0.8 }
+                    }).toDestination();
+                    break;
+            }
+            synth.volume.value = -6; // Normalization
+        }
+
+        async function startAudio() {
+            if (!state.audioReady) {
+                await Tone.start();
+                initAudioEngine();
+                state.audioReady = true;
+                
+                document.getElementById('audio-status-text').innerText = "Audio Actif";
+                document.getElementById('btn-audio-toggle').classList.replace('bg-indigo-600', 'bg-emerald-600');
+            }
+        }
+
+        function playNextMelodyNote(velocity = 0.8) {
+            if (!state.audioReady || !synth) return;
+
+            const melody = MELODIES[state.currentMelody].notes;
+            const note = melody[state.melodyIndex % melody.length];
+            state.melodyIndex = (state.melodyIndex + 1) % melody.length;
+
+            try {
+                synth.triggerAttackRelease(note, "8n", undefined, velocity);
+            } catch (err) {
+                console.warn("Audio trigger issue:", err);
+            }
+        }
+
+        class Ball {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                this.radius = 12;
+                this.color = BALL_COLORS[Math.floor(Math.random() * BALL_COLORS.length)];
+                this.history = [];
+            }
+
+            update(cx, cy, radius) {
+                if (state.isPaused) return;
+
+                // Store Position for Motion Trails
+                if (state.enableTrails) {
+                    this.history.push({ x: this.x, y: this.y });
+                    if (this.history.length > 12) this.history.shift();
+                } else {
+                    this.history = [];
+                }
+
+                // Apply Acceleration & Velocity Limits
+                this.vy += state.gravity;
+                
+                let speed = Math.hypot(this.vx, this.vy);
+                if (speed > state.maxSpeed) {
+                    this.vx = (this.vx / speed) * state.maxSpeed;
+                    this.vy = (this.vy / speed) * state.maxSpeed;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Collision with Rotating Circle Containment
+                const dx = this.x - cx;
+                const dy = this.y - cy;
+                const dist = Math.hypot(dx, dy);
+
+                // Collision check against perimeter boundary
+                if (dist + this.radius >= radius) {
+                    // Compute angle relative to center in radians [-PI, PI]
+                    let angle = Math.atan2(dy, dx);
+                    
+                    // Normalize angle relative to circle's current rotation
+                    let relAngle = (angle - state.circleAngle) % (Math.PI * 2);
+                    if (relAngle < 0) relAngle += Math.PI * 2;
+
+                    // Check if ball hits a hole opening
+                    let inHole = false;
+                    for (let hole of state.holes) {
+                        let hStart = hole.startAngle % (Math.PI * 2);
+                        let hEnd = hole.endAngle % (Math.PI * 2);
+
+                        if (hStart < 0) hStart += Math.PI * 2;
+                        if (hEnd < 0) hEnd += Math.PI * 2;
+
+                        if (hStart < hEnd) {
+                            if (relAngle >= hStart && relAngle <= hEnd) inHole = true;
+                        } else {
+                            if (relAngle >= hStart || relAngle <= hEnd) inHole = true;
+                        }
+                    }
+
+                    // If not escaping through hole, perform reflection bounce
+                    if (!inHole) {
+                        // Normal vector facing inward
+                        const nx = -dx / dist;
+                        const ny = -dy / dist;
+
+                        // Tangential velocity from circle rotation
+                        const rx = -dy;
+                        const ry = dx;
+                        const circleVx = -rx * state.circleRotSpeed;
+                        const circleVy = -ry * state.circleRotSpeed;
+
+                        // Relative velocity vector
+                        const rvx = this.vx - circleVx;
+                        const rvy = this.vy - circleVy;
+
+                        // Dot product for reflection along normal
+                        const dot = rvx * nx + rvy * ny;
+
+                        if (dot < 0) {
+                            // Elastic bounce + acceleration
+                            const impulse = (1 + state.bounciness) * dot;
+                            this.vx = (this.vx - impulse * nx) * state.accelOnHit;
+                            this.vy = (this.vy - impulse * ny) * state.accelOnHit;
+
+                            // Reposition ball inside circle boundary
+                            const overlap = (dist + this.radius) - radius;
+                            this.x += nx * overlap;
+                            this.y += ny * overlap;
+
+                            // Trigger Audio & Visual Effects
+                            playNextMelodyNote(Math.min(1.0, Math.hypot(this.vx, this.vy) / 15));
+                            if (state.enableParticles) {
+                                createParticleBurst(this.x, this.y, this.color);
+                            }
+                        }
+                    }
+                }
+            }
+
+            draw(ctx) {
+                // Draw Trails
+                if (state.enableTrails && this.history.length > 0) {
+                    for (let i = 0; i < this.history.length; i++) {
+                        const pt = this.history[i];
+                        const alpha = (i + 1) / this.history.length * 0.4;
+                        const r = this.radius * ((i + 1) / this.history.length);
+                        ctx.beginPath();
+                        ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+                        ctx.fillStyle = this.color;
+                        ctx.globalAlpha = alpha;
+                        ctx.fill();
+                    }
+                    ctx.globalAlpha = 1.0;
+                }
+
+                // Draw Ball Core
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 12;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Highlight Shine
+                ctx.beginPath();
+                ctx.arc(this.x - this.radius * 0.3, this.y - this.radius * 0.3, this.radius * 0.3, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.fill();
+            }
+        }
+
+        // Particle Visual Effect Entity
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.radius = Math.random() * 3 + 1;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 4 + 1;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.04 + 0.02;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= this.decay;
+            }
+
+            draw(ctx) {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        function createParticleBurst(x, y, color) {
+            for (let i = 0; i < 10; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        function resizeCanvas() {
+            const rect = canvasContainer.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+
+        function drawCircleContainer(cx, cy) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(state.circleAngle);
+
+            const R = state.circleRadius;
+
+            // Sort holes to render rim segments smoothly
+            let segments = [];
+            if (state.holes.length === 0) {
+                segments.push({ start: 0, end: Math.PI * 2 });
+            } else {
+                let sortedHoles = [...state.holes].sort((a, b) => a.startAngle - b.startAngle);
+                let currentAngle = 0;
+
+                for (let hole of sortedHoles) {
+                    if (hole.startAngle > currentAngle) {
+                        segments.push({ start: currentAngle, end: hole.startAngle });
+                    }
+                    currentAngle = Math.max(currentAngle, hole.endAngle);
+                }
+                if (currentAngle < Math.PI * 2) {
+                    segments.push({ start: currentAngle, end: Math.PI * 2 });
+                }
+            }
+
+            // Draw Outer Glowing Boundary Segments
+            for (let seg of segments) {
+                ctx.beginPath();
+                ctx.arc(0, 0, R, seg.start, seg.end);
+                ctx.lineWidth = 6;
+                ctx.strokeStyle = '#818cf8';
+                ctx.shadowColor = '#6366f1';
+                ctx.shadowBlur = 15;
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            // Rotate Container
+            if (!state.isPaused) {
+                state.circleAngle = (state.circleAngle + state.circleRotSpeed) % (Math.PI * 2);
+            }
+
+            // Render Container
+            drawCircleContainer(cx, cy);
+
+            // Update & Render Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.update();
+                p.draw(ctx);
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            // Update & Render Balls
+            for (let i = balls.length - 1; i >= 0; i--) {
+                let ball = balls[i];
+                ball.update(cx, cy, state.circleRadius);
+                ball.draw(ctx);
+
+                // Respawn balls that escape too far outside canvas bounds
+                const distFromCenter = Math.hypot(ball.x - cx, ball.y - cy);
+                if (distFromCenter > Math.max(canvas.width, canvas.height)) {
+                    balls.splice(i, 1);
+                    // Automatically add new ball back at center if all escaped
+                    if (balls.length === 0) {
+                        balls.push(new Ball(cx, cy - 20));
+                    }
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        function setupEventListeners() {
+            window.addEventListener('resize', resizeCanvas);
+
+            // Audio Start Button
+            document.getElementById('btn-audio-toggle').addEventListener('click', startAudio);
+
+            // Settings Drawer Toggle
+            const drawer = document.getElementById('settings-drawer');
+            document.getElementById('btn-toggle-menu').addEventListener('click', () => {
+                drawer.classList.remove('translate-x-full');
+            });
+            document.getElementById('btn-close-drawer').addEventListener('click', () => {
+                drawer.classList.add('translate-x-full');
+            });
+
+            // Quick Control Buttons
+            document.getElementById('btn-add-ball').addEventListener('click', () => {
+                const cx = canvas.width / 2;
+                const cy = canvas.height / 2;
+                balls.push(new Ball(cx, cy - 10));
+            });
+
+            document.getElementById('btn-reset-balls').addEventListener('click', () => {
+                const cx = canvas.width / 2;
+                const cy = canvas.height / 2;
+                balls = [new Ball(cx, cy - 10)];
+            });
+
+            document.getElementById('btn-pause-sim').addEventListener('click', () => {
+                state.isPaused = !state.isPaused;
+                const icon = document.getElementById('pause-icon');
+                if (state.isPaused) {
+                    icon.setAttribute('data-lucide', 'play');
+                } else {
+                    icon.setAttribute('data-lucide', 'pause');
+                }
+                lucide.createIcons();
+            });
+
+            document.getElementById('btn-clear-holes').addEventListener('click', () => {
+                state.holes = [];
+            });
+
+            // Settings Controls Binding
+            document.getElementById('select-melody').addEventListener('change', (e) => {
+                state.currentMelody = e.target.value;
+                state.melodyIndex = 0;
+            });
+
+            document.getElementById('select-synth').addEventListener('change', (e) => {
+                state.currentSynthType = e.target.value;
+                if (state.audioReady) initAudioEngine();
+            });
+
+            document.getElementById('slider-gravity').addEventListener('input', (e) => {
+                state.gravity = parseFloat(e.target.value);
+                document.getElementById('val-gravity').innerText = state.gravity.toFixed(2);
+            });
+
+            document.getElementById('slider-accel').addEventListener('input', (e) => {
+                state.accelOnHit = parseFloat(e.target.value);
+                const pct = Math.round((state.accelOnHit - 1) * 100);
+                document.getElementById('val-accel').innerText = `+${pct}%`;
+            });
+
+            document.getElementById('slider-bounciness').addEventListener('input', (e) => {
+                state.bounciness = parseFloat(e.target.value);
+                document.getElementById('val-bounciness').innerText = state.bounciness.toFixed(2);
+            });
+
+            document.getElementById('slider-max-speed').addEventListener('input', (e) => {
+                state.maxSpeed = parseInt(e.target.value, 10);
+                document.getElementById('val-max-speed').innerText = state.maxSpeed;
+            });
+
+            document.getElementById('slider-radius').addEventListener('input', (e) => {
+                state.circleRadius = parseInt(e.target.value, 10);
+                document.getElementById('val-radius').innerText = `${state.circleRadius}px`;
+            });
+
+            document.getElementById('slider-rotation').addEventListener('input', (e) => {
+                state.circleRotSpeed = parseFloat(e.target.value);
+                document.getElementById('val-rotation').innerText = `${state.circleRotSpeed} rad/f`;
+            });
+
+            document.getElementById('slider-hole-size').addEventListener('input', (e) => {
+                state.holeSizeDeg = parseInt(e.target.value, 10);
+                document.getElementById('val-hole-size').innerText = `${state.holeSizeDeg}°`;
+            });
+
+            document.getElementById('chk-trails').addEventListener('change', (e) => {
+                state.enableTrails = e.target.checked;
+            });
+
+            document.getElementById('chk-particles').addEventListener('change', (e) => {
+                state.enableParticles = e.target.checked;
+            });
+
+            // Interactive Circle Hole Toggle on Canvas Click
+            canvas.addEventListener('pointerdown', (e) => {
+                startAudio();
+
+                const rect = canvas.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+
+                const cx = canvas.width / 2;
+                const cy = canvas.height / 2;
+
+                const dx = clickX - cx;
+                const dy = clickY - cy;
+                const clickDist = Math.hypot(dx, dy);
+
+                // Allow creating hole if clicked near the circle boundary
+                if (Math.abs(clickDist - state.circleRadius) < 40) {
+                    let angle = Math.atan2(dy, dx);
+                    let relAngle = (angle - state.circleAngle) % (Math.PI * 2);
+                    if (relAngle < 0) relAngle += Math.PI * 2;
+
+                    const halfHole = (state.holeSizeDeg * Math.PI / 180) / 2;
+                    let holeStart = relAngle - halfHole;
+                    let holeEnd = relAngle + halfHole;
+
+                    // Toggle existing hole if overlapping, else create new
+                    let existingIndex = state.holes.findIndex(h => {
+                        return relAngle >= h.startAngle && relAngle <= h.endAngle;
+                    });
+
+                    if (existingIndex !== -1) {
+                        state.holes.splice(existingIndex, 1);
+                    } else {
+                        state.holes.push({ startAngle: holeStart, endAngle: holeEnd });
+                    }
+                }
+            });
+        }
+
+        window.addEventListener('load', () => {
+            // Initialize Icons
+            lucide.createIcons();
+
+            // Setup Canvas & Physics Engine
+            resizeCanvas();
+            setupEventListeners();
+
+            // Spawn Initial Ball
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            balls.push(new Ball(cx, cy - 20));
+
+            // Start Animation Frame Loop
+            animate();
+        });
+    </script>
+</body>
+</html>
