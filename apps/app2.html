@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Simulateur de Presse Hydraulique</title>
+
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+  <!-- Babel -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Physics Engine: Matter.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
+  <script>
+    // Émulateur pour Gizmo Runtime
+    window.gizmoRuntime = {
+      tweaks: (config) => {
+        const res = {};
+        Object.keys(config).forEach(k => {
+          res[k] = { useState: () => React.useState(config[k].value ?? config[k].valeur)[0] };
+        });
+        return res;
+      },
+      performHaptic: () => {}
+    };
+  </script>
+</head>
+<body class="bg-black text-white overflow-hidden select-none">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    const tweaks = window.gizmoRuntime.tweaks({
+      titleText: { index: 0, name: 'Titre', type: 'text', value: 'Simulateur de Presse Hydraulique' },
+      startButtonText: { index: 1, name: 'Bouton Start', type: 'text', value: 'Commencer le jeu' },
+      spawnButtonText: { index: 2, name: 'Apparition du bouton', type: 'text', value: 'Lancer un objet' },
+      spawnButtonColor: { index: 3, name: 'Apparition du bouton', type: 'color', value: "#5AFF2A" },
+      spawnButtonSize: { index: 4, name: 'Apparition du bouton', type: 'slider', value: 20.0 },
+      pressButtonText: { index: 5, name: 'Bouton Presse', type: 'text', value: 'Presser' },
+      pressButtonColor: { index: 6, name: 'Bouton Presse', type: 'color', value: '#E93323' },
+      pressButtonSize: { index: 7, name: 'Bouton Presse', type: 'slider', value: 20.0 },
+      backgroundColor: { index: 8, name: 'Arrière-plan', type: 'color', value: '#000000' },
+      crushPlatformColor: { index: 9, name: 'Plateforme Presse', type: 'color', value: '#2227F5' },
+      crushSpeed: { index: 10, name: 'Vitesse Presse', type: 'slider', value: 12.0 },
+      crushFragments: { index: 11, name: 'Fragments par écrasement', type: 'slider', value: 4.0 },
+      gravity: { index: 12, name: 'Gravité', type: 'slider', value: 1.0 },
+      objectSize: { index: 13, name: 'Taille Objet', type: 'slider', value: 70 },
+      showMoneyLabel: { index: 14, name: 'Affiche Label x10', type: 'toggle', value: true },
+      shopTitle: { index: 15, name: 'Titre Boutique', type: 'text', value: '🛒 Boutique' },
+      ownedText: { index: 16, name: 'Texte Possédé', type: 'text', value: 'Possédé' },
+      buyText: { index: 17, name: 'Texte Acheter', type: 'text', value: 'Acheter' },
+      notEnoughText: { index: 18, name: 'Texte Pas Assez', type: 'text', value: 'Pas assez' },
+      maxReachedText: { index: 19, name: 'Texte Max Atteint', type: 'text', value: 'Max atteint' },
+      winText: { index: 20, name: 'Texte Victoire', type: 'text', value: 'Vous avez fini le jeu !' }
+    });
+
+    const COLORS = ['#E93323', '#E432B7', '#2227F5', '#53B5F9', '#75F94C', '#EFB63F', '#8762F6', '#FFDD46'];
+    const SHAPES = ['cercle', 'carré', 'rectangle', 'triangle'];
+    const STORAGE_KEY = 'hydraulic-press-save-v1';
+
+    function HydraulicPressGame() {
+      const titleText = tweaks.titleText.useState();
+      const startButtonText = tweaks.startButtonText.useState();
+      const spawnButtonText = tweaks.spawnButtonText.useState();
+      const spawnButtonColor = tweaks.spawnButtonColor.useState();
+      const spawnButtonSize = tweaks.spawnButtonSize.useState();
+      const pressButtonText = tweaks.pressButtonText.useState();
+      const pressButtonColor = tweaks.pressButtonColor.useState();
+      const pressButtonSize = tweaks.pressButtonSize.useState();
+      const backgroundColor = tweaks.backgroundColor.useState();
+      const crushPlatformColor = tweaks.crushPlatformColor.useState();
+      const crushSpeed = tweaks.crushSpeed.useState();
+      const crushFragments = tweaks.crushFragments.useState();
+      const gravity = tweaks.gravity.useState();
+      const objectSize = tweaks.objectSize.useState();
+      const showMoneyLabel = tweaks.showMoneyLabel.useState();
+      const shopTitle = tweaks.shopTitle.useState();
+      const ownedText = tweaks.ownedText.useState();
+      const buyText = tweaks.buyText.useState();
+      const notEnoughText = tweaks.notEnoughText.useState();
+      const maxReachedText = tweaks.maxReachedText.useState();
+      const winText = tweaks.winText.useState();
+
+      const [money, setMoney] = useState(0);
+      const [moneyMultiplier, setMoneyMultiplier] = useState(1);
+      const [spawnCooldownReduction, setSpawnCooldownReduction] = useState(0);
+      const [spawnCountUpgrades, setSpawnCountUpgrades] = useState(0);
+      const [allShapesMultiplier, setAllShapesMultiplier] = useState(false);
+      const [gameStarted, setGameStarted] = useState(false);
+      const [gameCompleted, setGameCompleted] = useState(false);
+
+      const [isPressing, setIsPressing] = useState(false);
+      const [showShop, setShowShop] = useState(false);
+      const [buttonColorIndex, setButtonColorIndex] = useState(0);
+
+      const sceneRef = useRef(null);
+      const engineRef = useRef(null);
+      const renderRef = useRef(null);
+      const runnerRef = useRef(null);
+      const crushPlatformRef = useRef(null);
+      const rafRef = useRef(null);
+      const overlayCanvasRef = useRef(null);
+      const objectsRef = useRef(new Map());
+      const crushedRef = useRef(new Set());
+      const spawnUpgradePrices = [500, 2000, 5000, 10000, 20000];
+
+      // Charger la sauvegarde
+      useEffect(() => {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            const data = JSON.parse(saved);
+            setMoney(data.money ?? 0);
+            setMoneyMultiplier(data.moneyMultiplier ?? 1);
+            setSpawnCooldownReduction(data.spawnCooldownReduction ?? 0);
+            setSpawnCountUpgrades(data.spawnCountUpgrades ?? 0);
+            setAllShapesMultiplier(data.allShapesMultiplier ?? false);
+            setGameCompleted(data.gameCompleted ?? false);
+          }
+        } catch (e) {
+          console.error("Échec du chargement de la sauvegarde", e);
+        }
+      }, []);
+
+      // Sauvegarde automatique
+      useEffect(() => {
+        const save = () => {
+          try {
+            const data = {
+              money,
+              moneyMultiplier,
+              spawnCooldownReduction,
+              spawnCountUpgrades,
+              allShapesMultiplier,
+              gameCompleted
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          } catch (e) {
+            console.error("Échec de l'enregistrement", e);
+          }
+        };
+        const interval = setInterval(save, 5000);
+        return () => clearInterval(interval);
+      }, [money, moneyMultiplier, spawnCooldownReduction, spawnCountUpgrades, allShapesMultiplier, gameCompleted]);
+
+      // Moteur physique Matter.js
+      useEffect(() => {
+        if (!sceneRef.current || !gameStarted) return;
+        const { Engine, Render, Runner, Bodies, Composite, Mouse, MouseConstraint, Events } = window.Matter;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        const engine = Engine.create();
+        engine.world.gravity.y = gravity;
+        engineRef.current = engine;
+
+        const render = Render.create({
+          element: sceneRef.current,
+          engine: engine,
+          options: {
+            width,
+            height,
+            wireframes: false,
+            background: backgroundColor,
+          },
+        });
+        renderRef.current = render;
+
+        const ground = Bodies.rectangle(width / 2, height - 30, width, 60, { isStatic: true, render: { fillStyle: '#4A4A4A' } });
+        const wallLeft = Bodies.rectangle(-30, height / 2, 60, height, { isStatic: true, render: { fillStyle: '#4A4A4A' } });
+        const wallRight = Bodies.rectangle(width + 30, height / 2, 60, height, { isStatic: true, render: { fillStyle: '#4A4A4A' } });
+        const crushPlatform = Bodies.rectangle(width / 2, 60, width, 40, { isStatic: true, render: { fillStyle: crushPlatformColor } });
+        crushPlatformRef.current = crushPlatform;
+        const ceiling = Bodies.rectangle(width / 2, 10, width, 20, { isStatic: true, render: { fillStyle: '#4A4A4A' } });
+
+        Composite.add(engine.world, [ground, wallLeft, wallRight, crushPlatform, ceiling]);
+
+        const mouse = Mouse.create(render.canvas);
+        const mouseConstraint = MouseConstraint.create(engine, {
+          mouse: mouse,
+          constraint: { stiffness: 0.8, render: { visible: false } },
+        });
+        Composite.add(engine.world, mouseConstraint);
+        render.mouse = mouse;
+
+        const crushObject = (body) => {
+          if (body.isStatic || crushedRef.current.has(body.id)) return;
+          crushedRef.current.add(body.id);
+          window.gizmoRuntime.performHaptic('heavy');
+          
+          const objectData = objectsRef.current.get(body.id);
+          if (!objectData) return;
+
+          const { size, shapeType, color, isMultiplier } = objectData;
+          const newSize = size * 0.6;
+          const moneyReward = (isMultiplier ? 10 : 1) * moneyMultiplier;
+
+          if (newSize < 15) {
+            Composite.remove(engine.world, body);
+            objectsRef.current.delete(body.id);
+            setMoney(prev => prev + moneyReward);
+            return;
+          }
+
+          const x = body.position.x;
+          const y = body.position.y;
+
+          for (let i = 0; i < crushFragments; i++) {
+            const angle = (i / crushFragments) * Math.PI * 2;
+            const newX = x + Math.cos(angle) * 20;
+            const newY = y + Math.sin(angle) * 20;
+            let newBody;
+
+            if (shapeType === 'cercle') newBody = Bodies.circle(newX, newY, newSize / 2, { render: { fillStyle: color }, restitution: 0.6 });
+            else if (shapeType === 'carré') newBody = Bodies.rectangle(newX, newY, newSize, newSize, { render: { fillStyle: color }, restitution: 0.6 });
+            else if (shapeType === 'rectangle') newBody = Bodies.rectangle(newX, newY, newSize * 1.5, newSize * 0.7, { render: { fillStyle: color }, restitution: 0.6 });
+            else newBody = Bodies.polygon(newX, newY, 3, newSize / 1.5, { render: { fillStyle: color }, restitution: 0.6 });
+
+            objectsRef.current.set(newBody.id, { size: newSize, shapeType, color, isMultiplier });
+            Composite.add(engine.world, newBody);
+          }
+
+          Composite.remove(engine.world, body);
+          objectsRef.current.delete(body.id);
+          setMoney(prev => prev + moneyReward);
+        };
+
+        Events.on(engine, 'collisionStart', (event) => {
+          event.pairs.forEach((pair) => {
+            const { bodyA, bodyB } = pair;
+            if (bodyA === crushPlatform || bodyA === ceiling) crushObject(bodyB);
+            else if (bodyB === crushPlatform || bodyB === ceiling) crushObject(bodyA);
+          });
+        });
+
+        Render.run(render);
+        const runner = Runner.create();
+        runnerRef.current = runner;
+        Runner.run(runner, engine);
+
+        return () => {
+          Runner.stop(runner);
+          Render.stop(render);
+          Composite.clear(engine.world, false);
+          Engine.clear(engine);
+          render.canvas?.remove();
+        };
+      }, [backgroundColor, crushFragments, gameStarted, moneyMultiplier, gravity]);
+
+      // Animation presse
+      useEffect(() => {
+        if (!crushPlatformRef.current || !engineRef.current) return;
+        const { Body } = window.Matter;
+        const groundY = window.innerHeight - 60;
+        const targetY = isPressing ? groundY - 20 : 60;
+
+        const animate = () => {
+          const currentY = crushPlatformRef.current.position.y;
+          const diff = targetY - currentY;
+          if (Math.abs(diff) > 0.5) {
+            const direction = diff > 0 ? 1 : -1;
+            Body.setPosition(crushPlatformRef.current, {
+              x: crushPlatformRef.current.position.x,
+              y: currentY + direction * crushSpeed,
+            });
+            rafRef.current = requestAnimationFrame(animate);
+          } else {
+            Body.setPosition(crushPlatformRef.current, {
+              x: crushPlatformRef.current.position.x,
+              y: targetY,
+            });
+          }
+        };
+        rafRef.current = requestAnimationFrame(animate);
+        return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+      }, [isPressing, crushSpeed]);
+
+      // Overlay canvas (labels x10$)
+      useEffect(() => {
+        if (!sceneRef.current || !gameStarted) return;
+        const overlayCanvas = document.createElement('canvas');
+        overlayCanvas.width = window.innerWidth;
+        overlayCanvas.height = window.innerHeight;
+        overlayCanvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:5;';
+        document.body.appendChild(overlayCanvas);
+        overlayCanvasRef.current = overlayCanvas;
+
+        const ctx = overlayCanvas.getContext('2d');
+        if (!ctx) return;
+
+        let labelRafId;
+        const drawLabels = () => {
+          ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+          if (engineRef.current && showMoneyLabel) {
+            const bodies = window.Matter.Composite.allBodies(engineRef.current.world);
+            bodies.forEach((body) => {
+              const data = objectsRef.current.get(body.id);
+              if (data && data.isMultiplier) {
+                ctx.save();
+                ctx.fillStyle = '#FFDD46';
+                ctx.font = 'bold 20px Arial';
+                ctx.textAlign = 'center';
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 3;
+                ctx.strokeText('x10$', body.position.x, body.position.y);
+                ctx.fillText('x10$', body.position.x, body.position.y);
+                ctx.restore();
+              }
+            });
+          }
+          labelRafId = requestAnimationFrame(drawLabels);
+        };
+        labelRafId = requestAnimationFrame(drawLabels);
+        return () => { cancelAnimationFrame(labelRafId); overlayCanvas.remove(); };
+      }, [gameStarted, showMoneyLabel]);
+
+      const spawnObject = useCallback(() => {
+        if (!engineRef.current || !crushPlatformRef.current) return;
+        const { Body, Bodies, Composite } = window.Matter;
+        const width = window.innerWidth;
+        const spawnCount = 1 + spawnCountUpgrades;
+
+        Body.setPosition(crushPlatformRef.current, { x: crushPlatformRef.current.position.x, y: 60 });
+        setIsPressing(false);
+
+        for (let i = 0; i < spawnCount; i++) {
+          const shapeType = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+          const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+          const x = Math.random() * (width - 100) + 50;
+          const y = 150;
+          const size = objectSize;
+          const shouldBeX10 = allShapesMultiplier ? true : Math.random() < 0.1;
+          let body;
+
+          if (shapeType === 'cercle') body = Bodies.circle(x, y, size / 2, { render: { fillStyle: color }, restitution: 0.6 });
+          else if (shapeType === 'carré') body = Bodies.rectangle(x, y, size, size, { render: { fillStyle: color }, restitution: 0.6 });
+          else if (shapeType === 'rectangle') body = Bodies.rectangle(x, y, size * 1.5, size * 0.7, { render: { fillStyle: color }, restitution: 0.6 });
+          else body = Bodies.polygon(x, y, 3, size / 1.5, { render: { fillStyle: color }, restitution: 0.6 });
+
+          objectsRef.current.set(body.id, { size, shapeType, color, isMultiplier: shouldBeX10 });
+          Composite.add(engineRef.current.world, body);
+        }
+      }, [spawnCountUpgrades, objectSize, allShapesMultiplier]);
+
+      const handleSpawn = () => {
+        spawnObject();
+        window.gizmoRuntime.performHaptic('light');
+      };
+
+      useEffect(() => {
+        if (!gameStarted) {
+          const colorInterval = setInterval(() => setButtonColorIndex(prev => (prev + 1) % COLORS.length), 1000);
+          return () => clearInterval(colorInterval);
+        }
+      }, [gameStarted]);
+
+      if (!gameStarted) {
+        return (
+          <>
+            <div aria-hidden className="fixed inset-0 -z-10" style={{ background: backgroundColor }} />
+            <div className="w-full h-screen flex flex-col items-center justify-center gap-8 px-4">
+              <h1 className="text-5xl font-bold text-white text-center">{titleText}</h1>
+              <button
+                onClick={() => setGameStarted(true)}
+                className="px-12 py-4 text-white font-bold text-2xl rounded-xl active:scale-95 transition-all shadow-lg"
+                style={{ backgroundColor: COLORS[buttonColorIndex], transition: 'background-color 1s ease-in-out' }}
+              >
+                {startButtonText}
+              </button>
+            </div>
+          </>
+        );
+      }
+
+      if (gameCompleted) {
+        return (
+          <div className="fixed inset-0 bg-black z-50 flex items-center justify-center p-8">
+            <h1 className="text-5xl font-bold text-white text-center">{winText}</h1>
+          </div>
+        );
+      }
+
+      return (
+        <>
+          <div aria-hidden className="fixed inset-0 -z-10" style={{ background: backgroundColor }} />
+          <div ref={sceneRef} className="w-full h-screen" style={{ touchAction: 'none' }} />
+          <div className="fixed top-0 left-0 z-10 p-4 text-white font-bold text-2xl drop-shadow-md">💵 {money} €</div>
+
+          <div className="fixed bottom-0 left-0 right-0 flex gap-4 justify-center px-4 z-10" style={{ height: '80px', paddingBottom: '20px' }}>
+            <button
+              onMouseDown={() => { setIsPressing(true); window.gizmoRuntime.performHaptic('medium'); }}
+              onMouseUp={() => setIsPressing(false)}
+              onTouchStart={() => { setIsPressing(true); window.gizmoRuntime.performHaptic('medium'); }}
+              onTouchEnd={() => setIsPressing(false)}
+              className="rounded-lg font-bold text-white transition-all active:scale-95 flex items-center justify-center flex-1 shadow-lg"
+              style={{ backgroundColor: pressButtonColor, fontSize: `${pressButtonSize}px`, height: '60px' }}
+            >
+              {pressButtonText}
+            </button>
+            <button
+              onClick={handleSpawn}
+              className="rounded-lg font-bold text-white transition-all active:scale-95 flex items-center justify-center flex-1 shadow-lg"
+              style={{ backgroundColor: spawnButtonColor, fontSize: `${spawnButtonSize}px`, height: '60px' }}
+            >
+              {spawnButtonText}
+            </button>
+          </div>
+
+          <button
+            onClick={() => setShowShop(true)}
+            className="fixed top-0 right-0 z-10 rounded-lg font-bold text-white transition-all active:scale-95 flex items-center justify-center m-4 shadow-lg"
+            style={{ backgroundColor: '#8762F6', fontSize: '28px', height: '60px', width: '60px' }}
+          >
+            🛒
+          </button>
+
+          {showShop && (
+            <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+              <div className="bg-gray-900 rounded-2xl p-6 max-w-sm w-full border-4 border-purple-500 flex flex-col max-h-[80vh]">
+                <div className="flex justify-between items-center mb-4">
+                  <h1 className="text-2xl font-bold text-white">{shopTitle}</h1>
+                  <button onClick={() => setShowShop(false)} className="text-white text-2xl font-bold">✕</button>
+                </div>
+                <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+                  {/* Argent doublé */}
+                  <div className="bg-gray-800 rounded-lg p-3 border-2 border-green-400">
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-white font-bold">💵 Argent Double</p>
+                      <p className="text-green-400 font-bold">100 €</p>
+                    </div>
+                    <button
+                      onClick={() => { if (money >= 100 && moneyMultiplier === 1) { setMoney(m => m - 100); setMoneyMultiplier(2); } }}
+                      disabled={money < 100 || moneyMultiplier > 1}
+                      className="w-full bg-green-400 text-black font-bold py-2 rounded-lg disabled:opacity-50"
+                    >
+                      {moneyMultiplier > 1 ? ownedText : money >= 100 ? buyText : notEnoughText}
+                    </button>
+                  </div>
+
+                  {/* Spawn Rapide */}
+                  <div className="bg-gray-800 rounded-lg p-3 border-2 border-yellow-400">
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-white font-bold">⚡ Spawn Rapide</p>
+                      <p className="text-yellow-400 font-bold">200 €</p>
+                    </div>
+                    <button
+                      onClick={() => { if (money >= 200 && spawnCooldownReduction < 3) { setMoney(m => m - 200); setSpawnCooldownReduction(p => p + 1); } }}
+                      disabled={money < 200 || spawnCooldownReduction >= 3}
+                      className="w-full bg-yellow-400 text-black font-bold py-2 rounded-lg disabled:opacity-50"
+                    >
+                      {spawnCooldownReduction >= 3 ? maxReachedText : money >= 200 ? buyText : notEnoughText}
+                    </button>
+                  </div>
+
+                  {/* Faire apparaître +1 */}
+                  <div className="bg-gray-800 rounded-lg p-3 border-2 border-blue-400">
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-white font-bold">📦 Faire apparaître +1 objet</p>
+                      <p className="text-blue-400 font-bold">{spawnCountUpgrades < 5 ? spawnUpgradePrices[spawnCountUpgrades] : 'Max'} €</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const price = spawnUpgradePrices[spawnCountUpgrades];
+                        if (money >= price && spawnCountUpgrades < 5) { setMoney(m => m - price); setSpawnCountUpgrades(p => p + 1); }
+                      }}
+                      disabled={money < spawnUpgradePrices[spawnCountUpgrades] || spawnCountUpgrades >= 5}
+                      className="w-full bg-blue-400 text-black font-bold py-2 rounded-lg disabled:opacity-50"
+                    >
+                      {spawnCountUpgrades >= 5 ? maxReachedText : money >= spawnUpgradePrices[spawnCountUpgrades] ? buyText : notEnoughText}
+                    </button>
+                  </div>
+
+                  {/* Tous x10 */}
+                  <div className="bg-gray-800 rounded-lg p-3 border-2 border-orange-400">
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-white font-bold">✨ Tout en x10</p>
+                      <p className="text-orange-400 font-bold">50000 €</p>
+                    </div>
+                    <button
+                      onClick={() => { if (money >= 50000 && !allShapesMultiplier) { setMoney(m => m - 50000); setAllShapesMultiplier(true); } }}
+                      disabled={money < 50000 || allShapesMultiplier}
+                      className="w-full bg-orange-400 text-black font-bold py-2 rounded-lg disabled:opacity-50"
+                    >
+                      {allShapesMultiplier ? ownedText : money >= 50000 ? buyText : notEnoughText}
+                    </button>
+                  </div>
+
+                  {/* Finir le jeu */}
+                  <div className="bg-gray-800 rounded-lg p-3 border-2 border-red-400">
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-white font-bold">🏆 Finir le jeu</p>
+                      <p className="text-red-400 font-bold">100000 €</p>
+                    </div>
+                    <button
+                      onClick={() => { if (money >= 100000) { setMoney(m => m - 100000); setGameCompleted(true); } }}
+                      disabled={money < 100000}
+                      className="w-full bg-red-400 text-black font-bold py-2 rounded-lg disabled:opacity-50"
+                    >
+                      {money >= 100000 ? buyText : notEnoughText}
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-4 text-center text-white font-bold">💵 Total : {money} €</div>
+              </div>
+            </div>
+          )}
+        </>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<HydraulicPressGame />);
+  </script>
+</body>
+</html>
