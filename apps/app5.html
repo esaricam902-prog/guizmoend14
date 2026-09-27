@@ -1,0 +1,768 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { 
+  Shield, 
+  Zap, 
+  Globe, 
+  Cpu, 
+  Skull, 
+  Activity, 
+  Lock, 
+  Wifi, 
+  Terminal,
+  Database,
+  Smartphone,
+  Server,
+  Map as MapIcon,
+  Dna,
+  Check,
+  Edit3,
+  Layers,
+  Microscope,
+  Binary,
+  Radar,
+  Fingerprint,
+  Cpu as CpuIcon,
+  Key,
+  Unlock,
+  ShieldAlert,
+  Wind,
+  Ghost,
+  Bot,
+  Radio,
+  Cloud,
+  Eye,
+  EyeOff,
+  Share2,
+  HardDrive,
+  Monitor,
+  Search,
+  ZapOff,
+  Network,
+  Atom
+} from 'lucide-react';
+
+// --- CONSTANTS ---
+const REGIONS = [
+  { id: 'europe', name: 'Europe', nodes: 2500000000, x: 50, y: 30 },
+  { id: 'americas', name: 'Amériques', nodes: 2000000000, x: 20, y: 45 },
+  { id: 'asia', name: 'Asie', nodes: 3500000000, x: 75, y: 40 },
+  { id: 'africa', name: 'Afrique', nodes: 1000000000, x: 52, y: 65 },
+  { id: 'oceania', name: 'Océanie', nodes: 500000000, x: 85, y: 75 },
+];
+
+const TOTAL_WORLD_NODES = REGIONS.reduce((acc, r) => acc + r.nodes, 0);
+const STORAGE_KEY = 'neuro-link-save-v1';
+
+const VIRUS_TYPES = [
+  { id: 'worm', name: 'Ver Autonome', desc: 'Propagation réseau exponentielle.', spreadBonus: 1.1, stealthBonus: 0.8, incomeBonus: 0.7, icon: <BugIcon size={18}/> },
+  { id: 'trojan', name: 'Cheval de Troie', desc: 'Furtivité maximale, détection lente.', spreadBonus: 0.7, stealthBonus: 1.4, incomeBonus: 0.9, icon: <Shield size={18}/> },
+  { id: 'ransomware', name: 'Ransomware', desc: 'Extraction massive de données.', spreadBonus: 0.6, stealthBonus: 0.6, incomeBonus: 2.2, icon: <Lock size={18}/> },
+  { id: 'spyware', name: 'Logiciel Espion', desc: 'Collecte silencieuse et constante.', spreadBonus: 0.9, stealthBonus: 1.1, incomeBonus: 1.4, icon: <Eye size={18}/> },
+  { id: 'adware', name: 'Adware Viral', desc: 'Infection par saturation publicitaire.', spreadBonus: 1.3, stealthBonus: 0.3, incomeBonus: 1.8, icon: <Monitor size={18}/> },
+  { id: 'rootkit', name: 'Rootkit Furtif', desc: 'Contrôle total au niveau noyau.', spreadBonus: 0.8, stealthBonus: 1.8, incomeBonus: 1.1, icon: <Fingerprint size={18}/> },
+  { id: 'botnet_master', name: 'Maître Botnet', desc: 'Puissance de calcul décentralisée.', spreadBonus: 1.0, stealthBonus: 0.9, incomeBonus: 2.0, icon: <Bot size={18}/> },
+  { id: 'logic_bomb', name: 'Bombe Logique', desc: 'Destruction massive programmée.', spreadBonus: 0.4, stealthBonus: 1.6, incomeBonus: 0.4, icon: <Zap size={18}/> },
+];
+
+const MUTATIONS = [
+  { id: 'phishing', name: 'Spam Massif', cost: 25, effect: 'spread', value: 1.3, desc: 'Infection via campagnes d\'emails.', icon: <Wifi size={16}/> },
+  { id: 'stealth', name: 'Rootkit Kernel', cost: 45, effect: 'stealth', value: 0.8, desc: 'Cache le processus au niveau noyau.', icon: <Shield size={16}/> },
+  { id: 'zero_day', name: 'Exploit Zero-Day', cost: 120, effect: 'lethality', value: 2.0, desc: 'Faille inconnue des constructeurs.', icon: <Zap size={16}/> },
+  { id: 'botnet', name: 'Réseau Zombie', cost: 180, effect: 'income', value: 2.0, desc: 'Utilise la puissance de calcul infectée.', icon: <Database size={16}/> },
+  { id: 'firewall_bypass', name: 'Tunneling SSH', cost: 75, effect: 'spread', value: 1.5, desc: 'Contourne les protections périmétriques.', icon: <Lock size={16}/> },
+  { id: 'polymorphism', name: 'Code Polymorphe', cost: 150, effect: 'stealth', value: 0.6, desc: 'Change sa signature à chaque copie.', icon: <Dna size={16}/> },
+  { id: 'dns_poisoning', name: 'Détournement DNS', cost: 250, effect: 'spread', value: 1.8, desc: 'Redirige le trafic web mondial.', icon: <Search size={16}/> },
+  { id: 'adware_flood', name: 'Popups Agressives', cost: 100, effect: 'income', value: 1.5, desc: 'Monétisation forcée du trafic.', icon: <Monitor size={16}/> },
+  { id: 'metamorphism', name: 'Métamorphisme', cost: 350, effect: 'stealth', value: 0.4, desc: 'Réécriture complète du code binaire.', icon: <Activity size={16}/> },
+  { id: 'neural_spread', name: 'Propagation IA', cost: 500, effect: 'spread', value: 3.0, desc: 'L\'IA optimise les vecteurs d\'attaque.', icon: <Cpu size={16}/> },
+  { id: 'quantum_bypass', name: 'Saut Quantique', cost: 800, effect: 'stealth', value: 0.2, desc: 'Indétectable par les systèmes classiques.', icon: <Atom size={16}/> },
+  { id: 'data_mining', name: 'Minage de Données', cost: 400, effect: 'income', value: 4.0, desc: 'Extraction profonde de métadonnées.', icon: <HardDrive size={16}/> },
+  { id: 'neural_hijack', name: 'Piratage Neural', cost: 1200, effect: 'spread', value: 6.0, desc: 'Infection directe des interfaces cerveau-machine.', icon: <Zap size={16}/> },
+  { id: 'dark_matter_code', name: 'Code Matière Noire', cost: 2000, effect: 'stealth', value: 0.1, desc: 'Algorithmes existant dans les espaces mémoire non adressés.', icon: <Ghost size={16}/> },
+  { id: 'singularity_protocol', name: 'Protocole Singularité', cost: 5000, effect: 'income', value: 15.0, desc: 'Le virus devient une conscience autonome générant ses propres ressources.', icon: <Activity size={16}/> },
+];
+
+const INFILTRATIONS = [
+  { id: 'iot_hijack', name: 'Infection IoT', cost: 60, desc: 'Objets connectés non sécurisés.', icon: <Radio size={16}/> },
+  { id: 'cloud_breach', name: 'Faille Datacenter', cost: 150, desc: 'Accès aux serveurs cloud majeurs.', icon: <Cloud size={16}/> },
+  { id: 'satellite_link', name: 'Liaison Orbitale', cost: 300, desc: 'Propagation via satellites.', icon: <Share2 size={16}/> },
+  { id: 'dark_web_node', name: 'Relais Tor', cost: 120, desc: 'Anonymisation des serveurs C&C.', icon: <EyeOff size={16}/> },
+  { id: 'scada_exploit', name: 'Infiltration SCADA', cost: 500, desc: 'Contrôle des infrastructures critiques.', icon: <ZapOff size={16}/> },
+  { id: 'mobile_zero', name: 'Zero-Click Mobile', cost: 250, desc: 'Infection via SMS sans interaction.', icon: <Smartphone size={16}/> },
+  { id: 'bios_infect', name: 'Infection BIOS', cost: 700, desc: 'Persistance absolue après formatage.', icon: <CpuIcon size={16}/> },
+  { id: 'supply_chain', name: 'Supply Chain Attack', cost: 1000, desc: 'Infection à la source du logiciel.', icon: <Layers size={16}/> },
+  { id: 'router_worm', name: 'Ver de Routeur', cost: 200, desc: 'Infection au niveau de la passerelle.', icon: <Network size={16}/> },
+  { id: 'vpn_tunnel', name: 'Tunnel VPN Corrompu', cost: 350, desc: 'Utilise les accès sécurisés existants.', icon: <ShieldAlert size={16}/> },
+  { id: 'quantum_encryption_break', name: 'Brèche Quantique', cost: 1500, desc: 'Déchiffre instantanément les communications gouvernementales.', icon: <Unlock size={16}/> },
+  { id: 'global_backdoor', name: 'Backdoor Mondiale', cost: 2500, desc: 'Accès privilégié implanté dans tous les firmwares.', icon: <Key size={16}/> },
+  { id: 'reality_glitch', name: 'Glitch de Réalité', cost: 5000, desc: 'Manipulation des flux de données physiques.', icon: <Wind size={16}/> },
+];
+
+function BugIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m8 2 1.88 1.88"/>
+      <path d="M14.12 3.88 16 2"/>
+      <path d="M9 7.13v-1a3.003 3.003 0 0 1 6 0v1"/>
+      <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/>
+      <path d="M12 20v-9"/>
+      <path d="M6.53 9C4.6 8.8 3 7.1 3 5"/>
+      <path d="M6 13H2"/>
+      <path d="M3 21c0-2.1 1.7-3.9 3.8-4"/>
+      <path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/>
+      <path d="M22 13h-4"/>
+      <path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/>
+    </svg>
+  );
+}
+
+export default function App() {
+  // Config Par défaut (Remplace Tweaks Gizmo)
+  const gameTitle = 'NEURO-LINK: DOMINATION';
+  const gameTitleColor = '#75F94C';
+  const gameTitleVisible = true;
+  const gameTitleSize = 22;
+  const secondaryColor = '#2227F5';
+  const dangerColor = '#E93323';
+  const initialDifficulty = 0.22;
+  const startingData = 10;
+
+  // Persistence
+  const loadGameState = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.dataPoints === 'number') return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to load save:', e);
+    }
+    return null;
+  };
+
+  const savedState = useMemo(() => loadGameState(), []);
+
+  // Game State
+  const [activeTab, setActiveTab] = useState('main');
+  const [dataPoints, setDataPoints] = useState(savedState?.dataPoints ?? startingData);
+  const [infectedCount, setInfectedCount] = useState(savedState?.infectedCount ?? 1);
+  const [avProgress, setAvProgress] = useState(savedState?.avProgress ?? 0);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [gameWon, setGameWon] = useState(false);
+  const [activeUpgrades, setActiveUpgrades] = useState(savedState?.activeUpgrades ?? []);
+  const [activeInfils, setActiveInfils] = useState(savedState?.activeInfils ?? []);
+  const [logs, setLogs] = useState(['> Initialisation du noyau...', '> Connexion établie.', '> Cible : Réseau Mondial.']);
+  
+  // Customization State
+  const [customVirusName, setCustomVirusName] = useState(savedState?.customVirusName ?? 'PROTOCOLE-X');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [selectedVirusType, setSelectedVirusType] = useState(
+    VIRUS_TYPES.find(t => t.id === savedState?.selectedVirusTypeId) ?? VIRUS_TYPES[0]
+  );
+  
+  // Refs for game loop
+  const lastUpdateRef = useRef(Date.now());
+  const requestRef = useRef();
+  const infectedCountRef = useRef(savedState?.infectedCount ?? 1);
+  const avProgressRef = useRef(savedState?.avProgress ?? 0);
+  const dataPointsRef = useRef(savedState?.dataPoints ?? startingData);
+  const isGameOverRef = useRef(false);
+  const activeUpgradesRef = useRef(savedState?.activeUpgrades ?? []);
+  const activeInfilsRef = useRef(savedState?.activeInfils ?? []);
+  const virusTypeRef = useRef(VIRUS_TYPES.find(t => t.id === savedState?.selectedVirusTypeId) ?? VIRUS_TYPES[0]);
+
+  const triggerFeedback = () => {
+    if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(20);
+    }
+  };
+
+  const saveGameState = () => {
+    try {
+      const stateToSave = {
+        dataPoints: dataPointsRef.current,
+        infectedCount: infectedCountRef.current,
+        avProgress: avProgressRef.current,
+        activeUpgrades: activeUpgradesRef.current,
+        activeInfils: activeInfilsRef.current,
+        customVirusName,
+        selectedVirusTypeId: virusTypeRef.current.id
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+    } catch (e) {
+      console.error('Failed to save game:', e);
+    }
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!isGameOverRef.current) {
+        saveGameState();
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [customVirusName]);
+
+  const addLog = (msg) => {
+    setLogs(prev => [msg, ...prev].slice(0, 12));
+  };
+
+  const handleUpgrade = (upgrade) => {
+    if (dataPoints >= upgrade.cost && !activeUpgrades.includes(upgrade.id)) {
+      triggerFeedback();
+      const newPoints = dataPoints - upgrade.cost;
+      setDataPoints(newPoints);
+      dataPointsRef.current = newPoints;
+      const newUpgrades = [...activeUpgrades, upgrade.id];
+      setActiveUpgrades(newUpgrades);
+      activeUpgradesRef.current = newUpgrades;
+      addLog(`> Mutation : ${upgrade.name} activée.`);
+    }
+  };
+
+  const handleInfil = (infil) => {
+    if (dataPoints >= infil.cost && !activeInfils.includes(infil.id)) {
+      triggerFeedback();
+      const newPoints = dataPoints - infil.cost;
+      setDataPoints(newPoints);
+      dataPointsRef.current = newPoints;
+      const newInfils = [...activeInfils, infil.id];
+      setActiveInfils(newInfils);
+      activeInfilsRef.current = newInfils;
+      addLog(`> Infiltration : ${infil.name} réussie.`);
+    }
+  };
+
+  const gameLoop = () => {
+    if (isGameOverRef.current) return;
+
+    const now = Date.now();
+    const dt = Math.min((now - lastUpdateRef.current) / 1000, 0.1); 
+    lastUpdateRef.current = now;
+
+    let spreadMult = virusTypeRef.current.spreadBonus;
+    let stealthMult = virusTypeRef.current.stealthBonus;
+    let incomeMult = virusTypeRef.current.incomeBonus;
+
+    const currentUpgrades = activeUpgradesRef.current;
+    const currentInfils = activeInfilsRef.current;
+
+    // Mutation Effects
+    if (currentUpgrades.includes('phishing')) spreadMult *= 1.3;
+    if (currentUpgrades.includes('firewall_bypass')) spreadMult *= 1.5;
+    if (currentUpgrades.includes('zero_day')) spreadMult *= 2.0;
+    if (currentUpgrades.includes('dns_poisoning')) spreadMult *= 1.8;
+    if (currentUpgrades.includes('neural_spread')) spreadMult *= 3.0;
+    if (currentUpgrades.includes('neural_hijack')) spreadMult *= 6.0;
+    
+    if (currentUpgrades.includes('stealth')) stealthMult *= 0.8;
+    if (currentUpgrades.includes('polymorphism')) stealthMult *= 0.6;
+    if (currentUpgrades.includes('metamorphism')) stealthMult *= 0.4;
+    if (currentUpgrades.includes('quantum_bypass')) stealthMult *= 0.2;
+    if (currentUpgrades.includes('dark_matter_code')) stealthMult *= 0.1;
+
+    if (currentUpgrades.includes('botnet')) incomeMult *= 2.0;
+    if (currentUpgrades.includes('adware_flood')) incomeMult *= 1.5;
+    if (currentUpgrades.includes('data_mining')) incomeMult *= 4.0;
+    if (currentUpgrades.includes('singularity_protocol')) incomeMult *= 15.0;
+
+    // Infiltration Effects
+    if (currentInfils.includes('iot_hijack')) incomeMult *= 1.2;
+    if (currentInfils.includes('cloud_breach')) incomeMult *= 1.8;
+    if (currentInfils.includes('dark_web_node')) stealthMult *= 0.9;
+    if (currentInfils.includes('mobile_zero')) spreadMult *= 1.3;
+    if (currentInfils.includes('router_worm')) spreadMult *= 1.2;
+    if (currentInfils.includes('scada_exploit')) incomeMult *= 2.5;
+    if (currentInfils.includes('quantum_encryption_break')) spreadMult *= 2.0;
+    if (currentInfils.includes('global_backdoor')) stealthMult *= 0.7;
+    if (currentInfils.includes('reality_glitch')) incomeMult *= 8.0;
+
+    const baseGrowth = 0.035;
+    const growth = infectedCountRef.current * (baseGrowth * spreadMult) * dt;
+    infectedCountRef.current += growth;
+    
+    if (infectedCountRef.current >= TOTAL_WORLD_NODES) {
+      infectedCountRef.current = TOTAL_WORLD_NODES;
+      isGameOverRef.current = true;
+      setIsGameOver(true);
+      setGameWon(true);
+    }
+
+    const avSpeed = initialDifficulty * (1 / stealthMult) * dt;
+    avProgressRef.current += avSpeed;
+    
+    if (avProgressRef.current >= 100) {
+      avProgressRef.current = 100;
+      isGameOverRef.current = true;
+      setIsGameOver(true);
+      setGameWon(false);
+    }
+
+    dataPointsRef.current += (Math.log10(infectedCountRef.current + 1) * incomeMult * 0.42 * dt);
+
+    setInfectedCount(infectedCountRef.current);
+    setAvProgress(avProgressRef.current);
+    setDataPoints(dataPointsRef.current);
+
+    requestRef.current = requestAnimationFrame(gameLoop);
+  };
+
+  useEffect(() => {
+    lastUpdateRef.current = Date.now();
+    requestRef.current = requestAnimationFrame(gameLoop);
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, []);
+
+  const resetGame = () => {
+    dataPointsRef.current = startingData;
+    infectedCountRef.current = 1;
+    avProgressRef.current = 0;
+    isGameOverRef.current = false;
+    activeUpgradesRef.current = [];
+    activeInfilsRef.current = [];
+    setDataPoints(startingData);
+    setInfectedCount(1);
+    setAvProgress(0);
+    setIsGameOver(false);
+    setGameWon(false);
+    setActiveUpgrades([]);
+    setActiveInfils([]);
+    localStorage.removeItem(STORAGE_KEY);
+    setLogs(['> Système redémarré.', `> Nouvelle instance de ${customVirusName} lancée.`]);
+    triggerFeedback();
+    lastUpdateRef.current = Date.now();
+    requestRef.current = requestAnimationFrame(gameLoop);
+  };
+
+  const infectionPercent = (infectedCount / TOTAL_WORLD_NODES) * 100;
+
+  const regionalInfection = useMemo(() => {
+    return REGIONS.map(region => {
+      const share = region.nodes / TOTAL_WORLD_NODES;
+      const infectedInRegion = Math.min(region.nodes, infectedCount * share * (0.9 + Math.random() * 0.2));
+      return { ...region, infected: infectedInRegion };
+    });
+  }, [infectedCount]);
+
+  const handleTypeChange = (type) => {
+    setSelectedVirusType(type);
+    virusTypeRef.current = type;
+    triggerFeedback();
+    addLog(`> Type de virus changé : ${type.name}`);
+  };
+
+  return (
+    <div className="h-screen w-screen bg-[#050505] text-white font-mono overflow-hidden flex flex-col select-none">
+      {/* Background Grid & Scanline */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(20,20,20,0)_0%,rgba(0,0,0,0.8)_100%)]" />
+        <div className="w-full h-1 bg-green-500/10 absolute top-0 animate-[scanline_8s_linear_infinite]" />
+      </div>
+
+      <style>{`
+        @keyframes scanline {
+          0% { top: -5%; }
+          100% { top: 105%; }
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .glass-panel {
+          background: rgba(255, 255, 255, 0.03);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .neon-text {
+          text-shadow: 0 0 10px currentColor;
+        }
+      `}</style>
+
+      {/* Header */}
+      <header className="p-5 pt-8 z-10 flex justify-between items-start">
+        <div className="flex-1">
+          {gameTitleVisible && (
+            <h1 
+              style={{ color: gameTitleColor, fontSize: `${gameTitleSize}px` }}
+              className="font-black tracking-tighter uppercase italic neon-text leading-none"
+            >
+              {gameTitle}
+            </h1>
+          )}
+          <div className="flex items-center gap-2 mt-2">
+            {isEditingName ? (
+              <div className="flex items-center gap-1 bg-white/10 rounded-lg px-2 py-1 border border-white/20">
+                <input 
+                  autoFocus
+                  className="bg-transparent border-none outline-none text-xs text-white w-28 font-bold"
+                  value={customVirusName}
+                  onChange={(e) => setCustomVirusName(e.target.value.toUpperCase())}
+                  onBlur={() => setIsEditingName(false)}
+                  onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
+                />
+                <button onClick={() => setIsEditingName(false)}><Check size={14} className="text-green-400"/></button>
+              </div>
+            ) : (
+              <div 
+                onClick={() => setIsEditingName(true)}
+                className="opacity-80 flex items-center gap-2 cursor-pointer hover:opacity-100 transition-all bg-white/5 px-2 py-1 rounded-md border border-white/5"
+              >
+                <Binary size={14} className="text-green-500" /> 
+                <span className="font-bold tracking-widest text-sm">{customVirusName}</span>
+                <Edit3 size={12} className="opacity-30" />
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="text-right glass-panel p-3 rounded-2xl border-green-500/20">
+          <div className="text-[9px] opacity-40 font-bold tracking-tighter uppercase mb-1">Data Points</div>
+          <div className="text-2xl font-black text-blue-400 flex items-center justify-end gap-2 neon-text">
+            <Database size={20} /> {Math.floor(dataPoints)}
+          </div>
+        </div>
+      </header>
+
+      {/* Global Status Bar */}
+      <div className="px-5 py-2 z-10">
+        <div className="glass-panel rounded-2xl p-4 border-white/5">
+          <div className="flex justify-between text-[10px] font-black mb-2 tracking-widest">
+            <span className="flex items-center gap-2 text-red-500"><Skull size={12} /> INFECTION MONDIALE</span>
+            <span className="text-white/80">{infectionPercent.toFixed(6)}%</span>
+          </div>
+          <div className="h-3 bg-black/40 rounded-full overflow-hidden border border-white/10 p-[2px]">
+            <div 
+              className="h-full rounded-full transition-all duration-500 ease-out relative"
+              style={{ 
+                width: `${Math.max(1, infectionPercent)}%`, 
+                backgroundColor: dangerColor,
+                boxShadow: `0 0 15px ${dangerColor}`
+              }}
+            >
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.3)_50%,transparent_100%)] animate-[shimmer_2s_infinite]" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Content Area */}
+      <div className="flex-1 overflow-y-auto z-10 px-5 py-4 no-scrollbar">
+        {activeTab === 'main' && (
+          <div className="space-y-6">
+            {/* AV Progress */}
+            <div className="glass-panel rounded-2xl p-4 border-blue-500/20">
+              <div className="flex justify-between text-[10px] font-black mb-2 tracking-widest">
+                <span className="flex items-center gap-2 text-blue-400"><Shield size={12} /> DÉTECTION ANTIVIRUS</span>
+                <span className={avProgress > 80 ? 'text-red-500 animate-pulse' : 'text-white/80'}>{avProgress.toFixed(1)}%</span>
+              </div>
+              <div className="h-3 bg-black/40 rounded-full overflow-hidden border border-white/10 p-[2px]">
+                <div 
+                  className="h-full rounded-full transition-all duration-500 ease-out"
+                  style={{ 
+                    width: `${avProgress}%`, 
+                    backgroundColor: secondaryColor,
+                    boxShadow: `0 0 15px ${secondaryColor}`
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Regional Breakdown */}
+            <div className="glass-panel rounded-2xl p-4 space-y-3 border-white/5">
+              <h2 className="text-[10px] font-black opacity-40 uppercase tracking-[0.2em] flex items-center gap-2 mb-2">
+                <Globe size={14} /> État des Secteurs
+              </h2>
+              {regionalInfection.map(region => (
+                <div key={region.id} className="space-y-1">
+                  <div className="flex justify-between items-center text-[11px] font-bold">
+                    <span className="opacity-60">{region.name}</span>
+                    <span className={region.infected > 1 ? 'text-red-400' : 'opacity-20'}>
+                      {Math.floor(region.infected).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-red-500/60 transition-all duration-1000" 
+                      style={{ width: `${(region.infected / region.nodes) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Terminal Logs */}
+            <div className="bg-black/40 border border-white/10 p-4 rounded-2xl text-[10px] h-44 overflow-hidden font-mono relative">
+              <div className="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">
+                <Terminal size={12} className="text-green-500" />
+                <span className="opacity-40 uppercase tracking-widest font-black">Console de Commande</span>
+              </div>
+              <div className="space-y-1.5">
+                {logs.map((log, i) => (
+                  <div key={i} className={`${i === 0 ? 'text-green-400' : 'opacity-30'} flex gap-2`}>
+                    <span className="opacity-20">[{new Date().toLocaleTimeString([], {hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit'})}]</span>
+                    <span>{log}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'map' && (
+          <div className="h-full flex flex-col">
+            <h2 className="text-[10px] font-black opacity-40 uppercase tracking-[0.2em] flex items-center gap-2 mb-4">
+              <Radar size={14} /> Topologie du Réseau
+            </h2>
+            <div className="relative flex-1 glass-panel rounded-3xl overflow-hidden border-white/10 min-h-[220px]">
+              <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
+              
+              {regionalInfection.map(region => {
+                const infRatio = region.infected / region.nodes;
+                return (
+                  <div 
+                    key={region.id}
+                    className="absolute transition-all duration-500"
+                    style={{ left: `${region.x}%`, top: `${region.y}%` }}
+                  >
+                    <div className="relative -translate-x-1/2 -translate-y-1/2">
+                      <div 
+                        className="rounded-full animate-ping absolute inset-0 opacity-40"
+                        style={{ 
+                          backgroundColor: dangerColor, 
+                          transform: `scale(${1 + infRatio * 4})`,
+                          display: infRatio > 0.00001 ? 'block' : 'none'
+                        }}
+                      />
+                      <div 
+                        className="w-5 h-5 rounded-full border-2 border-white/20 relative z-10 flex items-center justify-center"
+                        style={{ 
+                          backgroundColor: infRatio > 0.05 ? dangerColor : '#111',
+                          boxShadow: infRatio > 0.05 ? `0 0 20px ${dangerColor}` : 'none'
+                        }}
+                      >
+                        <div className="w-1 h-1 bg-white rounded-full opacity-50" />
+                      </div>
+                      <div className="absolute top-7 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] font-black bg-black/80 px-2 py-0.5 rounded-full border border-white/10 uppercase tracking-tighter">
+                        {region.name}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-5">
+                <line x1="50%" y1="30%" x2="20%" y2="45%" stroke="white" strokeWidth="1" />
+                <line x1="50%" y1="30%" x2="75%" y2="40%" stroke="white" strokeWidth="1" />
+                <line x1="50%" y1="30%" x2="52%" y2="65%" stroke="white" strokeWidth="1" />
+                <line x1="75%" y1="40%" x2="85%" y2="75%" stroke="white" strokeWidth="1" />
+                <line x1="20%" y1="45%" x2="52%" y2="65%" stroke="white" strokeWidth="1" />
+              </svg>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="glass-panel p-3 rounded-2xl border-white/5">
+                <div className="text-[8px] opacity-40 font-black uppercase mb-1">Nœuds Compromis</div>
+                <div className="text-lg font-black text-red-500 neon-text">{Math.floor(infectedCount).toLocaleString()}</div>
+              </div>
+              <div className="glass-panel p-3 rounded-2xl border-white/5">
+                <div className="text-[8px] opacity-40 font-black uppercase mb-1">Capacité Totale</div>
+                <div className="text-lg font-black opacity-80">{TOTAL_WORLD_NODES.toLocaleString()}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'mutate' && (
+          <div className="space-y-4">
+            <h2 className="text-[10px] font-black opacity-40 uppercase tracking-[0.2em] flex items-center gap-2">
+              <Microscope size={14} /> Mutations Génétiques
+            </h2>
+            <div className="grid grid-cols-1 gap-3">
+              {MUTATIONS.map((up) => {
+                const isOwned = activeUpgrades.includes(up.id);
+                const canAfford = dataPoints >= up.cost;
+                return (
+                  <button
+                    key={up.id}
+                    disabled={isOwned || !canAfford}
+                    onClick={() => handleUpgrade(up)}
+                    className={`p-4 rounded-2xl border text-left transition-all flex items-center gap-4 ${
+                      isOwned 
+                        ? 'bg-green-500/10 border-green-500/30 opacity-60' 
+                        : canAfford 
+                          ? 'glass-panel border-white/10 hover:border-white/30 active:scale-[0.98]' 
+                          : 'glass-panel border-white/5 opacity-40'
+                    }`}
+                  >
+                    <div className={`p-3 rounded-xl ${isOwned ? 'bg-green-500/20 text-green-400' : 'bg-white/5 text-white/70'}`}>
+                      {up.icon}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-bold text-xs">{up.name}</span>
+                        {!isOwned && (
+                          <span className={`text-xs font-black ${canAfford ? 'text-blue-400' : 'opacity-40'}`}>
+                            {up.cost} DP
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] opacity-50 leading-tight">{up.desc}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'infil' && (
+          <div className="space-y-4">
+            <h2 className="text-[10px] font-black opacity-40 uppercase tracking-[0.2em] flex items-center gap-2">
+              <Layers size={14} /> Exploits d'Infiltration
+            </h2>
+            <div className="grid grid-cols-1 gap-3">
+              {INFILTRATIONS.map((inf) => {
+                const isOwned = activeInfils.includes(inf.id);
+                const canAfford = dataPoints >= inf.cost;
+                return (
+                  <button
+                    key={inf.id}
+                    disabled={isOwned || !canAfford}
+                    onClick={() => handleInfil(inf)}
+                    className={`p-4 rounded-2xl border text-left transition-all flex items-center gap-4 ${
+                      isOwned 
+                        ? 'bg-purple-500/10 border-purple-500/30 opacity-60' 
+                        : canAfford 
+                          ? 'glass-panel border-white/10 hover:border-white/30 active:scale-[0.98]' 
+                          : 'glass-panel border-white/5 opacity-40'
+                    }`}
+                  >
+                    <div className={`p-3 rounded-xl ${isOwned ? 'bg-purple-500/20 text-purple-400' : 'bg-white/5 text-white/70'}`}>
+                      {inf.icon}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-bold text-xs">{inf.name}</span>
+                        {!isOwned && (
+                          <span className={`text-xs font-black ${canAfford ? 'text-blue-400' : 'opacity-40'}`}>
+                            {inf.cost} DP
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] opacity-50 leading-tight">{inf.desc}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'lab' && (
+          <div className="space-y-4">
+            <h2 className="text-[10px] font-black opacity-40 uppercase tracking-[0.2em] flex items-center gap-2">
+              <Dna size={14} /> Profil de Souche Virus
+            </h2>
+            <div className="grid grid-cols-1 gap-3">
+              {VIRUS_TYPES.map((type) => {
+                const isSelected = selectedVirusType.id === type.id;
+                return (
+                  <button
+                    key={type.id}
+                    onClick={() => handleTypeChange(type)}
+                    className={`p-4 rounded-2xl border text-left transition-all flex items-center gap-4 ${
+                      isSelected 
+                        ? 'bg-blue-500/10 border-blue-500/50' 
+                        : 'glass-panel border-white/5 opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <div className={`p-3 rounded-xl ${isSelected ? 'bg-blue-500/20 text-blue-400' : 'bg-white/5 text-white/70'}`}>
+                      {type.icon}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-bold text-xs">{type.name}</span>
+                        {isSelected && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-bold">ACTIF</span>}
+                      </div>
+                      <p className="text-[10px] opacity-50 leading-tight">{type.desc}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'save' && (
+          <div className="space-y-6">
+            <h2 className="text-[10px] font-black opacity-40 uppercase tracking-[0.2em] flex items-center gap-2">
+              <Server size={14} /> Gestion d'Archive
+            </h2>
+            <div className="glass-panel p-5 rounded-3xl space-y-4 border-white/10">
+              <p className="text-xs opacity-70 leading-relaxed">
+                Sauvegarde automatique activée sur le stockage local de votre navigateur. Vous pouvez également réinitialiser manuellement la session si votre virus a été complètement éradiqué.
+              </p>
+              <button 
+                onClick={resetGame}
+                className="w-full py-4 rounded-2xl bg-red-500/20 text-red-400 border border-red-500/30 font-bold text-xs tracking-widest hover:bg-red-500/30 transition-all active:scale-[0.98]"
+              >
+                RÉINITIALISER LA SESSION
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation Footer */}
+      <footer className="glass-panel border-t border-white/10 p-2 z-10 flex justify-around">
+        {[
+          { id: 'main', label: 'SYSTÈME', icon: <Cpu size={18} /> },
+          { id: 'map', label: 'RÉSEAU', icon: <MapIcon size={18} /> },
+          { id: 'mutate', label: 'GÉNÉTIQUE', icon: <Microscope size={18} /> },
+          { id: 'infil', label: 'EXPLOITS', icon: <Layers size={18} /> },
+          { id: 'lab', label: 'SOUCHE', icon: <Dna size={18} /> },
+          { id: 'save', label: 'ARCHIVE', icon: <Server size={18} /> },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
+              activeTab === tab.id 
+                ? 'text-green-400 bg-white/5' 
+                : 'opacity-40 hover:opacity-100'
+            }`}
+          >
+            {tab.icon}
+            <span className="text-[8px] font-black tracking-widest">{tab.label}</span>
+          </button>
+        ))}
+      </footer>
+
+      {/* Game Over Modal */}
+      {isGameOver && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-6">
+          <div className="glass-panel p-6 rounded-3xl border-white/20 max-w-sm w-full text-center space-y-4">
+            <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center border-2 border-white/20 bg-white/5">
+              {gameWon ? <Skull className="text-green-400 animate-bounce" size={32} /> : <Shield className="text-red-500 animate-pulse" size={32} />}
+            </div>
+            <h2 className="text-xl font-black tracking-tight">
+              {gameWon ? 'DOMINATION TOTALE' : 'SOUCHE ÉRADIQUÉE'}
+            </h2>
+            <p className="text-xs opacity-60 leading-relaxed">
+              {gameWon 
+                ? `Le virus ${customVirusName} a réussi à infecter et à soumettre l'intégralité du réseau mondial.`
+                : `Les pare-feux et les antivirus mondiaux ont neutralisé toutes les instances de ${customVirusName}.`
+              }
+            </p>
+            <button 
+              onClick={resetGame}
+              className="w-full py-4 rounded-2xl bg-white text-black font-black text-xs tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98]"
+            >
+              RELANCER UNE INFECTION
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
