@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gizmo Projects Portal & Launcher</title>
-  
+  <title>Gizmo Portal</title>
+  <meta name="description" content="14 mini-jeux Gizmo jouables directement dans le navigateur.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -16,6 +18,8 @@
             brand: {
               50: '#eef2ff',
               100: '#e0e7ff',
+              300: '#a5b4fc',
+              400: '#818cf8',
               500: '#6366f1',
               600: '#4f46e5',
               700: '#4338ca',
@@ -27,8 +31,8 @@
     }
   </script>
 
-  <!-- Phosphor Icons for UI SVG representations -->
-  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
 
   <style>
     /* Custom scrollbar styling */
@@ -46,54 +50,82 @@
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(99, 102, 241, 0.8);
     }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { scrollbar-width: none; }
+    /* Sur téléphone, laisser la place aux contrôles du jeu ouvert */
+    @media (max-width: 639px) {
+      body.app-open #brand-text { display: none; }
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 h-full flex flex-col font-sans overflow-hidden antialiased">
 
   <!-- Header Bar -->
-  <header class="h-16 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md px-4 lg:px-6 flex items-center justify-between z-20 shrink-0">
-    <div class="flex items-center gap-3">
-      <button id="toggle-sidebar-btn" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors lg:hidden" title="Toggle Sidebar">
+  <header class="h-16 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md px-3 lg:px-6 flex items-center justify-between gap-2 z-20 shrink-0">
+    <div class="flex items-center gap-3 min-w-0">
+      <button id="toggle-sidebar-btn" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors lg:hidden" title="Afficher la liste">
         <i class="ph ph-list text-xl"></i>
       </button>
-      <div class="flex items-center gap-2">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center shadow-lg shadow-brand-500/20">
+      <a href="#" class="flex items-center gap-2 min-w-0" title="Accueil">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center shadow-lg shadow-brand-500/20 shrink-0">
           <i class="ph ph-rocket-launch text-xl text-white"></i>
         </div>
-        <div>
+        <div id="brand-text" class="min-w-0">
           <h1 class="font-bold text-base sm:text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">
             Gizmo Portal
           </h1>
-          <p class="text-xs text-slate-400 hidden sm:block">14 Multi-App GitHub Launcher</p>
+          <p id="header-subtitle" class="text-xs text-slate-400 hidden sm:block truncate">14 mini-jeux jouables dans le navigateur</p>
         </div>
-      </div>
+      </a>
     </div>
 
-    <!-- Active App Controls / View Mode Controls -->
-    <div id="viewer-controls" class="hidden items-center gap-2 bg-slate-950/60 border border-slate-800 p-1 rounded-xl">
-      <button onclick="setViewport('mobile')" id="btn-vp-mobile" class="p-1.5 px-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
-        <i class="ph ph-device-mobile text-base"></i> <span class="hidden sm:inline">Mobile</span>
+    <!-- Active App Controls -->
+    <div id="viewer-controls" class="hidden items-center gap-1 bg-slate-950/60 border border-slate-800 p-1 rounded-xl">
+      <button onclick="launchRelative(-1)" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors" title="Jeu précédent">
+        <i class="ph ph-caret-left text-lg"></i>
       </button>
-      <button onclick="setViewport('tablet')" id="btn-vp-tablet" class="p-1.5 px-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
-        <i class="ph ph-device-tablet text-base"></i> <span class="hidden sm:inline">Tablet</span>
+      <button onclick="launchRelative(1)" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors" title="Jeu suivant">
+        <i class="ph ph-caret-right text-lg"></i>
       </button>
-      <button onclick="setViewport('full')" id="btn-vp-full" class="p-1.5 px-2.5 rounded-lg text-xs font-medium bg-brand-600 text-white transition-all flex items-center gap-1.5 shadow-sm">
-        <i class="ph ph-desktop text-base"></i> <span class="hidden sm:inline">Plein Écran</span>
+      <button onclick="reloadApp()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors" title="Recommencer">
+        <i class="ph ph-arrow-clockwise text-lg"></i>
       </button>
-      <div class="h-4 w-px bg-slate-800 my-auto mx-1"></div>
-      <a id="external-link-btn" href="#" target="_blank" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors" title="Ouvrir dans un nouvel onglet">
+      <div class="hidden md:flex items-center gap-1">
+        <div class="h-4 w-px bg-slate-800 mx-1"></div>
+        <button onclick="setViewport('mobile')" id="btn-vp-mobile" class="p-1.5 px-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+          <i class="ph ph-device-mobile text-base"></i> <span class="hidden xl:inline">Mobile</span>
+        </button>
+        <button onclick="setViewport('tablet')" id="btn-vp-tablet" class="p-1.5 px-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+          <i class="ph ph-device-tablet text-base"></i> <span class="hidden xl:inline">Tablette</span>
+        </button>
+        <button onclick="setViewport('full')" id="btn-vp-full" class="p-1.5 px-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+          <i class="ph ph-desktop text-base"></i> <span class="hidden xl:inline">Large</span>
+        </button>
+      </div>
+      <div class="h-4 w-px bg-slate-800 mx-1"></div>
+      <button id="favorite-btn" onclick="toggleFavorite(activeApp && activeApp.id)" class="p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition-colors" title="Ajouter aux favoris">
+        <i class="ph ph-star text-lg"></i>
+      </button>
+      <button onclick="enterFullscreen()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors" title="Plein écran">
+        <i class="ph ph-corners-out text-lg"></i>
+      </button>
+      <a id="external-link-btn" href="#" target="_blank" class="hidden sm:block p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors" title="Ouvrir dans un nouvel onglet">
         <i class="ph ph-arrow-square-out text-lg"></i>
       </a>
-      <button onclick="closeAppViewer()" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors" title="Fermer la vue">
+      <button onclick="closeAppViewer()" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors" title="Fermer (Échap)">
         <i class="ph ph-x-circle text-lg"></i>
       </button>
     </div>
 
     <!-- Quick Links -->
-    <div class="flex items-center gap-2">
-      <button onclick="openGuideModal()" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg transition-all flex items-center gap-1.5">
+    <div id="quick-links" class="flex items-center gap-2">
+      <button onclick="launchRandom()" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg transition-all flex items-center gap-1.5" title="Jeu au hasard">
+        <i class="ph ph-shuffle text-base text-emerald-400"></i>
+        <span class="hidden md:inline">Au hasard</span>
+      </button>
+      <button onclick="openGuideModal()" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg transition-all flex items-center gap-1.5" title="Guide">
         <i class="ph ph-book-open text-base text-brand-500"></i>
-        <span class="hidden md:inline">Tuto GitHub Pages</span>
+        <span class="hidden md:inline">Guide</span>
       </button>
     </div>
   </header>
@@ -101,23 +133,26 @@
   <!-- Main Container -->
   <div class="flex flex-1 overflow-hidden relative">
 
+    <!-- Overlay for mobile sidebar -->
+    <div id="sidebar-overlay" onclick="toggleSidebar(false)" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-[15] hidden lg:hidden"></div>
+
     <!-- Sidebar Navigation -->
-    <aside id="sidebar" class="absolute lg:relative z-10 w-72 h-full bg-slate-900/90 border-r border-slate-800 backdrop-blur-xl flex flex-col transition-transform duration-300 -translate-x-full lg:translate-x-0 shrink-0">
+    <aside id="sidebar" class="absolute lg:relative z-20 w-72 h-full bg-slate-900/95 border-r border-slate-800 backdrop-blur-xl flex flex-col transition-transform duration-300 -translate-x-full lg:translate-x-0 shrink-0">
       <div class="p-4 border-b border-slate-800 flex items-center justify-between">
-        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mes Applications (14)</span>
-        <span class="px-2 py-0.5 text-[10px] font-medium bg-brand-500/10 text-brand-400 rounded-full border border-brand-500/20">Active</span>
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mes jeux (<span id="sidebar-count">14</span>)</span>
+        <span class="px-2 py-0.5 text-[10px] font-medium bg-brand-500/10 text-brand-400 rounded-full border border-brand-500/20"><kbd>/</kbd> pour chercher</span>
       </div>
 
-      <!-- Search / Filter -->
+      <!-- Search -->
       <div class="p-3">
         <div class="relative">
           <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-slate-500"></i>
-          <input type="text" id="app-search" oninput="filterApps()" placeholder="Rechercher une application..." class="w-full pl-9 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors">
+          <input type="search" id="app-search" oninput="applyFilters()" placeholder="Rechercher un jeu..." class="w-full pl-9 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors">
         </div>
       </div>
 
       <!-- App List -->
-      <nav id="app-list" class="flex-1 overflow-y-auto p-3 space-y-1.5">
+      <nav id="app-list" class="flex-1 overflow-y-auto p-3 pt-0 space-y-1.5">
         <!-- JS injects app links here -->
       </nav>
 
@@ -127,76 +162,103 @@
       </div>
     </aside>
 
-    <!-- Overlay for mobile sidebar -->
-    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-0 hidden lg:hidden"></div>
-
     <!-- Content Dashboard & App Viewer -->
     <main class="flex-1 h-full bg-slate-950 flex flex-col overflow-hidden relative">
 
-      <!-- View 1: Main Dashboard Grid (Default View) -->
+      <!-- View 1: Dashboard -->
       <div id="dashboard-view" class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
         <div class="max-w-6xl mx-auto space-y-8">
 
           <!-- Hero Banner -->
           <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-900/50 via-slate-900 to-indigo-950/50 border border-brand-500/20 p-6 sm:p-8 shadow-2xl">
-            <div class="relative z-10 space-y-3 max-w-2xl">
-              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-300 text-xs font-medium">
-                <i class="ph ph-sparkle text-sm"></i> 14 Applications centralisées
+            <div class="absolute -right-10 -top-10 w-56 h-56 rounded-full bg-brand-500/20 blur-3xl pointer-events-none"></div>
+            <div class="relative z-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+              <div class="space-y-3 max-w-2xl">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-300 text-xs font-medium">
+                  <i class="ph ph-sparkle text-sm"></i> Mini-jeux Gizmo
+                </div>
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  Choisis un jeu et lance-toi
+                </h2>
+                <p class="text-slate-300 text-sm leading-relaxed">
+                  Tous les jeux tournent directement dans le navigateur, sur ordinateur comme sur téléphone. Ajoute tes préférés en favoris avec l'étoile.
+                </p>
+                <div class="pt-2 flex flex-wrap gap-3">
+                  <button onclick="launchRandom()" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-brand-600/30 transition-all flex items-center gap-2">
+                    <i class="ph ph-shuffle text-base"></i> Jouer à un jeu au hasard
+                  </button>
+                  <button onclick="openGuideModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 rounded-xl text-xs font-semibold transition-all flex items-center gap-2">
+                    <i class="ph ph-file-code text-base"></i> Comment ça marche
+                  </button>
+                </div>
               </div>
-              <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                Lancez vos projets Gizmo convertis
-              </h2>
-              <p class="text-slate-300 text-sm leading-relaxed">
-                Voici votre portail d'accueil prêt pour GitHub Pages. Sélectionnez n'importe quelle application ci-dessous pour la lancer en direct, ou consultez le guide pour héberger l'ensemble de vos 14 projets sous le même dépôt.
-              </p>
-              <div class="pt-2 flex flex-wrap gap-3">
-                <button onclick="openGuideModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-brand-600/30 transition-all flex items-center gap-2">
-                  <i class="ph ph-file-code text-base"></i> Comment structurer les 14 projets
-                </button>
+              <div class="flex gap-3 shrink-0">
+                <div class="px-4 py-3 rounded-xl bg-slate-950/50 border border-slate-800 text-center min-w-[84px]">
+                  <div id="stat-games" class="text-2xl font-extrabold text-white">14</div>
+                  <div class="text-[10px] uppercase tracking-wider text-slate-400">Jeux</div>
+                </div>
+                <div class="px-4 py-3 rounded-xl bg-slate-950/50 border border-slate-800 text-center min-w-[84px]">
+                  <div id="stat-categories" class="text-2xl font-extrabold text-white">0</div>
+                  <div class="text-[10px] uppercase tracking-wider text-slate-400">Catégories</div>
+                </div>
+                <div class="px-4 py-3 rounded-xl bg-slate-950/50 border border-slate-800 text-center min-w-[84px]">
+                  <div id="stat-favorites" class="text-2xl font-extrabold text-amber-300">0</div>
+                  <div class="text-[10px] uppercase tracking-wider text-slate-400">Favoris</div>
+                </div>
               </div>
             </div>
           </div>
+
+          <!-- Recently Played -->
+          <section id="recent-section" class="hidden">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2 mb-3">
+              <i class="ph ph-clock-counter-clockwise text-brand-500"></i> Joués récemment
+            </h3>
+            <div id="recent-list" class="flex gap-3 overflow-x-auto no-scrollbar pb-1"></div>
+          </section>
 
           <!-- Apps Cards Grid -->
-          <div>
-            <div class="flex items-center justify-between mb-4">
+          <section>
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                <i class="ph ph-squares-four text-brand-500"></i> Galerie des Projets
+                <i class="ph ph-squares-four text-brand-500"></i> Tous les jeux
               </h3>
-              <span id="app-count-badge" class="text-xs text-slate-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">14 apps disponibles</span>
+              <span id="app-count-badge" class="text-xs text-slate-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">14 jeux</span>
             </div>
 
-            <div id="apps-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <!-- Category Chips -->
+            <div id="category-chips" class="flex gap-2 overflow-x-auto no-scrollbar pb-1 mb-4"></div>
+
+            <div id="apps-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
               <!-- JS populates card items here -->
             </div>
-          </div>
+          </section>
 
         </div>
       </div>
 
-      <!-- View 2: Iframe Embedded Container (When an app is launched) -->
+      <!-- View 2: Iframe Viewer -->
       <div id="app-viewer-container" class="hidden flex-1 h-full w-full bg-slate-900/50 flex items-center justify-center p-2 sm:p-4 transition-all overflow-hidden relative">
-        <!-- Responsive wrapper frame -->
-        <div id="iframe-wrapper" class="w-full h-full rounded-xl overflow-hidden border border-slate-800 shadow-2xl bg-black transition-all duration-300 relative">
-          
-          <!-- Loading Overlay inside viewer -->
+        <div id="iframe-wrapper" class="w-full h-full max-w-full max-h-full rounded-xl overflow-hidden border border-slate-800 shadow-2xl bg-black transition-all duration-300 relative">
+
+          <!-- Loading Overlay -->
           <div id="iframe-loading" class="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center gap-3 z-10 transition-opacity duration-300">
             <div class="w-10 h-10 border-4 border-brand-500/20 border-t-brand-500 rounded-full animate-spin"></div>
-            <p id="loading-app-name" class="text-sm font-medium text-slate-300">Chargement de l'application...</p>
+            <p id="loading-app-name" class="text-sm font-medium text-slate-300">Chargement...</p>
           </div>
 
-          <!-- Active App Frame -->
-          <iframe id="app-iframe" class="w-full h-full border-none bg-black" src="about:blank"></iframe>
+          <iframe id="app-iframe" class="w-full h-full border-none bg-black" src="about:blank"
+                  allow="camera; microphone; fullscreen; autoplay; accelerometer; gyroscope; clipboard-write" allowfullscreen></iframe>
         </div>
       </div>
 
     </main>
   </div>
 
-  <!-- GitHub Pages Guide Modal -->
-  <div id="guide-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-      
+  <!-- Guide Modal -->
+  <div id="guide-modal" onclick="if (event.target === this) closeGuideModal()" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+
       <!-- Modal Header -->
       <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
         <div class="flex items-center gap-3">
@@ -204,8 +266,8 @@
             <i class="ph ph-git-branch text-xl"></i>
           </div>
           <div>
-            <h3 class="font-bold text-white text-base">Guide : Structure des 14 projets dans GitHub</h3>
-            <p class="text-xs text-slate-400">Comment organiser vos fichiers dans un seul dépôt GitHub Pages</p>
+            <h3 class="font-bold text-white text-base">Guide : comment fonctionne le portail</h3>
+            <p class="text-xs text-slate-400">Organisation du dépôt, ajout d'un jeu et mise en ligne</p>
           </div>
         </div>
         <button onclick="closeGuideModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
@@ -215,79 +277,62 @@
 
       <!-- Modal Body -->
       <div class="p-6 overflow-y-auto space-y-6 text-sm text-slate-300">
-        
-        <!-- Step 1: File Structure -->
+
         <div class="space-y-3">
           <h4 class="font-bold text-white flex items-center gap-2">
             <span class="w-6 h-6 rounded-full bg-brand-600 text-white flex items-center justify-center text-xs">1</span>
-            Structure recommandée des fichiers sur GitHub
+            Structure du dépôt
           </h4>
-          <p class="text-xs text-slate-400">Pour héberger vos 14 applications dans <strong>un seul dépôt</strong> GitHub (ex: <code>mon-portal-gizmo</code>), organisez vos fichiers comme ceci :</p>
-          
           <pre class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-mono text-indigo-300 overflow-x-auto">
-📁 mon-depot-github/
-├── 📄 index.html             <-- (CE FICHIER PORTAIL D'ACCUEIL)
-├── 📁 apps/
-│   ├── 📄 youtube-sim.html   <-- Application Gizmo 1
-│   ├── 📄 jeu-2.html         <-- Application Gizmo 2
-│   ├── 📄 app-3.html         <-- Application Gizmo 3
-│   └── ...                   <-- (Jusqu'à 14 fichiers .html)
-          </pre>
+📁 guizmoend14/
+├── 📄 index.html              <-- ce portail
+├── 📁 gizmo-src/              <-- codes Gizmo d'origine (app1.tsx … app14.tsx)
+├── 📁 tools/
+│   └── 📄 gizmo_to_html.py    <-- convertit gizmo-src/ en pages HTML
+└── 📁 apps/
+    ├── 📄 app1.html … app14.html  <-- pages générées, une par jeu
+    ├── 📄 gizmo-runtime.js    <-- remplace @gizmo/runtime
+    ├── 📁 assets/             <-- sons et images servis en local
+    └── 📁 thumbs/             <-- aperçus des jeux pour le portail</pre>
         </div>
 
-        <!-- Step 2: Code integration -->
         <div class="space-y-3">
           <h4 class="font-bold text-white flex items-center gap-2">
             <span class="w-6 h-6 rounded-full bg-brand-600 text-white flex items-center justify-center text-xs">2</span>
-            Comment convertir chaque code Gizmo en fichier HTML ?
+            Ajouter ou mettre à jour un jeu
           </h4>
-          <p class="text-xs text-slate-400">Pour chaque lien Gizmo JS, créez un fichier <code>apps/nom-de-lapp.html</code> avec cette enveloppe Babel universelle :</p>
-          
-          <pre class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-mono text-emerald-400 overflow-x-auto">
-&lt;!DOCTYPE html&gt;
-&lt;html lang="fr"&gt;
-&lt;head&gt;
-  &lt;meta charset="UTF-8"&gt;
-  &lt;script src="https://unpkg.com/react@18/umd/react.production.min.js"&gt;&lt;/script&gt;
-  &lt;script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"&gt;&lt;/script&gt;
-  &lt;script src="https://unpkg.com/@babel/standalone/babel.min.js"&gt;&lt;/script&gt;
-  &lt;script src="https://cdn.tailwindcss.com"&gt;&lt;/script&gt;
-  &lt;script&gt;
-    // Emulateur Gizmo Runtime
-    window.gizmoRuntime = { tweaks: () => ({}), performHaptic: () => {} };
-  &lt;/script&gt;
-&lt;/head&gt;
-&lt;body class="bg-black text-white"&gt;
-  &lt;div id="root"&gt;&lt;/div&gt;
-  &lt;script type="text/babel"&gt;
-    const { useState, useEffect, useRef, useCallback } = React;
-
-    // === COLLE TON CODE JS GIZMO ICI ===
-    function App() {
-      return &lt;div class="p-10"&gt;Mon App Gizmo&lt;/div&gt;;
-    }
-
-    ReactDOM.createRoot(document.getElementById('root')).render(&lt;App /&gt;);
-  &lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-          </pre>
+          <ol class="list-decimal list-inside space-y-1.5 text-xs text-slate-400">
+            <li>Copie le code exporté depuis Gizmo dans <code class="text-slate-200">gizmo-src/appN.tsx</code>, sans le modifier.</li>
+            <li>Pour un nouveau jeu, ajoute son titre dans <code class="text-slate-200">APPS</code> en haut de <code class="text-slate-200">tools/gizmo_to_html.py</code>.</li>
+            <li>Lance la conversion :</li>
+          </ol>
+          <pre class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-mono text-emerald-400 overflow-x-auto">python3 tools/gizmo_to_html.py</pre>
+          <p class="text-xs text-slate-400">Enfin, ajoute une entrée dans la liste <code class="text-slate-200">GIZMO_APPS</code> de ce fichier <code class="text-slate-200">index.html</code> :</p>
+          <pre class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-mono text-amber-300 overflow-x-auto">
+{
+  id: 15,
+  title: "Mon nouveau jeu",
+  description: "Une phrase qui décrit le jeu.",
+  path: "apps/app15.html",
+  thumb: "apps/thumbs/app15.webp",  // optionnel
+  icon: "ph-game-controller",       // icône Phosphor
+  color: "from-pink-500 to-rose-600",
+  badge: "Fun"                      // catégorie
+}</pre>
         </div>
 
-        <!-- Step 3: Configure portal links -->
         <div class="space-y-3">
           <h4 class="font-bold text-white flex items-center gap-2">
             <span class="w-6 h-6 rounded-full bg-brand-600 text-white flex items-center justify-center text-xs">3</span>
-            Mise à jour de la liste dans le script du Portail
+            Mettre en ligne avec GitHub Pages
           </h4>
-          <p class="text-xs text-slate-400">Dans ce fichier <code>index.html</code>, modifiez la liste <code>GIZMO_APPS</code> avec vos vrais noms et chemins de fichiers :</p>
-          <pre class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-mono text-amber-300 overflow-x-auto">
-const GIZMO_APPS = [
-  { id: 1, name: "YouTube Simulator Pro", path: "apps/youtube-sim.html", icon: "ph-youtube-logo" },
-  { id: 2, name: "Mon Jeu Space Shooter", path: "apps/space-shooter.html", icon: "ph-game-controller" },
-  // ...
-];
-          </pre>
+          <p class="text-xs text-slate-400">
+            Sur GitHub : <strong class="text-slate-200">Settings → Pages</strong>, choisis la branche <code class="text-slate-200">main</code> et le dossier <code class="text-slate-200">/ (root)</code>.
+            Le portail sera disponible à l'adresse <code class="text-slate-200">https://&lt;ton-pseudo&gt;.github.io/guizmoend14/</code>.
+          </p>
+          <p class="text-xs text-slate-400">
+            Astuce : chaque jeu a son propre lien, par exemple <code class="text-slate-200">…/guizmoend14/#jeu-3</code>, que tu peux partager directement.
+          </p>
         </div>
 
       </div>
@@ -304,8 +349,7 @@ const GIZMO_APPS = [
 
   <script>
     // =========================================================================
-    // CONFIGURATION DES 14 APPLICATIONS GIZMO
-    // Remplacez les 'path' par vos sous-dossiers ou fichiers HTML respectifs
+    // CONFIGURATION DES APPLICATIONS GIZMO
     // =========================================================================
     const GIZMO_APPS = [
       {
@@ -313,15 +357,17 @@ const GIZMO_APPS = [
         title: "YouTube Simulator Pro",
         description: "Crée des vidéos, gagne des abonnés et deviens une star.",
         path: "apps/app1.html", // Chemin relatif vers le fichier HTML de l'app
+        thumb: "apps/thumbs/app1.webp",
         icon: "ph-youtube-logo",
         color: "from-red-500 to-rose-600",
-        badge: "Populaire"
+        badge: "Sim"
       },
       {
         id: 2,
         title: "Simulateur de Presse Hydraulique",
         description: "Écrase des objets avec une presse hydraulique physique.",
         path: "apps/app2.html",
+        thumb: "apps/thumbs/app2.webp",
         icon: "ph-arrows-in-line-vertical",
         color: "from-amber-500 to-yellow-600",
         badge: "Physique"
@@ -331,6 +377,7 @@ const GIZMO_APPS = [
         title: "Cercle Musical & Physique",
         description: "Des balles rebondissent dans un cercle et jouent de la musique.",
         path: "apps/app3.html",
+        thumb: "apps/thumbs/app3.webp",
         icon: "ph-music-notes",
         color: "from-fuchsia-500 to-pink-600",
         badge: "Audio"
@@ -340,6 +387,7 @@ const GIZMO_APPS = [
         title: "Stimulus Clicker",
         description: "Clique, achète des améliorations et fais grimper le score.",
         path: "apps/app4.html",
+        thumb: "apps/thumbs/app4.webp",
         icon: "ph-cursor-click",
         color: "from-sky-500 to-indigo-600",
         badge: "Clicker"
@@ -349,6 +397,7 @@ const GIZMO_APPS = [
         title: "Neuro-Link: Domination",
         description: "Infecte le réseau mondial avec ton virus informatique.",
         path: "apps/app5.html",
+        thumb: "apps/thumbs/app5.webp",
         icon: "ph-bug",
         color: "from-emerald-500 to-green-600",
         badge: "Stratégie"
@@ -358,6 +407,7 @@ const GIZMO_APPS = [
         title: "Simulateur de Peste",
         description: "Fais évoluer ton pathogène pour contaminer la planète.",
         path: "apps/app6.html",
+        thumb: "apps/thumbs/app6.webp",
         icon: "ph-virus",
         color: "from-red-600 to-orange-600",
         badge: "Stratégie"
@@ -367,6 +417,7 @@ const GIZMO_APPS = [
         title: "Math Solver",
         description: "Photographie ou écris un calcul et l'IA le résout.",
         path: "apps/app7.html",
+        thumb: "apps/thumbs/app7.webp",
         icon: "ph-calculator",
         color: "from-cyan-500 to-teal-600",
         badge: "IA"
@@ -376,6 +427,7 @@ const GIZMO_APPS = [
         title: "Ragdoll Smash Lab",
         description: "Défoule-toi sur un ragdoll avec des armes délirantes.",
         path: "apps/app8.html",
+        thumb: "apps/thumbs/app8.webp",
         icon: "ph-hammer",
         color: "from-orange-500 to-red-600",
         badge: "Action"
@@ -385,6 +437,7 @@ const GIZMO_APPS = [
         title: "Simulateur PC Gamer",
         description: "Assemble ton PC gamer pièce par pièce.",
         path: "apps/app9.html",
+        thumb: "apps/thumbs/app9.webp",
         icon: "ph-desktop-tower",
         color: "from-lime-500 to-green-600",
         badge: "Sim"
@@ -394,6 +447,7 @@ const GIZMO_APPS = [
         title: "Amazin Shopping",
         description: "Simulateur d'application de shopping en ligne.",
         path: "apps/app10.html",
+        thumb: "apps/thumbs/app10.webp",
         icon: "ph-shopping-cart",
         color: "from-yellow-500 to-amber-600",
         badge: "Sim"
@@ -403,6 +457,7 @@ const GIZMO_APPS = [
         title: "Président Simulateur",
         description: "Gère les crises et dirige la nation.",
         path: "apps/app11.html",
+        thumb: "apps/thumbs/app11.webp",
         icon: "ph-bank",
         color: "from-blue-600 to-indigo-600",
         badge: "Stratégie"
@@ -412,6 +467,7 @@ const GIZMO_APPS = [
         title: "Phone Simulator",
         description: "Un téléphone complet avec ses applications.",
         path: "apps/app12.html",
+        thumb: "apps/thumbs/app12.webp",
         icon: "ph-device-mobile",
         color: "from-slate-500 to-slate-700",
         badge: "Sim"
@@ -421,6 +477,7 @@ const GIZMO_APPS = [
         title: "Rainy 75 Keyboard",
         description: "Clavier mécanique virtuel avec de vrais sons.",
         path: "apps/app13.html",
+        thumb: "apps/thumbs/app13.webp",
         icon: "ph-keyboard",
         color: "from-violet-500 to-purple-600",
         badge: "Audio"
@@ -430,31 +487,162 @@ const GIZMO_APPS = [
         title: "Bizarre Slime",
         description: "Touche ou secoue le slime pour l'embêter.",
         path: "apps/app14.html",
+        thumb: "apps/thumbs/app14.webp",
         icon: "ph-drop",
         color: "from-emerald-400 to-green-500",
         badge: "Fun"
       }
     ];
 
+    const FAVORITES_FILTER = '__favorites__';
+    const MAX_RECENTS = 6;
+
     let activeApp = null;
+    let activeCategory = null;
+    let currentViewport = 'full';
 
-    // --- STREAMING_CHUNK: DOM Render functions & Event Handling ---
+    // --- Préférences sauvegardées dans le navigateur (favoris, récents) ---
+    function loadList(key) {
+      try {
+        const value = JSON.parse(localStorage.getItem(key));
+        return Array.isArray(value) ? value.filter(id => GIZMO_APPS.some(a => a.id === id)) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveList(key, list) {
+      try {
+        localStorage.setItem(key, JSON.stringify(list));
+      } catch (e) {}
+    }
+
+    let favorites = loadList('gizmo-portal-favorites');
+    let recents = loadList('gizmo-portal-recents');
+
+    function getApp(id) {
+      return GIZMO_APPS.find(a => a.id === id);
+    }
+
+    // --- Initialisation ---
     window.addEventListener('DOMContentLoaded', () => {
-      renderAppCards(GIZMO_APPS);
-      renderSidebarList(GIZMO_APPS);
+      document.getElementById('stat-games').innerText = GIZMO_APPS.length;
+      document.getElementById('stat-categories').innerText = new Set(GIZMO_APPS.map(a => a.badge)).size;
+      document.getElementById('sidebar-count').innerText = GIZMO_APPS.length;
 
-      // Listen iframe load completion
+      try {
+        const savedViewport = localStorage.getItem('gizmo-portal-viewport');
+        if (savedViewport) currentViewport = savedViewport;
+      } catch (e) {}
+
+      renderAll();
+      handleRoute();
+
+      // Masquer l'écran de chargement quand l'iframe a fini
       const iframe = document.getElementById('app-iframe');
       iframe.addEventListener('load', () => {
+        if (!activeApp) return;
         const loadingScreen = document.getElementById('iframe-loading');
-        if (loadingScreen) {
-          loadingScreen.classList.add('opacity-0');
-          setTimeout(() => loadingScreen.classList.add('hidden'), 300);
-        }
+        loadingScreen.classList.add('opacity-0');
+        setTimeout(() => loadingScreen.classList.add('hidden'), 300);
       });
     });
 
-    // Render Dashboard Cards Grid
+    // --- Navigation par URL (#jeu-3) : liens partageables + bouton retour ---
+    window.addEventListener('hashchange', handleRoute);
+
+    function handleRoute() {
+      const match = location.hash.match(/^#jeu-(\d+)$/);
+      const app = match && getApp(Number(match[1]));
+      if (app) {
+        openApp(app);
+      } else {
+        showDashboard();
+      }
+    }
+
+    function launchApp(appId) {
+      const hash = `#jeu-${appId}`;
+      if (location.hash === hash) {
+        handleRoute();
+      } else {
+        location.hash = hash;
+      }
+    }
+
+    function launchRelative(step) {
+      if (!activeApp) return;
+      const index = GIZMO_APPS.indexOf(activeApp);
+      const next = GIZMO_APPS[(index + step + GIZMO_APPS.length) % GIZMO_APPS.length];
+      launchApp(next.id);
+    }
+
+    function launchRandom() {
+      const choices = GIZMO_APPS.filter(a => a !== activeApp);
+      launchApp(choices[Math.floor(Math.random() * choices.length)].id);
+    }
+
+    function closeAppViewer() {
+      history.pushState(null, '', location.pathname + location.search);
+      showDashboard();
+    }
+
+    // --- Rendu ---
+    function renderAll() {
+      renderCategoryChips();
+      applyFilters();
+      renderRecents();
+      document.getElementById('stat-favorites').innerText = favorites.length;
+    }
+
+    function getFilteredApps() {
+      const query = document.getElementById('app-search').value.trim().toLowerCase();
+      return GIZMO_APPS.filter(app => {
+        if (activeCategory === FAVORITES_FILTER && !favorites.includes(app.id)) return false;
+        if (activeCategory && activeCategory !== FAVORITES_FILTER && app.badge !== activeCategory) return false;
+        return !query ||
+          app.title.toLowerCase().includes(query) ||
+          app.description.toLowerCase().includes(query) ||
+          app.badge.toLowerCase().includes(query);
+      });
+    }
+
+    function applyFilters() {
+      const filtered = getFilteredApps();
+      renderAppCards(filtered);
+      renderSidebarList(filtered);
+      document.getElementById('app-count-badge').innerText =
+        filtered.length === GIZMO_APPS.length ? `${filtered.length} jeux` : `${filtered.length} jeu(x) trouvé(s)`;
+    }
+
+    function renderCategoryChips() {
+      const container = document.getElementById('category-chips');
+      const categories = [...new Set(GIZMO_APPS.map(a => a.badge))].sort((a, b) => a.localeCompare(b, 'fr'));
+      const chips = [
+        { value: null, label: 'Tous', icon: 'ph-squares-four' },
+        { value: FAVORITES_FILTER, label: `Favoris (${favorites.length})`, icon: 'ph-star' },
+        ...categories.map(c => ({ value: c, label: c, icon: null }))
+      ];
+
+      container.innerHTML = '';
+      chips.forEach(chip => {
+        const isActive = activeCategory === chip.value;
+        const btn = document.createElement('button');
+        btn.className = `shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors flex items-center gap-1.5 ${
+          isActive
+            ? 'bg-brand-600 border-brand-500 text-white'
+            : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-600 hover:text-white'
+        }`;
+        btn.innerHTML = `${chip.icon ? `<i class="ph ${chip.icon}"></i>` : ''}${chip.label}`;
+        btn.onclick = () => {
+          activeCategory = chip.value;
+          renderCategoryChips();
+          applyFilters();
+        };
+        container.appendChild(btn);
+      });
+    }
+
     function renderAppCards(apps) {
       const container = document.getElementById('apps-grid');
       container.innerHTML = '';
@@ -462,192 +650,258 @@ const GIZMO_APPS = [
       if (apps.length === 0) {
         container.innerHTML = `
           <div class="col-span-full text-center py-12 text-slate-500">
-            <i class="ph ph-magnifying-glass text-3xl mb-2"></i>
-            <p>Aucune application ne correspond à votre recherche.</p>
+            <i class="ph ${activeCategory === FAVORITES_FILTER ? 'ph-star' : 'ph-magnifying-glass'} text-3xl mb-2"></i>
+            <p>${activeCategory === FAVORITES_FILTER
+              ? 'Aucun favori pour l\'instant. Clique sur l\'étoile d\'un jeu pour l\'ajouter.'
+              : 'Aucun jeu ne correspond à ta recherche.'}</p>
           </div>
         `;
         return;
       }
 
       apps.forEach(app => {
+        const isFavorite = favorites.includes(app.id);
         const card = document.createElement('div');
-        card.className = "group relative bg-slate-900 border border-slate-800 hover:border-brand-500/50 rounded-2xl p-5 transition-all duration-300 hover:shadow-xl hover:shadow-brand-500/10 hover:-translate-y-1 flex flex-col justify-between cursor-pointer";
+        card.className = "group relative bg-slate-900 border border-slate-800 hover:border-brand-500/50 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-brand-500/10 hover:-translate-y-1 flex flex-col cursor-pointer";
+        card.tabIndex = 0;
         card.onclick = () => launchApp(app.id);
+        card.onkeydown = (e) => { if (e.key === 'Enter') launchApp(app.id); };
 
         card.innerHTML = `
-          <div>
-            <div class="flex items-center justify-between mb-4">
-              <div class="w-11 h-11 rounded-xl bg-gradient-to-br ${app.color} flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform">
-                <i class="ph ${app.icon} text-2xl"></i>
-              </div>
-              <span class="text-[10px] font-semibold px-2 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                ${app.badge}
-              </span>
+          <div class="relative aspect-[4/5] overflow-hidden bg-gradient-to-br ${app.color}">
+            <div class="absolute inset-0 flex items-center justify-center text-white/80">
+              <i class="ph ${app.icon} text-5xl"></i>
             </div>
-            <h4 class="font-bold text-white text-base group-hover:text-brand-300 transition-colors">${app.title}</h4>
-            <p class="text-xs text-slate-400 mt-1.5 leading-relaxed line-clamp-2">${app.description}</p>
+            ${app.thumb ? `<img src="${app.thumb}" alt="" loading="lazy" onerror="this.remove()" class="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105">` : ''}
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
+            <span class="absolute top-2 left-2 text-[10px] font-semibold px-2 py-1 rounded-full bg-slate-950/70 backdrop-blur text-slate-200 border border-white/10">
+              ${app.badge}
+            </span>
+            <button data-favorite="${app.id}" title="${isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}"
+                    class="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-slate-950/70 backdrop-blur border border-white/10 flex items-center justify-center transition-colors ${isFavorite ? 'text-amber-300' : 'text-slate-300 hover:text-amber-300'}">
+              <i class="ph${isFavorite ? '-fill' : ''} ph-star text-base"></i>
+            </button>
+            <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <div class="w-12 h-12 rounded-full bg-brand-600/90 shadow-lg flex items-center justify-center text-white">
+                <i class="ph-fill ph-play text-xl"></i>
+              </div>
+            </div>
           </div>
-          <div class="pt-4 mt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 group-hover:text-brand-400">
-            <span class="font-medium">Lancer le projet</span>
-            <i class="ph ph-arrow-right text-sm transition-transform group-hover:translate-x-1"></i>
+          <div class="p-3 sm:p-4 flex-1 flex flex-col">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-lg bg-gradient-to-br ${app.color} flex items-center justify-center text-white shrink-0 shadow-sm">
+                <i class="ph ${app.icon} text-sm"></i>
+              </div>
+              <h4 class="font-bold text-white text-sm leading-tight group-hover:text-brand-300 transition-colors line-clamp-2">${app.title}</h4>
+            </div>
+            <p class="text-xs text-slate-400 mt-2 leading-relaxed line-clamp-2 hidden sm:block">${app.description}</p>
           </div>
         `;
+        card.querySelector('[data-favorite]').onclick = (e) => {
+          e.stopPropagation();
+          toggleFavorite(app.id);
+        };
         container.appendChild(card);
       });
     }
 
-    // Render Sidebar Nav List
     function renderSidebarList(apps) {
       const nav = document.getElementById('app-list');
       nav.innerHTML = '';
 
       apps.forEach(app => {
+        const isActive = activeApp && activeApp.id === app.id;
         const btn = document.createElement('button');
         btn.id = `sidebar-app-${app.id}`;
         btn.onclick = () => launchApp(app.id);
-        btn.className = "w-full px-3 py-2.5 rounded-xl text-xs text-left font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all flex items-center gap-3 group";
+        btn.className = `w-full px-3 py-2.5 rounded-xl text-xs text-left font-medium transition-all flex items-center gap-3 group border ${
+          isActive
+            ? 'bg-brand-600/20 text-brand-300 border-brand-500/30'
+            : 'text-slate-300 border-transparent hover:bg-slate-800 hover:text-white'
+        }`;
 
         btn.innerHTML = `
           <div class="w-7 h-7 rounded-lg bg-gradient-to-br ${app.color} flex items-center justify-center text-white shrink-0 shadow-sm">
             <i class="ph ${app.icon} text-sm"></i>
           </div>
           <span class="truncate flex-1">${app.title}</span>
+          ${favorites.includes(app.id) ? '<i class="ph-fill ph-star text-amber-300"></i>' : ''}
           <i class="ph ph-caret-right opacity-0 group-hover:opacity-100 transition-opacity text-slate-400"></i>
         `;
         nav.appendChild(btn);
       });
     }
 
-    // Launch Selected Application
-    function launchApp(appId) {
-      const app = GIZMO_APPS.find(a => a.id === appId);
-      if (!app) return;
+    function renderRecents() {
+      const section = document.getElementById('recent-section');
+      const list = document.getElementById('recent-list');
+      section.classList.toggle('hidden', recents.length === 0);
+      list.innerHTML = '';
 
+      recents.map(getApp).forEach(app => {
+        const btn = document.createElement('button');
+        btn.onclick = () => launchApp(app.id);
+        btn.className = "shrink-0 flex items-center gap-2.5 pl-1.5 pr-4 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-brand-500/50 transition-colors";
+        btn.innerHTML = `
+          <div class="w-9 h-9 rounded-lg bg-gradient-to-br ${app.color} flex items-center justify-center text-white shrink-0">
+            <i class="ph ${app.icon} text-lg"></i>
+          </div>
+          <span class="text-xs font-medium text-slate-200 whitespace-nowrap">${app.title}</span>
+        `;
+        list.appendChild(btn);
+      });
+    }
+
+    // --- Favoris ---
+    function toggleFavorite(appId) {
+      if (!appId) return;
+      favorites = favorites.includes(appId) ? favorites.filter(id => id !== appId) : [...favorites, appId];
+      saveList('gizmo-portal-favorites', favorites);
+      renderAll();
+      updateFavoriteButton();
+    }
+
+    function updateFavoriteButton() {
+      const btn = document.getElementById('favorite-btn');
+      const isFavorite = activeApp && favorites.includes(activeApp.id);
+      btn.innerHTML = `<i class="ph${isFavorite ? '-fill' : ''} ph-star text-lg"></i>`;
+      btn.classList.toggle('text-amber-300', !!isFavorite);
+      btn.classList.toggle('text-slate-400', !isFavorite);
+      btn.title = isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris';
+    }
+
+    // --- Affichage d'un jeu ---
+    function openApp(app) {
+      if (activeApp === app) return;
       activeApp = app;
 
-      // Update active sidebar state
-      GIZMO_APPS.forEach(a => {
-        const item = document.getElementById(`sidebar-app-${a.id}`);
-        if (item) {
-          if (a.id === appId) {
-            item.classList.add('bg-brand-600/20', 'text-brand-300', 'border', 'border-brand-500/30');
-            item.classList.remove('text-slate-300');
-          } else {
-            item.classList.remove('bg-brand-600/20', 'text-brand-300', 'border', 'border-brand-500/30');
-            item.classList.add('text-slate-300');
-          }
-        }
-      });
+      recents = [app.id, ...recents.filter(id => id !== app.id)].slice(0, MAX_RECENTS);
+      saveList('gizmo-portal-recents', recents);
 
-      // Show iframe viewer & hide dashboard
+      document.body.classList.add('app-open');
+      document.title = `${app.title} · Gizmo Portal`;
+      document.getElementById('header-subtitle').innerText = app.title;
+
       document.getElementById('dashboard-view').classList.add('hidden');
-      const viewer = document.getElementById('app-viewer-container');
-      viewer.classList.remove('hidden');
+      document.getElementById('app-viewer-container').classList.remove('hidden');
+      document.getElementById('viewer-controls').classList.replace('hidden', 'flex');
+      document.getElementById('quick-links').classList.add('hidden');
 
-      // Show viewer controls in topbar
-      document.getElementById('viewer-controls').classList.remove('hidden');
-      document.getElementById('viewer-controls').classList.add('flex');
-
-      // Reset loading overlay
       const loadingScreen = document.getElementById('iframe-loading');
       document.getElementById('loading-app-name').innerText = `Chargement de ${app.title}...`;
       loadingScreen.classList.remove('hidden', 'opacity-0');
 
-      // Set Iframe src
-      const iframe = document.getElementById('app-iframe');
-      iframe.src = app.path;
-
-      // Set external link button target
+      setIframeUrl(app.path);
       document.getElementById('external-link-btn').href = app.path;
 
-      // Mobile: Auto close sidebar
+      setViewport(currentViewport);
+      updateFavoriteButton();
+      renderSidebarList(getFilteredApps());
+      renderRecents();
+
       if (window.innerWidth < 1024) {
         toggleSidebar(false);
       }
     }
 
-    // Close Viewer & Return to Dashboard Grid
-    function closeAppViewer() {
+    function showDashboard() {
+      activeApp = null;
+      document.body.classList.remove('app-open');
+      document.title = 'Gizmo Portal';
+      document.getElementById('header-subtitle').innerText = `${GIZMO_APPS.length} mini-jeux jouables dans le navigateur`;
+
       document.getElementById('dashboard-view').classList.remove('hidden');
       document.getElementById('app-viewer-container').classList.add('hidden');
+      document.getElementById('viewer-controls').classList.replace('flex', 'hidden');
+      document.getElementById('quick-links').classList.remove('hidden');
 
-      document.getElementById('viewer-controls').classList.add('hidden');
-      document.getElementById('viewer-controls').classList.remove('flex');
-
-      const iframe = document.getElementById('app-iframe');
-      iframe.src = 'about:blank';
-
-      // Clear active state
-      GIZMO_APPS.forEach(a => {
-        const item = document.getElementById(`sidebar-app-${a.id}`);
-        if (item) item.classList.remove('bg-brand-600/20', 'text-brand-300', 'border', 'border-brand-500/30');
-      });
+      setIframeUrl('about:blank');
+      renderSidebarList(getFilteredApps());
     }
 
-    // Viewport Preview Controls (Responsive Emulator)
-    function setViewport(mode) {
-      const wrapper = document.getElementById('iframe-wrapper');
-      
-      const btnFull = document.getElementById('btn-vp-full');
-      const btnTablet = document.getElementById('btn-vp-tablet');
-      const btnMobile = document.getElementById('btn-vp-mobile');
+    function reloadApp() {
+      if (!activeApp) return;
+      document.getElementById('iframe-loading').classList.remove('hidden', 'opacity-0');
+      setIframeUrl(activeApp.path);
+    }
 
-      // Reset buttons
-      [btnFull, btnTablet, btnMobile].forEach(btn => {
-        btn.classList.remove('bg-brand-600', 'text-white');
-        btn.classList.add('text-slate-400');
-      });
-
-      if (mode === 'full') {
-        wrapper.style.width = '100%';
-        wrapper.style.height = '100%';
-        btnFull.classList.add('bg-brand-600', 'text-white');
-      } else if (mode === 'tablet') {
-        wrapper.style.width = '768px';
-        wrapper.style.height = '95%';
-        btnTablet.classList.add('bg-brand-600', 'text-white');
-      } else if (mode === 'mobile') {
-        wrapper.style.width = '375px';
-        wrapper.style.height = '667px';
-        btnMobile.classList.add('bg-brand-600', 'text-white');
+    // location.replace évite d'ajouter l'iframe à l'historique : le bouton retour
+    // du navigateur ramène alors directement à la liste des jeux.
+    function setIframeUrl(url) {
+      const iframe = document.getElementById('app-iframe');
+      const href = new URL(url, location.href).href;
+      try {
+        iframe.contentWindow.location.replace(href);
+      } catch (e) {
+        iframe.src = href;
       }
     }
 
-    // Sidebar Toggle
+    function enterFullscreen() {
+      const wrapper = document.getElementById('iframe-wrapper');
+      if (wrapper.requestFullscreen) {
+        wrapper.requestFullscreen().catch(() => {});
+      } else if (wrapper.webkitRequestFullscreen) {
+        wrapper.webkitRequestFullscreen();
+      }
+    }
+
+    // Aperçu responsive (Mobile / Tablette / Large)
+    function setViewport(mode) {
+      currentViewport = mode;
+      try {
+        localStorage.setItem('gizmo-portal-viewport', mode);
+      } catch (e) {}
+
+      const wrapper = document.getElementById('iframe-wrapper');
+      const sizes = {
+        full: ['100%', '100%'],
+        tablet: ['768px', '95%'],
+        mobile: ['375px', '667px']
+      };
+      const [width, height] = sizes[mode] || sizes.full;
+      wrapper.style.width = width;
+      wrapper.style.height = height;
+
+      ['full', 'tablet', 'mobile'].forEach(m => {
+        const btn = document.getElementById(`btn-vp-${m}`);
+        btn.classList.toggle('bg-brand-600', m === mode);
+        btn.classList.toggle('text-white', m === mode);
+        btn.classList.toggle('text-slate-400', m !== mode);
+      });
+    }
+
+    // --- Barre latérale (mobile) ---
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
-    const toggleBtn = document.getElementById('toggle-sidebar-btn');
 
     function toggleSidebar(forceState) {
       const isOpen = forceState !== undefined ? forceState : sidebar.classList.contains('-translate-x-full');
-      if (isOpen) {
-        sidebar.classList.remove('-translate-x-full');
-        overlay.classList.remove('hidden');
-      } else {
-        sidebar.classList.add('-translate-x-full');
-        overlay.classList.add('hidden');
+      sidebar.classList.toggle('-translate-x-full', !isOpen);
+      overlay.classList.toggle('hidden', !isOpen);
+    }
+
+    document.getElementById('toggle-sidebar-btn').addEventListener('click', () => toggleSidebar());
+
+    // --- Raccourcis clavier ---
+    document.addEventListener('keydown', (e) => {
+      const typing = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
+      if (e.key === 'Escape') {
+        if (!document.getElementById('guide-modal').classList.contains('hidden')) {
+          closeGuideModal();
+        } else if (typing) {
+          document.activeElement.blur();
+        } else if (activeApp) {
+          closeAppViewer();
+        }
+      } else if (e.key === '/' && !typing) {
+        e.preventDefault();
+        if (window.innerWidth < 1024) toggleSidebar(true);
+        document.getElementById('app-search').focus();
       }
-    }
+    });
 
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', () => toggleSidebar());
-    }
-
-    // Filter Apps Search
-    function filterApps() {
-      const query = document.getElementById('app-search').value.toLowerCase();
-      const filtered = GIZMO_APPS.filter(app => 
-        app.title.toLowerCase().includes(query) || 
-        app.description.toLowerCase().includes(query) ||
-        app.badge.toLowerCase().includes(query)
-      );
-      renderAppCards(filtered);
-      renderSidebarList(filtered);
-
-      document.getElementById('app-count-badge').innerText = `${filtered.length} app(s) trouvée(s)`;
-    }
-
-    // Guide Modal Controls
+    // --- Guide ---
     function openGuideModal() {
       document.getElementById('guide-modal').classList.remove('hidden');
     }
