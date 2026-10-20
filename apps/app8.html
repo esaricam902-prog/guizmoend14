@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Ragdoll Smash Lab</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Modules utilisés par le code Gizmo -->
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.3.1",
+      "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+      "react-dom": "https://esm.sh/react-dom@18.3.1?external=react",
+      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client?external=react",
+      "lucide-react": "https://esm.sh/lucide-react@0.454.0?external=react",
+      "framer-motion": "https://esm.sh/framer-motion@11.11.17?external=react,react-dom",
+      "matter-js": "https://esm.sh/matter-js@0.19.0",
+      "tone": "https://esm.sh/tone@15.0.4",
+      "@gizmo/runtime": "./gizmo-runtime.js"
+    }
+  }
+  </script>
+
+  <!-- Babel pour interpréter le React/TypeScript (TSX) -->
+  <script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+  <script>
+    Babel.registerPreset('gizmo-tsx', {
+      presets: [
+        [Babel.availablePresets.typescript, { allExtensions: true, isTSX: true }],
+        Babel.availablePresets.react,
+      ],
+    });
+  </script>
+
+  <style>
+    html, body, #root { margin: 0; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-type="module" data-presets="gizmo-tsx">
+// ===== CODE GIZMO ORIGINAL (non modifié) =====
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import Matter from 'matter-js';
+import * as Tone from 'tone';
+import { gizmoRuntime } from '@gizmo/runtime';
+import { Grab, Hammer, Zap, Bomb, RotateCcw, Play, Pause, Hand, ShoppingCart, X, Rocket, Axe, Snowflake, Fence, Paintbrush, UserPlus, Images, CircleDot, Weight, Star, Crosshair, ShieldAlert, Shirt } from 'lucide-react';
+
+// --- Tweaks ---
+const tweaks = gizmoRuntime.tweaks({
+  gravityScale: { index: 0, name: 'Gravity', type: 'slider', value: 1.3000001, min: 0, max: 3, step: 0.1 },
+  stiffness: { index: 1, name: 'Joint Stiffness', type: 'slider', value: 0.9, min: 0.1, max: 1, step: 0.1 },
+  slowMoFactor: { index: 2, name: 'Slow Mo Speed', type: 'slider', value: 0.2, min: 0.05, max: 0.5, step: 0.05 },
+  particleCount: { index: 3, name: 'Particles', type: 'slider', value: 20, min: 5, max: 50, step: 1 },
+  wallColor: { index: 4, name: 'Wall Color', type: 'color', value: '#333333' },
+  ragdollColor: { index: 5, name: 'Ragdoll Color', type: 'color', value: "#FFD300" },
+  goliathSize: { index: 6, name: 'Goliath Scale', type: 'slider', value: 2.5, min: 1.5, max: 4, step: 0.1 },
+  performanceMode: { index: 7, name: 'Performance Mode', type: 'toggle', value: false },
+  maxBodies: { index: 8, name: 'Max Bodies', type: 'slider', value: 50, min: 10, max: 100, step: 10 },
+  constraintIterations: { index: 9, name: 'Physics Quality', type: 'slider', value: 2, min: 1, max: 4, step: 1 },
+});
+
+// --- Constants ---
+const CATEGORY_RAGDOLL = 0x0001;
+const CATEGORY_WALL = 0x0002;
+const CATEGORY_PROP = 0x0004;
+const CATEGORY_ENEMY = 0x0008;
+
+const ALL_TOOLS = [
+  { id: 'slap', name: 'Slap', icon: Hand, color: '#EFB63F', price: 0 },
+  { id: 'hand', name: 'Drag', icon: Grab, color: '#53B5F9', price: 0 },
+  { id: 'spawnEnemy', name: 'Spawn Enemy', icon: UserPlus, color: '#8762F6', price: 0 },
+  { id: 'spawnGoliath', name: 'Spawn Goliath', icon: ShieldAlert, color: '#E93323', price: 0 },
+  { id: 'hammer', name: 'Hammer', icon: Hammer, color: '#E93323', price: 5000 },
+  { id: 'electrocute', name: 'Electrocute', icon: Zap, color: '#75F94C', price: 15000 },
+  { id: 'bomb', name: 'Bomb', icon: Bomb, color: '#E432B7', price: 25000 },
+  { id: 'freezeRay', name: 'Freeze Ray', icon: Snowflake, color: '#00BFFF', price: 60000 },
+  { id: 'spikeTrap', name: 'Spike Trap', icon: Fence, color: '#808080', price: 35000 },
+  { id: 'paintGun', name: 'Paint Gun', icon: Paintbrush, color: '#FF69B4', price: 20000 },
+  { id: 'thorHammer', name: 'Mjolnir', icon: Hammer, color: '#4682B4', price: 85000 },
+  { id: 'shuriken', name: 'Dumbbell', icon: Weight, color: '#696969', price: 40000 },
+  { id: 'rocketLauncher', name: 'Rocket Launcher', icon: Rocket, color: '#FF4500', price: 50000 },
+];
+
+const RAGDOLL_SKINS = [
+  { id: 'default', name: 'Classic Yellow', color: '#FFD300', headColor: '#FFDD46', face: '🫩', price: 0 },
+  { id: 'zombie', name: 'Zombie', color: '#4A5D23', headColor: '#7A9D54', face: '🤢', price: 10000 },
+  { id: 'alien', name: 'Alien', color: '#228B22', headColor: '#32CD32', face: '👽', price: 25000 },
+  { id: 'ghost', name: 'Ghost', color: '#F8F8FF', headColor: '#FFFFFF', face: '💀', price: 50000 },
+  { id: 'lava', name: 'Lava', color: '#8B0000', headColor: '#FF4500', face: '🔥', price: 75000 },
+  { id: 'gold', name: 'Solid Gold', color: '#FFD700', headColor: '#DAA520', face: '🤴', price: 150000 },
+  { id: 'shadow', name: 'Shadow', color: '#1A1A1A', headColor: '#000000', face: '🌚', price: 100000 },
+  { id: 'frozen', name: 'Frozen', color: '#B0E0E6', headColor: '#E0FFFF', face: '🥶', price: 30000 },
+  { id: 'royal', name: 'Royal Purple', color: '#4B0082', headColor: '#8A2BE2', face: '👿', price: 60000 },
+];
+
+// --- Helper Functions ---
+const randomRange = (min, max) => Math.random() * (max - min) + min;
+
+export default function RagdollSmashLab() {
+  // --- Refs & State ---
+  const sceneRef = useRef(null);
+  const engineRef = useRef(null);
+  const runnerRef = useRef(null);
+  const renderLoopRef = useRef(null);
+  const canvasRef = useRef(null);
+  
+  // Game State
+  const [selectedTool, setSelectedTool] = useState('slap');
+  const [isPaused, setIsPaused] = useState(false);
+  const [isSlowMo, setIsSlowMo] = useState(false);
+  const [money, setMoney] = useState(0);
+  const [isShopOpen, setIsShopOpen] = useState(false);
+  const [isSkinShopOpen, setIsSkinShopOpen] = useState(false);
+  const [currentBgIndex, setCurrentBgIndex] = useState(0);
+  const [unlockedTools, setUnlockedTools] = useState(['slap', 'hand', 'spawnEnemy', 'spawnGoliath']);
+  const [unlockedSkins, setUnlockedSkins] = useState(['default']);
+  const [activeSkinId, setActiveSkinId] = useState('default');
+  const [customBg, setCustomBg] = useState(null);
+  const fileInputRef = useRef(null);
+  
+  // Audio Refs
+  const hammerSoundRef = useRef(null);
+  const electrocuteSoundRef = useRef(null);
+  const bombSoundRef = useRef(null);
+  const slapSoundRef = useRef(null);
+  const genericHitSoundRef = useRef(null);
+
+  // Tweak Values
+  const gravityScale = tweaks.gravityScale.useState();
+  const stiffness = tweaks.stiffness.useState();
+  const slowMoFactor = tweaks.slowMoFactor.useState();
+  const particleCount = tweaks.particleCount.useState();
+  const wallColor = tweaks.wallColor.useState();
+  const performanceMode = tweaks.performanceMode.useState();
+  const maxBodies = tweaks.maxBodies.useState();
+  const constraintIterations = tweaks.constraintIterations.useState();
+
+  // Mutable Game Data
+  const particlesRef = useRef([]);
+  const mouseRef = useRef(null);
+  const mouseConstraintRef = useRef(null);
+  const ragdollPartsRef = useRef([]);
+  const ragdollConstraintsRef = useRef([]);
+  const allRagdollsRef = useRef([]);
+  const lightningBoltsRef = useRef([]);
+  const skeletonEffectRef = useRef({ active: false, opacity: 0 });
+  const slapEffectRef = useRef({ active: false, position: {x:0, y:0}, angle: 0, opacity: 0 });
+  const hitCountRef = useRef(0);
+  const pleaThresholdRef = useRef(Math.floor(Math.random() * 3) + 3);
+  const [mercyPlea, setMercyPlea] = useState({ text: '', position: null, opacity: 0 });
+
+  const dumbbellImageRef = useRef(null);
+  const activeRocketsRef = useRef([]);
+  const lastRocketLaunchRef = useRef(0);
+
+  // --- Audio Setup ---
+  useEffect(() => {
+    const hammerAudio = new Audio('https://content.gizmo.party/34e069b5-4beb-40d2-a05e-c99437676f96');
+    hammerAudio.preload = 'auto';
+    hammerSoundRef.current = hammerAudio;
+
+    const electrocuteAudio = new Audio('https://content.gizmo.party/eaf00bd8-3ffb-4812-ae9c-a0f6f999fdeb');
+    electrocuteAudio.preload = 'auto';
+    electrocuteSoundRef.current = electrocuteAudio;
+
+    const bombAudio = new Audio('https://content.gizmo.party/076a713f-a32e-411b-95f4-55a1bf2707df');
+    bombAudio.preload = 'auto';
+    bombSoundRef.current = bombAudio;
+
+    const slapAudio = new Audio('https://content.gizmo.party/62a7ac19-4a34-4360-be79-989e00274219');
+    slapAudio.preload = 'auto';
+    slapSoundRef.current = slapAudio;
+
+    const genericHitAudio = new Audio('https://content.gizmo.party/34e069b5-4beb-40d2-a05e-c99437676f96');
+    genericHitAudio.preload = 'auto';
+    genericHitSoundRef.current = genericHitAudio;
+
+    return () => {
+      hammerSoundRef.current?.pause();
+      electrocuteSoundRef.current?.pause();
+      bombSoundRef.current?.pause();
+      slapSoundRef.current?.pause();
+      genericHitSoundRef.current?.pause();
+    };
+  }, []);
+
+  const playHammerSound = () => {
+    if (hammerSoundRef.current) {
+      hammerSoundRef.current.currentTime = 0;
+      hammerSoundRef.current.play().catch(() => {});
+    }
+  };
+
+  const playElectrocuteSound = (intensity = 1) => {
+    if (electrocuteSoundRef.current) {
+      electrocuteSoundRef.current.volume = Math.min(1, intensity);
+      electrocuteSoundRef.current.currentTime = 0;
+      electrocuteSoundRef.current.play().catch(() => {});
+    }
+  };
+
+  const playBombSound = () => {
+    if (bombSoundRef.current) {
+      bombSoundRef.current.currentTime = 0;
+      bombSoundRef.current.play().catch(() => {});
+    }
+  };
+
+  const playSlapSound = () => {
+    if (slapSoundRef.current) {
+      slapSoundRef.current.currentTime = 0;
+      slapSoundRef.current.play().catch(() => {});
+    }
+  };
+
+  const playGenericHitSound = () => {
+    if (genericHitSoundRef.current) {
+      genericHitSoundRef.current.currentTime = 0;
+      genericHitSoundRef.current.play().catch(() => {});
+    }
+  };
+
+  // --- Physics Setup ---
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      dumbbellImageRef.current = img;
+    };
+    img.src = 'https://content.gizmo.party/2fe48780-c37e-415f-99eb-1ffd19ca901e';
+
+    const { Engine, Runner, World, Bodies, Composite, Mouse, MouseConstraint, Events, Body, Vector } = Matter;
+
+    const engine = Engine.create();
+    engineRef.current = engine;
+    engine.world.gravity.y = gravityScale;
+    engine.constraintIterations = constraintIterations;
+    engine.positionIterations = performanceMode ? 2 : 6;
+    engine.velocityIterations = performanceMode ? 2 : 4;
+
+    const runner = Runner.create();
+    runnerRef.current = runner;
+
+    const canvas = canvasRef.current;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+    const backgroundImages = [
+      'https://content.gizmo.party/475fad2b-58da-47eb-8534-9dade6bf067a',
+      'https://content.gizmo.party/0afaaf86-c29b-43ab-a4fb-9120f379a40c',
+      'https://content.gizmo.party/2ff7b8a4-e86a-40f7-b575-68fb6dbdf374'
+    ];
+
+    const setBackground = (index) => {
+        if (customBg) {
+          canvas.style.backgroundImage = `url('${customBg}')`;
+        } else {
+          canvas.style.backgroundImage = `url('${backgroundImages[index]}')`;
+        }
+    }
+
+    setBackground(currentBgIndex);
+    canvas.style.backgroundSize = 'cover';
+    canvas.style.backgroundPosition = 'center';
+    canvas.style.backgroundRepeat = 'no-repeat';
+    const ctx = canvas.getContext('2d');
+
+    const wallOptions = { 
+      isStatic: true, 
+      render: { fillStyle: wallColor },
+      collisionFilter: { category: CATEGORY_WALL }
+    };
+    const ground = Bodies.rectangle(width / 2, height + 50, width, 100, wallOptions);
+    const leftWall = Bodies.rectangle(-50, height / 2, 100, height * 2, wallOptions);
+    const rightWall = Bodies.rectangle(width + 50, height / 2, 100, height * 2, wallOptions);
+    const ceiling = Bodies.rectangle(width / 2, -500, width, 100, wallOptions);
+
+    World.add(engine.world, [ground, leftWall, rightWall, ceiling]);
+
+    const mouse = Mouse.create(canvas);
+    mouseRef.current = mouse;
+    const mouseConstraint = MouseConstraint.create(engine, {
+      mouse: mouse,
+      constraint: {
+        stiffness: 0.2,
+        render: { visible: false }
+      }
+    });
+    mouseConstraintRef.current = mouseConstraint;
+    World.add(engine.world, mouseConstraint);
+
+    mouse.element.removeEventListener("mousewheel", mouse.mousewheel);
+    mouse.element.removeEventListener("DOMMouseScroll", mouse.mousewheel);
+
+    Events.on(engine, 'beforeUpdate', () => {
+      const targetHead = ragdollPartsRef.current.find(p => p.label === 'Circle Body' && !p.isEnemy);
+      if (!targetHead) return;
+
+      activeRocketsRef.current.forEach(rocketData => {
+        const rocket = rocketData.body;
+        const target = targetHead;
+        const dx = target.position.x - rocket.position.x;
+        const dy = target.position.y - rocket.position.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance < 10) return;
+        const desiredAngle = Math.atan2(dy, dx);
+        Body.setAngle(rocket, desiredAngle);
+        const currentVelocity = rocket.velocity;
+        const currentSpeed = Math.sqrt(currentVelocity.x * currentVelocity.x + currentVelocity.y * currentVelocity.y);
+        const targetDirection = Vector.normalise({ x: dx, y: dy });
+        const desiredVelocity = Vector.mult(targetDirection, currentSpeed);
+        const steeringFactor = 0.05;
+        const newVelocity = {
+          x: currentVelocity.x + (desiredVelocity.x - currentVelocity.x) * steeringFactor,
+          y: currentVelocity.y + (desiredVelocity.y - currentVelocity.y) * steeringFactor
+        };
+        const finalVelocity = Vector.mult(Vector.normalise(newVelocity), Math.max(15, Math.min(25, currentSpeed)));
+        Body.setVelocity(rocket, finalVelocity);
+      });
+    });
+
+    const createRagdoll = (x, y, isEnemy = false, scale = 1) => {
+      const category = isEnemy ? CATEGORY_ENEMY : CATEGORY_RAGDOLL;
+      const activeSkin = RAGDOLL_SKINS.find(s => s.id === activeSkinId) || RAGDOLL_SKINS[0];
+      const color = isEnemy ? '#E93323' : activeSkin.color;
+      const headColor = isEnemy ? '#F58F87' : activeSkin.headColor;
+
+      const headOptions = { friction: 0.5, frictionAir: 0.05, render: { fillStyle: headColor }, collisionFilter: { category, mask: CATEGORY_WALL | CATEGORY_PROP | CATEGORY_RAGDOLL | CATEGORY_ENEMY } };
+      const chestOptions = { friction: 0.5, frictionAir: 0.05, render: { fillStyle: color }, collisionFilter: { category, mask: CATEGORY_WALL | CATEGORY_PROP | CATEGORY_RAGDOLL | CATEGORY_ENEMY } };
+      const limbOptions = { friction: 0.5, frictionAir: 0.03, render: { fillStyle: color }, collisionFilter: { category, mask: CATEGORY_WALL | CATEGORY_PROP | CATEGORY_RAGDOLL | CATEGORY_ENEMY } };
+
+      const head = Bodies.circle(x, y - 70 * scale, 25 * scale, headOptions);
+      head.isEnemy = isEnemy;
+      if (!isEnemy) head.skinFace = activeSkin.face;
+      const torso = Bodies.rectangle(x, y, 40 * scale, 80 * scale, chestOptions);
+      const leftUpperArm = Bodies.rectangle(x - 35 * scale, y - 20 * scale, 20 * scale, 50 * scale, limbOptions);
+      const leftLowerArm = Bodies.rectangle(x - 35 * scale, y + 35 * scale, 15 * scale, 50 * scale, limbOptions);
+      const rightUpperArm = Bodies.rectangle(x + 35 * scale, y - 20 * scale, 20 * scale, 50 * scale, limbOptions);
+      const rightLowerArm = Bodies.rectangle(x + 35 * scale, y + 35 * scale, 15 * scale, 50 * scale, limbOptions);
+      const leftUpperLeg = Bodies.rectangle(x - 15 * scale, y + 60 * scale, 20 * scale, 60 * scale, limbOptions);
+      const leftLowerLeg = Bodies.rectangle(x - 15 * scale, y + 125 * scale, 15 * scale, 60 * scale, limbOptions);
+      const rightUpperLeg = Bodies.rectangle(x + 15 * scale, y + 60 * scale, 20 * scale, 60 * scale, limbOptions);
+      const rightLowerLeg = Bodies.rectangle(x + 15 * scale, y + 125 * scale, 15 * scale, 60 * scale, limbOptions);
+
+      const parts = [head, torso, leftUpperArm, leftLowerArm, rightUpperArm, rightLowerArm, leftUpperLeg, leftLowerLeg, rightUpperLeg, rightLowerLeg];
+      if (!isEnemy) ragdollPartsRef.current = parts;
+
+      const jointOptions = { stiffness: stiffness, render: { visible: false }, label: 'ragdoll-joint' };
+      const neck = Matter.Constraint.create({ bodyA: head, bodyB: torso, pointA: { x: 0, y: 25 * scale }, pointB: { x: 0, y: -40 * scale }, length: 2 * scale, ...jointOptions });
+      const leftShoulder = Matter.Constraint.create({ bodyA: torso, bodyB: leftUpperArm, pointA: { x: -20 * scale, y: -30 * scale }, pointB: { x: 0, y: -20 * scale }, length: 2 * scale, ...jointOptions });
+      const leftElbow = Matter.Constraint.create({ bodyA: leftUpperArm, bodyB: leftLowerArm, pointA: { x: 0, y: 25 * scale }, pointB: { x: 0, y: -25 * scale }, length: 2 * scale, ...jointOptions });
+      const rightShoulder = Matter.Constraint.create({ bodyA: torso, bodyB: rightUpperArm, pointA: { x: 20 * scale, y: -30 * scale }, pointB: { x: 0, y: -20 * scale }, length: 2 * scale, ...jointOptions });
+      const rightElbow = Matter.Constraint.create({ bodyA: rightUpperArm, bodyB: rightLowerArm, pointA: { x: 0, y: 25 * scale }, pointB: { x: 0, y: -25 * scale }, length: 2 * scale, ...jointOptions });
+      const leftHip = Matter.Constraint.create({ bodyA: torso, bodyB: leftUpperLeg, pointA: { x: -10 * scale, y: 40 * scale }, pointB: { x: 0, y: -30 * scale }, length: 2 * scale, ...jointOptions });
+      const leftKnee = Matter.Constraint.create({ bodyA: leftUpperLeg, bodyB: leftLowerLeg, pointA: { x: 0, y: 30 * scale }, pointB: { x: 0, y: -30 * scale }, length: 2 * scale, ...jointOptions });
+      const rightHip = Matter.Constraint.create({ bodyA: torso, bodyB: rightUpperLeg, pointA: { x: 10 * scale, y: 40 * scale }, pointB: { x: 0, y: -30 * scale }, length: 2 * scale, ...jointOptions });
+      const rightKnee = Matter.Constraint.create({ bodyA: rightUpperLeg, bodyB: rightLowerLeg, pointA: { x: 0, y: 30 * scale }, pointB: { x: 0, y: -30 * scale }, length: 2 * scale, ...jointOptions });
+
+      const constraints = [neck, leftShoulder, leftElbow, rightShoulder, rightElbow, leftHip, leftKnee, rightHip, rightKnee];
+      if (!isEnemy) ragdollConstraintsRef.current = constraints;
+
+      const ragdollComposite = Composite.create({ bodies: parts, constraints: constraints });
+      allRagdollsRef.current.push(ragdollComposite);
+      World.add(engine.world, ragdollComposite);
+      return ragdollComposite;
+    };
+
+    createRagdoll(width / 2, height / 3, false);
+
+    const render = () => {
+      let bodies = Composite.allBodies(engine.world);
+      if (performanceMode && bodies.length > maxBodies) {
+        bodies = bodies.filter(b => b.collisionFilter.category === CATEGORY_WALL || b.position.y < height + 200);
+      }
+      ctx.clearRect(0, 0, width, height);
+
+      bodies.forEach(body => {
+        if (body.render.visible === false) return;
+        if (performanceMode && body.position.y > height + 500) return;
+        const isRagdollPart = ragdollPartsRef.current.includes(body);
+        const showSkeleton = skeletonEffectRef.current.active && (isRagdollPart || body.isEnemy);
+        
+        if (body.render.sprite && body.render.sprite.texture) {
+          ctx.save();
+          ctx.translate(body.position.x, body.position.y);
+          ctx.rotate(body.angle);
+          const texture = body.render.sprite.texture;
+          const w = body.bounds.max.x - body.bounds.min.x;
+          const h = body.bounds.max.y - body.bounds.min.y;
+          if (texture === '🚀' || texture === '🔨') {
+            ctx.font = `${w * 1.5}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(texture, 0, 0);
+          } else if (dumbbellImageRef.current) {
+            ctx.drawImage(dumbbellImageRef.current, -w / 2, -h / 2, w, h);
+          }
+          ctx.restore();
+          return;
+        }
+
+        ctx.beginPath();
+        const vertices = body.vertices;
+        ctx.moveTo(vertices[0].x, vertices[0].y);
+        for (let j = 1; j < vertices.length; j += 1) ctx.lineTo(vertices[j].x, vertices[j].y);
+        ctx.lineTo(vertices[0].x, vertices[0].y);
+        
+        if (showSkeleton) {
+          ctx.globalAlpha = skeletonEffectRef.current.opacity;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.fill();
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.save();
+          ctx.translate(body.position.x, body.position.y);
+          ctx.rotate(body.angle);
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 3;
+          const w = body.bounds.max.x - body.bounds.min.x;
+          const h = body.bounds.max.y - body.bounds.min.y;
+          if (body.label === 'Circle Body') {
+            ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(-8, -5, 4, 0, Math.PI * 2); ctx.arc(8, -5, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(-10, 10); ctx.lineTo(10, 10); ctx.stroke();
+          } else if (h > 70 && w < 50) {
+            ctx.beginPath(); ctx.moveTo(0, -h/2 + 10); ctx.lineTo(0, h/2 - 10); ctx.stroke();
+            for(let i = -20; i <= 20; i += 10) { ctx.beginPath(); ctx.moveTo(-w/2 + 5, i); ctx.lineTo(w/2 - 5, i); ctx.stroke(); }
+          } else if (h > w) {
+            ctx.beginPath(); ctx.arc(0, -h/2 + 5, 5, 0, Math.PI * 2); ctx.arc(0, h/2 - 5, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(0, -h/2 + 5); ctx.lineTo(0, h/2 - 5); ctx.stroke();
+          } else {
+            ctx.beginPath(); ctx.moveTo(-w/4, 0); ctx.lineTo(w/4, 0); ctx.stroke();
+          }
+          ctx.restore();
+          ctx.globalAlpha = 1;
+        } else {
+          ctx.fillStyle = body.render.fillStyle || '#fff';
+          ctx.fill();
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          if (body.label === 'Circle Body' && body.area < 3000 && body.position.y < height - 50) {
+             ctx.save();
+             ctx.translate(body.position.x, body.position.y);
+             ctx.rotate(body.angle);
+             ctx.font = body.isEnemy && body.circleRadius > 30 ? `${body.circleRadius * 2}px sans-serif` : '50px sans-serif';
+             ctx.textAlign = 'center';
+             ctx.textBaseline = 'middle';
+             const activeSkin = RAGDOLL_SKINS.find(s => s.id === activeSkinId) || RAGDOLL_SKINS[0];
+             const faceEmoji = body.isEnemy ? (body.circleRadius > 30 * (tweaks.goliathSize.value / 2.5) ? '🗿' : '😡') : (body.skinFace || activeSkin.face);
+             ctx.textBaseline = 'middle';
+             ctx.fillText(faceEmoji, 0, 2);
+             ctx.restore();
+          }
+        }
+      });
+
+      // Draw mercy plea text directly on canvas to avoid React flicker
+      if (mercyPlea.opacity > 0 && mercyPlea.position) {
+        ctx.save();
+        ctx.translate(mercyPlea.position.x, mercyPlea.position.y);
+        ctx.globalAlpha = mercyPlea.opacity;
+        
+        // Draw bubble background
+        const text = mercyPlea.text;
+        ctx.font = 'bold 14px sans-serif';
+        const textWidth = ctx.measureText(text).width;
+        const padding = 8;
+        const bubbleWidth = textWidth + padding * 2;
+        const bubbleHeight = 30;
+        
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.beginPath();
+        ctx.roundRect(-bubbleWidth / 2, -bubbleHeight / 2, bubbleWidth, bubbleHeight, 8);
+        ctx.fill();
+        
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = 'rgba(0,0,0,0.2)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.stroke();
+        
+        // Draw text
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 0, 0);
+        ctx.restore();
+      }
+
+      if (slapEffectRef.current.active) {
+        const { position, angle, opacity } = slapEffectRef.current;
+        ctx.save();
+        ctx.translate(position.x, position.y);
+        ctx.rotate(angle);
+        ctx.globalAlpha = opacity;
+        ctx.font = '120px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#FFCC99';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 4;
+        ctx.strokeText('✋', 0, 0);
+        ctx.fillText('✋', 0, 0);
+        ctx.restore();
+      }
+
+      for (let i = lightningBoltsRef.current.length - 1; i >= 0; i--) {
+        const bolt = lightningBoltsRef.current[i];
+        bolt.life -= 0.05;
+        if (bolt.life <= 0) { lightningBoltsRef.current.splice(i, 1); continue; }
+        ctx.globalAlpha = bolt.life;
+        ctx.strokeStyle = '#2227F5';
+        ctx.lineWidth = 4;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#2227F5';
+        ctx.beginPath();
+        ctx.moveTo(bolt.startX, bolt.startY);
+        for (let j = 0; j < bolt.points.length; j++) ctx.lineTo(bolt.points[j].x, bolt.points[j].y);
+        ctx.lineTo(bolt.endX, bolt.endY);
+        ctx.stroke();
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(bolt.startX, bolt.startY);
+        for (let j = 0; j < bolt.points.length; j++) ctx.lineTo(bolt.points[j].x, bolt.points[j].y);
+        ctx.lineTo(bolt.endX, bolt.endY);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+      }
+
+      const particleSkip = performanceMode ? 2 : 1;
+      for (let i = particlesRef.current.length - 1; i >= 0; i -= particleSkip) {
+        const p = particlesRef.current[i];
+        p.life -= 0.02;
+        p.x += p.vx; p.y += p.vy; p.vy += 0.2;
+        if (p.life <= 0) { particlesRef.current.splice(i, 1); continue; }
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      renderLoopRef.current = requestAnimationFrame(render);
+    };
+
+    render();
+    Runner.run(runner, engine);
+
+    return () => {
+      Runner.stop(runner);
+      Engine.clear(engine);
+      cancelAnimationFrame(renderLoopRef.current);
+      World.clear(engine.world);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (canvasRef.current) {
+        if (customBg) {
+          canvasRef.current.style.backgroundImage = `url('${customBg}')`;
+        } else {
+          const backgroundImages = [
+            'https://content.gizmo.party/475fad2b-58da-47eb-8534-9dade6bf067a',
+            'https://content.gizmo.party/0afaaf86-c29b-43ab-a4fb-9120f379a40c',
+            'https://content.gizmo.party/2ff7b8a4-e86a-40f7-b575-68fb6dbdf374'
+          ];
+          canvasRef.current.style.backgroundImage = `url('${backgroundImages[currentBgIndex]}')`;
+        }
+    }
+  }, [currentBgIndex, customBg]);
+
+  useEffect(() => {
+    if (engineRef.current) engineRef.current.world.gravity.y = gravityScale;
+  }, [gravityScale]);
+
+  useEffect(() => {
+    if (engineRef.current) {
+      Matter.Composite.allBodies(engineRef.current.world).forEach(body => {
+        if (body.collisionFilter.category === CATEGORY_WALL) body.render.fillStyle = wallColor;
+      });
+    }
+  }, [wallColor]);
+
+  useEffect(() => {
+    if (ragdollPartsRef.current.length > 0) {
+      const activeSkin = RAGDOLL_SKINS.find(s => s.id === activeSkinId) || RAGDOLL_SKINS[0];
+      ragdollPartsRef.current.forEach(part => {
+        if (part.label === 'Circle Body') {
+          part.render.fillStyle = activeSkin.headColor;
+          if (!part.isEnemy) part.skinFace = activeSkin.face;
+        } else {
+          part.render.fillStyle = activeSkin.color;
+        }
+      });
+    }
+  }, [activeSkinId]);
+
+  const goliathSize = tweaks.goliathSize.useState();
+
+  useEffect(() => {
+    const loop = setInterval(() => {
+      if (!engineRef.current) return;
+      engineRef.current.timing.timeScale = isSlowMo ? slowMoFactor : 1;
+      if (engineRef.current.constraintIterations !== constraintIterations) {
+        engineRef.current.constraintIterations = constraintIterations;
+        engineRef.current.positionIterations = performanceMode ? 2 : 6;
+        engineRef.current.velocityIterations = performanceMode ? 2 : 4;
+      }
+      if (slapEffectRef.current.active) {
+        slapEffectRef.current.opacity -= 0.05;
+        if (slapEffectRef.current.opacity <= 0) slapEffectRef.current.active = false;
+      }
+      if (skeletonEffectRef.current.active) {
+        skeletonEffectRef.current.opacity -= 0.02;
+        if (skeletonEffectRef.current.opacity <= 0) {
+          skeletonEffectRef.current.active = false;
+          skeletonEffectRef.current.opacity = 0;
+        }
+      }
+      let totalKE = 0;
+      const currentRagdolls = [...allRagdollsRef.current];
+      currentRagdolls.forEach(ragdoll => {
+        if (ragdoll && ragdoll.bodies) {
+          ragdoll.bodies.forEach(part => {
+            if (part.collisionFilter.category === CATEGORY_RAGDOLL) totalKE += 0.5 * part.mass * part.speed * part.speed;
+          });
+        }
+      });
+      if (totalKE > 5) setMoney(s => Math.floor(s + totalKE / (performanceMode ? 15 : 10)));
+      if (mercyPlea.opacity > 0) {
+        const head = ragdollPartsRef.current.find(p => p.label === 'Circle Body');
+        const newPosition = head ? { x: head.position.x, y: head.position.y - 80 } : null;
+        setMercyPlea(p => ({
+          ...p,
+          position: newPosition || p.position,
+          opacity: Math.max(0, p.opacity - 0.01)
+        }));
+      }
+    }, 1000 / (performanceMode ? 30 : 60));
+    return () => clearInterval(loop);
+  }, [isSlowMo, slowMoFactor, performanceMode, constraintIterations]);
+
+  const spawnParticles = (x, y, color, count = 10, speed = 5) => {
+    const actualCount = performanceMode ? Math.ceil(count / 2) : count;
+    for (let i = 0; i < actualCount; i++) {
+      particlesRef.current.push({
+        x, y,
+        vx: (Math.random() - 0.5) * speed,
+        vy: (Math.random() - 0.5) * speed,
+        life: 1.0,
+        color: color,
+        size: Math.random() * 4 + 2
+      });
+    }
+    if (performanceMode && particlesRef.current.length > 500) {
+      particlesRef.current = particlesRef.current.slice(-500);
+    }
+  };
+
+  const triggerMercyPlea = () => {
+    hitCountRef.current += 1;
+    if (hitCountRef.current >= pleaThresholdRef.current) {
+      hitCountRef.current = 0;
+      pleaThresholdRef.current = Math.floor(Math.random() * 3) + 3;
+      const head = ragdollPartsRef.current.find(p => p.label === 'Circle Body');
+      if (!head) return;
+      const pleaPosition = { x: head.position.x, y: head.position.y - 80 };
+      if (Math.random() < 0.2) {
+        setMercyPlea({ text: "67", position: pleaPosition, opacity: 1 });
+        return;
+      }
+      gizmoRuntime.generateText({ prompt: "Generate a short, desperate, funny plea for mercy from a ragdoll that's being smashed. Use crazy, creative, and aggressive insults instead of curse words. Call the player things like 'lint-licker', 'absolute walnut', 'spoon', etc. DO NOT use the word 'cabbage'. Under 10 words." })
+        .then((response) => {
+          const text = response.text;
+          if (text.toLowerCase().includes('error') || text.toLowerCase().includes('request') || text.toLowerCase().includes('constraint') || text.length > 100) {
+             throw new Error('AI returned meta-text');
+          }
+          setMercyPlea({ text: text, position: pleaPosition, opacity: 1 });
+        })
+        .catch(() => {
+          const fallbacks = [
+            "67", "You absolute walnut!", "You lint-licker!", "You uncultured swine!", "You spoon!", "You absolute muppet!", "You wet noodle!", "You sentient bag of flour!", "You overcooked noodle!", "You absolute doorknob!"
+          ];
+          const fallbackText = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+          setMercyPlea({ text: fallbackText, position: pleaPosition, opacity: 1 });
+        });
+    }
+  };
+
+  const handleInteraction = (e, isHolding = false) => {
+    if (selectedTool === 'hand') {
+      mouseConstraintRef.current.constraint.stiffness = 0.2;
+      return;
+    } else {
+      mouseConstraintRef.current.constraint.stiffness = 0;
+    }
+    const rect = canvasRef.current.getBoundingClientRect();
+    const touches = e.touches || e.changedTouches;
+    const x = (e.clientX || (touches && touches[0] && touches[0].clientX)) - rect.left;
+    const y = (e.clientY || (touches && touches[0] && touches[0].clientY)) - rect.top;
+    const clickPos = { x, y };
+
+    if (selectedTool === 'spawnEnemy' || selectedTool === 'spawnGoliath') {
+      const { Bodies, Composite, World } = Matter;
+      const createRagdoll = (x, y, isEnemy = false, scale = 1) => {
+        const category = isEnemy ? CATEGORY_ENEMY : CATEGORY_RAGDOLL;
+        const activeSkin = RAGDOLL_SKINS.find(s => s.id === activeSkinId) || RAGDOLL_SKINS[0];
+        const color = isEnemy ? '#E93323' : activeSkin.color;
+        const headColor = isEnemy ? '#F58F87' : activeSkin.headColor;
+        const headOptions = { friction: 0.5, frictionAir: 0.05, render: { fillStyle: headColor }, collisionFilter: { category, mask: CATEGORY_WALL | CATEGORY_PROP | CATEGORY_RAGDOLL | CATEGORY_ENEMY } };
+        const chestOptions = { friction: 0.5, frictionAir: 0.05, render: { fillStyle: color }, collisionFilter: { category, mask: CATEGORY_WALL | CATEGORY_PROP | CATEGORY_RAGDOLL | CATEGORY_ENEMY } };
+        const limbOptions = { friction: 0.5, frictionAir: 0.03, render: { fillStyle: color }, collisionFilter: { category, mask: CATEGORY_WALL | CATEGORY_PROP | CATEGORY_RAGDOLL | CATEGORY_ENEMY } };
+        const head = Bodies.circle(x, y - 70 * scale, 25 * scale, headOptions);
+        head.isEnemy = isEnemy;
+        if (!isEnemy) head.skinFace = activeSkin.face;
+        const torso = Bodies.rectangle(x, y, 40 * scale, 80 * scale, chestOptions);
+        const parts = [head, torso, Bodies.rectangle(x - 35 * scale, y - 20 * scale, 20 * scale, 50 * scale, limbOptions), Bodies.rectangle(x - 35 * scale, y + 35 * scale, 15 * scale, 50 * scale, limbOptions), Bodies.rectangle(x + 35 * scale, y - 20 * scale, 20 * scale, 50 * scale, limbOptions), Bodies.rectangle(x + 35 * scale, y + 35 * scale, 15 * scale, 50 * scale, limbOptions), Bodies.rectangle(x - 15 * scale, y + 60 * scale, 20 * scale, 60 * scale, limbOptions), Bodies.rectangle(x - 15 * scale, y + 125 * scale, 15 * scale, 60 * scale, limbOptions), Bodies.rectangle(x + 15 * scale, y + 60 * scale, 20 * scale, 60 * scale, limbOptions), Bodies.rectangle(x + 15 * scale, y + 125 * scale, 15 * scale, 60 * scale, limbOptions)];
+        const jointOptions = { stiffness: stiffness, render: { visible: false }, label: 'ragdoll-joint' };
+        const constraints = [Matter.Constraint.create({ bodyA: head, bodyB: torso, pointA: { x: 0, y: 25 * scale }, pointB: { x: 0, y: -40 * scale }, length: 2 * scale, ...jointOptions }), Matter.Constraint.create({ bodyA: torso, bodyB: parts[2], pointA: { x: -20 * scale, y: -30 * scale }, pointB: { x: 0, y: -20 * scale }, length: 2 * scale, ...jointOptions }), Matter.Constraint.create({ bodyA: parts[2], bodyB: parts[3], pointA: { x: 0, y: 25 * scale }, pointB: { x: 0, y: -25 * scale }, length: 2 * scale, ...jointOptions }), Matter.Constraint.create({ bodyA: torso, bodyB: parts[4], pointA: { x: 20 * scale, y: -30 * scale }, pointB: { x: 0, y: -20 * scale }, length: 2 * scale, ...jointOptions }), Matter.Constraint.create({ bodyA: parts[4], bodyB: parts[5], pointA: { x: 0, y: 25 * scale }, pointB: { x: 0, y: -25 * scale }, length: 2 * scale, ...jointOptions }), Matter.Constraint.create({ bodyA: torso, bodyB: parts[6], pointA: { x: -10 * scale, y: 40 * scale }, pointB: { x: 0, y: -30 * scale }, length: 2 * scale, ...jointOptions }), Matter.Constraint.create({ bodyA: parts[6], bodyB: parts[7], pointA: { x: 0, y: 30 * scale }, pointB: { x: 0, y: -30 * scale }, length: 2 * scale, ...jointOptions }), Matter.Constraint.create({ bodyA: torso, bodyB: parts[8], pointA: { x: 10 * scale, y: 40 * scale }, pointB: { x: 0, y: -30 * scale }, length: 2 * scale, ...jointOptions }), Matter.Constraint.create({ bodyA: parts[8], bodyB: parts[9], pointA: { x: 0, y: 30 * scale }, pointB: { x: 0, y: -30 * scale }, length: 2 * scale, ...jointOptions })];
+        const ragdollComposite = Composite.create({ bodies: parts, constraints: constraints });
+        allRagdollsRef.current.push(ragdollComposite);
+        World.add(engineRef.current.world, ragdollComposite);
+        return ragdollComposite;
+      };
+      createRagdoll(x, y, true, selectedTool === 'spawnGoliath' ? goliathSize : 1);
+      gizmoRuntime.performHaptic('light');
+      return;
+    }
+
+    const bodies = Matter.Composite.allBodies(engineRef.current.world);
+    const bodiesWithoutWalls = bodies.filter(b => b.collisionFilter.category !== CATEGORY_WALL);
+    let nearest = null; let minDist = Infinity;
+    bodiesWithoutWalls.forEach(body => {
+      const dist = Matter.Vector.magnitude(Matter.Vector.sub(body.position, clickPos));
+      if (dist < minDist) { minDist = dist; nearest = body; }
+    });
+    if (!nearest || minDist > 200) { if (selectedTool !== 'bomb' && selectedTool !== 'slap') return; }
+
+    switch (selectedTool) {
+      case 'slap': {
+        if (!nearest) return;
+        const slapDirection = Matter.Vector.normalise(Matter.Vector.sub(nearest.position, clickPos));
+        Matter.Body.applyForce(nearest, nearest.position, Matter.Vector.mult(slapDirection, 0.2 * nearest.mass));
+        slapEffectRef.current = { active: true, position: clickPos, angle: Math.atan2(slapDirection.y, slapDirection.x) + Math.PI / 2, opacity: 1.0 };
+        spawnParticles(nearest.position.x, nearest.position.y, '#EFB63F', particleCount);
+        playSlapSound(); gizmoRuntime.performHaptic('heavy'); triggerMercyPlea();
+        break;
+      }
+      case 'hammer':
+        if (nearest) {
+          Matter.Body.applyForce(nearest, nearest.position, { x: 0, y: 0.3 * nearest.mass });
+          spawnParticles(nearest.position.x, nearest.position.y, '#E93323', particleCount + 10);
+          playHammerSound(); gizmoRuntime.performHaptic('heavy'); triggerMercyPlea();
+        }
+        break;
+      case 'electrocute':
+        if (nearest) {
+          const torso = ragdollPartsRef.current.find(p => p.label === 'Rectangle Body' && p.bounds.max.y - p.bounds.min.y > 70);
+          const targetPos = torso ? torso.position : nearest.position;
+          const startX = targetPos.x + (Math.random() - 0.5) * 100;
+          const points = []; const segments = 8;
+          for (let i = 1; i < segments; i++) points.push({ x: startX + (targetPos.x - startX) * (i/segments) + (Math.random() - 0.5) * 40, y: -50 + (targetPos.y + 50) * (i/segments) });
+          lightningBoltsRef.current.push({ startX, startY: -50, endX: targetPos.x, endY: targetPos.y, points, life: 1.0 });
+          allRagdollsRef.current.forEach(ragdoll => ragdoll.bodies.forEach(part => {
+            Matter.Body.applyForce(part, part.position, { x: (Math.random() - 0.5) * 0.02 * part.mass, y: (Math.random() - 0.5) * 0.02 * part.mass });
+            Matter.Body.setAngularVelocity(part, (Math.random() - 0.5) * 0.3);
+          }));
+          skeletonEffectRef.current = { active: true, opacity: 1.0 };
+          spawnParticles(targetPos.x, targetPos.y, '#FFFF00', particleCount * 2, 10);
+          playElectrocuteSound(); gizmoRuntime.performHaptic('heavy'); triggerMercyPlea();
+        }
+        break;
+      case 'bomb':
+        gizmoRuntime.performHaptic('heavy'); spawnParticles(x, y, '#FFA500', 40, 15); playBombSound();
+        bodiesWithoutWalls.forEach(body => {
+          const forceVec = Matter.Vector.sub(body.position, clickPos);
+          const dist = Matter.Vector.magnitude(forceVec);
+          if (dist < 300) Matter.Body.applyForce(body, body.position, Matter.Vector.mult(Matter.Vector.normalise(forceVec), (300 - dist) * 0.002 * body.mass));
+        });
+        triggerMercyPlea();
+        break;
+      case 'freezeRay':
+        if (nearest) {
+          Matter.Body.setVelocity(nearest, { x: 0, y: 0 }); Matter.Body.setAngularVelocity(nearest, 0);
+          nearest.render.fillStyle = '#ADD8E6'; spawnParticles(nearest.position.x, nearest.position.y, '#00BFFF', particleCount * 2, 3);
+          playGenericHitSound(); gizmoRuntime.performHaptic('soft');
+          const activeSkin = RAGDOLL_SKINS.find(s => s.id === activeSkinId) || RAGDOLL_SKINS[0];
+          setTimeout(() => { if(nearest) nearest.render.fillStyle = activeSkin.color; }, 2000);
+          triggerMercyPlea();
+        }
+        break;
+      case 'spikeTrap': {
+        const trap = Matter.Bodies.rectangle(clickPos.x, clickPos.y, 100, 20, { isStatic: true, isSensor: true, render: { fillStyle: '#808080' } });
+        Matter.World.add(engineRef.current.world, trap); spawnParticles(clickPos.x, clickPos.y, '#808080', 10, 2); playGenericHitSound();
+        setTimeout(() => Matter.World.remove(engineRef.current.world, trap), 5000);
+        const collisionListener = (event) => {
+            event.pairs.forEach(pair => {
+                if ((pair.bodyA === trap && ragdollPartsRef.current.includes(pair.bodyB)) || (pair.bodyB === trap && ragdollPartsRef.current.includes(pair.bodyA))) {
+                    const ragdollPart = ragdollPartsRef.current.includes(pair.bodyA) ? pair.bodyA : pair.bodyB;
+                    Matter.Body.applyForce(ragdollPart, ragdollPart.position, {x:0, y: -0.1 * ragdollPart.mass});
+                    spawnParticles(ragdollPart.position.x, ragdollPart.position.y, '#E93323', 5, 5); triggerMercyPlea();
+                }
+            });
+        };
+        Matter.Events.on(engineRef.current, 'collisionActive', collisionListener);
+        setTimeout(() => Matter.Events.off(engineRef.current, 'collisionActive', collisionListener), 5000);
+        break;
+      }
+      case 'paintGun':
+        if (nearest) {
+          const randomColor = `hsl(${Math.random() * 360}, 100%, 70%)`;
+          nearest.render.fillStyle = randomColor; spawnParticles(nearest.position.x, nearest.position.y, randomColor, particleCount, 10);
+          playGenericHitSound(); gizmoRuntime.performHaptic('light'); triggerMercyPlea();
+        }
+        break;
+      case 'thorHammer': {
+        gizmoRuntime.performHaptic('heavy');
+        const torso = ragdollPartsRef.current.find(p => p.label === 'Rectangle Body' && p.bounds.max.y - p.bounds.min.y > 70);
+        if (!torso) return;
+        const hammer = Matter.Bodies.rectangle(torso.position.x + (Math.random() - 0.5) * 80, -400, 70, 35, { density: 0.2, restitution: 0.4, friction: 0.6, render: { sprite: { texture: '🔨' } }, collisionFilter: { category: CATEGORY_PROP } });
+        Matter.Body.setVelocity(hammer, { x: (Math.random() - 0.5) * 8, y: 25 }); Matter.World.add(engineRef.current.world, hammer);
+        const collisionListener = (event) => {
+          let ragdollPart = null;
+          event.pairs.forEach(pair => { if ((pair.bodyA === hammer && ragdollPartsRef.current.includes(pair.bodyB)) || (pair.bodyB === hammer && ragdollPartsRef.current.includes(pair.bodyA))) ragdollPart = ragdollPartsRef.current.includes(pair.bodyA) ? pair.bodyA : pair.bodyB; });
+          if (ragdollPart) {
+            playElectrocuteSound(1.5); gizmoRuntime.performHaptic('heavy');
+            for (let k = 0; k < 5; k++) {
+              const startX = ragdollPart.position.x + (Math.random() - 0.5) * 100;
+              const points = []; for (let j = 1; j < 10; j++) points.push({ x: startX + (ragdollPart.position.x - startX) * (j/10) + (Math.random() - 0.5) * 50, y: -50 + (ragdollPart.position.y + 50) * (j/10) });
+              lightningBoltsRef.current.push({ startX, startY: -50, endX: ragdollPart.position.x, endY: ragdollPart.position.y, points, life: 1.0 });
+            }
+            allRagdollsRef.current.forEach(ragdoll => ragdoll.bodies.forEach(part => { Matter.Body.applyForce(part, part.position, { x: (Math.random() - 0.5) * 0.05 * part.mass, y: (Math.random() - 0.5) * 0.05 * part.mass }); Matter.Body.setAngularVelocity(part, (Math.random() - 0.5) * 0.5); }));
+            skeletonEffectRef.current = { active: true, opacity: 1.0 };
+            spawnParticles(ragdollPart.position.x, ragdollPart.position.y, '#FFFF00', particleCount * 3, 15);
+            ragdollPartsRef.current.forEach(part => Matter.Body.applyForce(part, part.position, { x: 0, y: 0.15 * part.mass }));
+            triggerMercyPlea(); Matter.World.remove(engineRef.current.world, hammer); Matter.Events.off(engineRef.current, 'collisionActive', collisionListener);
+          }
+        };
+        Matter.Events.on(engineRef.current, 'collisionActive', collisionListener);
+        setTimeout(() => { Matter.Composite.remove(engineRef.current.world, hammer); Matter.Events.off(engineRef.current, 'collisionActive', collisionListener); }, 6000);
+        break;
+      }
+      case 'shuriken': {
+        const shuriken = Matter.Bodies.rectangle(clickPos.x, clickPos.y, 80, 30, { density: 0.1, friction: 0.8, render: { sprite: { texture: 'https://content.gizmo.party/2fe48780-c37e-415f-99eb-1ffd19ca901e', xScale: 0.15, yScale: 0.15 } }, collisionFilter: { category: CATEGORY_PROP } });
+        Matter.World.add(engineRef.current.world, shuriken);
+        const collisionListener = (event) => {
+          event.pairs.forEach(pair => {
+            if ((pair.bodyA === shuriken && ragdollPartsRef.current.includes(pair.bodyB)) || (pair.bodyB === shuriken && ragdollPartsRef.current.includes(pair.bodyA))) {
+              playHammerSound(); const ragdollPart = ragdollPartsRef.current.includes(pair.bodyA) ? pair.bodyA : pair.bodyB;
+              spawnParticles(ragdollPart.position.x, ragdollPart.position.y, '#8B0000', particleCount, 8); triggerMercyPlea();
+              Matter.Events.off(engineRef.current, 'collisionActive', collisionListener);
+            }
+          });
+        };
+        Matter.Events.on(engineRef.current, 'collisionActive', collisionListener);
+        gizmoRuntime.performHaptic('heavy');
+        setTimeout(() => { Matter.World.remove(engineRef.current.world, shuriken); Matter.Events.off(engineRef.current, 'collisionActive', collisionListener); }, 8000);
+        break;
+      }
+      case 'rocketLauncher': {
+        const now = Date.now(); if (now - lastRocketLaunchRef.current < 100) return; lastRocketLaunchRef.current = now;
+        const targetHead = ragdollPartsRef.current.find(p => p.label === 'Circle Body' && !p.isEnemy);
+        let direction = { x: 0, y: -1 };
+        if (targetHead) { const dx = targetHead.position.x - clickPos.x; const dy = targetHead.position.y - clickPos.y; const dist = Math.sqrt(dx * dx + dy * dy); if (dist > 0) direction = { x: dx / dist, y: dy / dist }; }
+        const rocket = Matter.Bodies.rectangle(clickPos.x, clickPos.y, 40, 20, { density: 0.04, friction: 0.5, angle: Math.atan2(direction.y, direction.x), render: { sprite: { texture: '🚀' } }, collisionFilter: { category: CATEGORY_PROP } });
+        Matter.Body.setVelocity(rocket, { x: direction.x * 20, y: direction.y * 20 }); Matter.World.add(engineRef.current.world, rocket);
+        if (targetHead) activeRocketsRef.current.push({ body: rocket, target: targetHead });
+        const collisionListener = (event) => {
+          event.pairs.forEach(pair => {
+            if ((pair.bodyA === rocket && (ragdollPartsRef.current.includes(pair.bodyB) || pair.bodyB.collisionFilter.category === CATEGORY_WALL)) || (pair.bodyB === rocket && (ragdollPartsRef.current.includes(pair.bodyA) || pair.bodyA.collisionFilter.category === CATEGORY_WALL))) {
+              spawnParticles(rocket.position.x, rocket.position.y, '#FF6347', 50, 20); spawnParticles(rocket.position.x, rocket.position.y, '#FFA500', 30, 15);
+              bodiesWithoutWalls.forEach(body => { const forceVec = Matter.Vector.sub(body.position, rocket.position); const dist = Matter.Vector.magnitude(forceVec); if (dist < 400) Matter.Body.applyForce(body, body.position, Matter.Vector.mult(Matter.Vector.normalise(forceVec), (400 - dist) * 0.003 * body.mass)); });
+              playBombSound(); gizmoRuntime.performHaptic('heavy'); triggerMercyPlea();
+              Matter.Events.off(engineRef.current, 'collisionActive', collisionListener); Matter.World.remove(engineRef.current.world, rocket);
+              activeRocketsRef.current = activeRocketsRef.current.filter(r => r.body !== rocket);
+            }
+          });
+        };
+        Matter.Events.on(engineRef.current, 'collisionActive', collisionListener);
+        gizmoRuntime.performHaptic('medium');
+        setTimeout(() => { if (rocket.parent) { Matter.World.remove(engineRef.current.world, rocket); Matter.Events.off(engineRef.current, 'collisionActive', collisionListener); activeRocketsRef.current = activeRocketsRef.current.filter(r => r.body !== rocket); } }, 10000);
+        break;
+      }
+    }
+  };
+
+  const resetRagdoll = () => {
+    const { World, Bodies, Constraint } = Matter;
+    const engine = engineRef.current;
+    const walls = Matter.Composite.allBodies(engine.world).filter(b => b.collisionFilter.category === CATEGORY_WALL);
+    World.clear(engine.world); World.add(engine.world, walls); World.add(engine.world, mouseConstraintRef.current);
+    allRagdollsRef.current = [];
+    const width = window.innerWidth; const height = window.innerHeight; const x = width / 2; const y = height / 3;
+    const activeSkin = RAGDOLL_SKINS.find(s => s.id === activeSkinId) || RAGDOLL_SKINS[0];
+    const head = Bodies.circle(x, y - 70, 25, { friction: 0.5, frictionAir: 0.05, render: { fillStyle: activeSkin.headColor }, collisionFilter: { category: CATEGORY_RAGDOLL, mask: CATEGORY_WALL | CATEGORY_PROP | CATEGORY_RAGDOLL | CATEGORY_ENEMY } });
+    head.skinFace = activeSkin.face;
+    const torso = Bodies.rectangle(x, y, 40, 80, { friction: 0.5, frictionAir: 0.05, render: { fillStyle: activeSkin.color }, collisionFilter: { category: CATEGORY_RAGDOLL, mask: CATEGORY_WALL | CATEGORY_PROP | CATEGORY_RAGDOLL | CATEGORY_ENEMY } });
+    const limbOptions = { friction: 0.5, frictionAir: 0.03, render: { fillStyle: activeSkin.color }, collisionFilter: { category: CATEGORY_RAGDOLL, mask: CATEGORY_WALL | CATEGORY_PROP | CATEGORY_RAGDOLL | CATEGORY_ENEMY } };
+    const parts = [head, torso, Bodies.rectangle(x - 35, y - 20, 20, 50, limbOptions), Bodies.rectangle(x - 35, y + 35, 15, 50, limbOptions), Bodies.rectangle(x + 35, y - 20, 20, 50, limbOptions), Bodies.rectangle(x + 35, y + 35, 15, 50, limbOptions), Bodies.rectangle(x - 15, y + 60, 20, 60, limbOptions), Bodies.rectangle(x - 15, y + 125, 15, 60, limbOptions), Bodies.rectangle(x + 15, y + 60, 20, 60, limbOptions), Bodies.rectangle(x + 15, y + 125, 15, 60, limbOptions)];
+    ragdollPartsRef.current = parts;
+    const jointOptions = { stiffness: stiffness, render: { visible: false }, label: 'ragdoll-joint' };
+    const constraints = [Constraint.create({ bodyA: head, bodyB: torso, pointA: { x: 0, y: 25 }, pointB: { x: 0, y: -40 }, length: 2, ...jointOptions }), Constraint.create({ bodyA: torso, bodyB: parts[2], pointA: { x: -20, y: -30 }, pointB: { x: 0, y: -20 }, length: 2, ...jointOptions }), Constraint.create({ bodyA: parts[2], bodyB: parts[3], pointA: { x: 0, y: 25 }, pointB: { x: 0, y: -25 }, length: 2, ...jointOptions }), Constraint.create({ bodyA: torso, bodyB: parts[4], pointA: { x: 20, y: -30 }, pointB: { x: 0, y: -20 }, length: 2, ...jointOptions }), Constraint.create({ bodyA: parts[4], bodyB: parts[5], pointA: { x: 0, y: 25 }, pointB: { x: 0, y: -25 }, length: 2, ...jointOptions }), Constraint.create({ bodyA: torso, bodyB: parts[6], pointA: { x: -10, y: 40 }, pointB: { x: 0, y: -30 }, length: 2, ...jointOptions }), Constraint.create({ bodyA: parts[6], bodyB: parts[7], pointA: { x: 0, y: 30 }, pointB: { x: 0, y: -30 }, length: 2, ...jointOptions }), Constraint.create({ bodyA: torso, bodyB: parts[8], pointA: { x: 10, y: 40 }, pointB: { x: 0, y: -30 }, length: 2, ...jointOptions }), Constraint.create({ bodyA: parts[8], bodyB: parts[9], pointA: { x: 0, y: 30 }, pointB: { x: 0, y: -30 }, length: 2, ...jointOptions })];
+    const ragdollComposite = Matter.Composite.create({ bodies: parts, constraints: constraints });
+    allRagdollsRef.current.push(ragdollComposite); World.add(engine.world, ragdollComposite); setMoney(0);
+  };
+
+  const purchaseTool = (toolId) => {
+    const tool = ALL_TOOLS.find(t => t.id === toolId);
+    if (tool && money >= tool.price) { setMoney(m => m - tool.price); setUnlockedTools(prev => [...prev, toolId]); gizmoRuntime.performHaptic('heavy'); }
+  };
+
+  const purchaseSkin = (skinId) => {
+    const skin = RAGDOLL_SKINS.find(s => s.id === skinId);
+    if (skin && money >= skin.price) {
+      setMoney(m => m - skin.price);
+      setUnlockedSkins(prev => [...prev, skinId]);
+      setActiveSkinId(skinId);
+      gizmoRuntime.performHaptic('heavy');
+    }
+  };
+
+  const selectSkin = (skinId) => {
+    if (unlockedSkins.includes(skinId)) {
+      setActiveSkinId(skinId);
+      gizmoRuntime.performHaptic('light');
+    }
+  };
+
+  const handleFileSelect = (event) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setCustomBg(e.target?.result);
+        gizmoRuntime.performHaptic('medium');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div className="relative w-full h-screen overflow-hidden bg-neutral-900 select-none touch-none">
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" onMouseDown={(e) => handleInteraction(e, true)} onTouchStart={(e) => handleInteraction(e, true)} onMouseUp={(e) => handleInteraction(e, false)} onTouchEnd={(e) => handleInteraction(e, false)} onMouseMove={(e) => { if(selectedTool === 'hand') handleInteraction(e, true); }} onTouchMove={(e) => { if(selectedTool === 'hand') handleInteraction(e, true); }} />
+      <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
+        <div className="bg-black/50 backdrop-blur-md p-3 rounded-xl text-white border border-white/10">
+          <div className="text-xs text-gray-400 uppercase font-bold tracking-wider">Money</div>
+          <div className="text-2xl font-mono font-bold text-yellow-400">${money}</div>
+        </div>
+        <div className="flex gap-2 pointer-events-auto">
+          <button onClick={() => setIsSlowMo(!isSlowMo)} className={`p-3 rounded-full backdrop-blur-md border transition-all ${isSlowMo ? 'bg-blue-500/80 border-blue-400 text-white' : 'bg-black/50 border-white/10 text-gray-300'}`}>
+            {isSlowMo ? <Play size={20} fill="currentColor" /> : <Pause size={20} fill="currentColor" />}
+          </button>
+          <button onClick={() => {
+            if (customBg) {
+              setCustomBg(null);
+            } else {
+              setCurrentBgIndex(i => (i + 1) % 3);
+            }
+          }} className="p-3 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-gray-300 active:scale-95 transition-transform"><Images size={20} /></button>
+          <button onClick={() => fileInputRef.current?.click()} className="p-3 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-gray-300 active:scale-95 transition-transform"><Paintbrush size={20} /></button>
+          <button onClick={resetRagdoll} className="p-3 rounded-full bg-red-500/80 backdrop-blur-md border border-red-400 text-white active:scale-95 transition-transform"><RotateCcw size={20} /></button>
+        </div>
+      </div>
+      <div className="absolute left-4 bottom-20 top-20 w-14 flex flex-col gap-2 justify-center pointer-events-auto">
+        <div className="bg-black/60 backdrop-blur-xl rounded-2xl p-2 flex flex-col gap-1 items-center border border-white/10 shadow-2xl">
+          {ALL_TOOLS.filter(t => unlockedTools.includes(t.id)).map((tool) => {
+            const Icon = tool.icon; const isSelected = selectedTool === tool.id;
+            return (
+              <button key={tool.id} onClick={() => { setSelectedTool(tool.id); gizmoRuntime.performHaptic('light'); }} className={`relative flex flex-col items-center justify-center w-8 h-8 rounded-lg transition-all duration-200 ${isSelected ? 'bg-white/20 scale-105 shadow-lg' : 'hover:bg-white/5 opacity-70'}`}>
+                <Icon size={16} color={isSelected ? tool.color : '#fff'} strokeWidth={isSelected ? 2.5 : 2} />
+                {isSelected && <div className="absolute -bottom-1 w-1 h-1 rounded-full" style={{ backgroundColor: tool.color }} />}
+              </button>
+            );
+          })}
+          <div className="w-full h-[1px] bg-white/10 my-1" />
+          <button onClick={() => setIsShopOpen(true)} className="relative flex flex-col items-center justify-center w-8 h-8 rounded-lg transition-all duration-200 hover:bg-white/5 opacity-70"><ShoppingCart size={16} color="#fff" /></button>
+          <button onClick={() => setIsSkinShopOpen(true)} className="relative flex flex-col items-center justify-center w-8 h-8 rounded-lg transition-all duration-200 hover:bg-white/5 opacity-70"><Shirt size={16} color="#fff" /></button>
+        </div>
+      </div>
+      {isShopOpen && (
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-lg flex items-center justify-center z-50">
+          <div className="w-[90%] max-w-sm max-h-[90vh] bg-neutral-800 rounded-2xl border border-white/10 shadow-2xl p-4 flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center mb-4"><h2 className="text-2xl font-bold text-white">Weapon Shop</h2><button onClick={() => setIsShopOpen(false)} className="p-2 rounded-full bg-white/10 text-white"><X size={20} /></button></div>
+            <div className="flex-grow overflow-y-auto space-y-2">
+              {ALL_TOOLS.filter(t => t.price > 0).map(tool => {
+                const isUnlocked = unlockedTools.includes(tool.id); const canAfford = money >= tool.price; const Icon = tool.icon;
+                return (
+                  <div key={tool.id} className="flex items-center justify-between bg-neutral-700 p-3 rounded-lg">
+                    <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-md flex items-center justify-center" style={{ backgroundColor: tool.color + '33' }}><Icon size={24} color={tool.color} /></div><div><p className="font-bold text-white">{tool.name}</p><p className="text-sm text-yellow-400 font-mono">${tool.price}</p></div></div>
+                    <button onClick={() => purchaseTool(tool.id)} disabled={isUnlocked || !canAfford} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${isUnlocked ? 'bg-green-500 text-white' : canAfford ? 'bg-yellow-500 text-black' : 'bg-neutral-600 text-gray-400 cursor-not-allowed'}`}>{isUnlocked ? 'Owned' : 'Buy'}</button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+      {isSkinShopOpen && (
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-lg flex items-center justify-center z-50">
+          <div className="w-[90%] max-w-sm max-h-[90vh] bg-neutral-800 rounded-2xl border border-white/10 shadow-2xl p-4 flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center mb-4"><h2 className="text-2xl font-bold text-white">Skin Shop</h2><button onClick={() => setIsSkinShopOpen(false)} className="p-2 rounded-full bg-white/10 text-white"><X size={20} /></button></div>
+            <div className="flex-grow overflow-y-auto space-y-2">
+              {RAGDOLL_SKINS.map(skin => {
+                const isUnlocked = unlockedSkins.includes(skin.id);
+                const isActive = activeSkinId === skin.id;
+                const canAfford = money >= skin.price;
+                return (
+                  <div key={skin.id} className={`flex items-center justify-between bg-neutral-700 p-3 rounded-lg border-2 ${isActive ? 'border-yellow-500' : 'border-transparent'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full border-2 border-white/20 flex items-center justify-center overflow-hidden" style={{ backgroundColor: skin.color }}>
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: skin.headColor }} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-white">{skin.name}</p>
+                        {!isUnlocked && <p className="text-sm text-yellow-400 font-mono">${skin.price}</p>}
+                        {isUnlocked && <p className="text-xs text-green-400 uppercase font-bold">Unlocked</p>}
+                      </div>
+                    </div>
+                    {isUnlocked ? (
+                      <button onClick={() => selectSkin(skin.id)} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${isActive ? 'bg-yellow-500 text-black' : 'bg-neutral-600 text-white'}`}>
+                        {isActive ? 'Active' : 'Equip'}
+                      </button>
+                    ) : (
+                      <button onClick={() => purchaseSkin(skin.id)} disabled={!canAfford} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${canAfford ? 'bg-yellow-500 text-black' : 'bg-neutral-600 text-gray-400 cursor-not-allowed'}`}>
+                        Buy
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-[fadeOut_3s_ease-in-out_forwards] opacity-0" style={{ animationDelay: '2s' }}>
+        <div className="bg-black/70 px-6 py-4 rounded-2xl text-white text-center backdrop-blur-sm"><p className="font-bold text-lg">Tap to Smash!</p><p className="text-sm text-gray-300">Select tools below</p></div>
+      </div>
+      <style jsx>{` @keyframes fadeOut { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } } `}</style>
+    </div>
+  );
+}
+// ===== FIN DU CODE GIZMO =====
+
+import { createRoot as __gizmoCreateRoot } from 'react-dom/client';
+__gizmoCreateRoot(document.getElementById('root')).render(<RagdollSmashLab />);
+  </script>
+</body>
+</html>

@@ -1,0 +1,2920 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Battery, Wifi, Signal, ChevronLeft, Search, Mic, Camera as CameraIcon, Video, Phone as PhoneIcon, Settings as SettingsIcon, ArrowUp, Share, Plus, Trash2, Bell, Moon, Sun, Bluetooth, User, Info, Download, X, Circle, Image as ImageIcon } from 'lucide-react';
+import { gizmoRuntime } from '@gizmo/runtime';
+import * as Tone from 'tone';
+import Matter from 'matter-js';
+
+// --- Tweaks ---
+const tweaks = gizmoRuntime.tweaks({
+  wallpaperUrl: { index: 0, name: 'Wallpaper URL', type: 'text', value: 'https://content.gizmo.party/bd67a0a5-e9ca-4e56-9eff-435be36f358d', group: 'appearance' },
+  brightness: { index: 1, name: 'Brightness', type: 'slider', value: 100, min: 20, max: 100, step: 1, group: 'appearance' },
+  userName: { index: 2, name: 'User Name', type: 'text', value: 'Gizmo User', group: 'personalization' },
+  carrier: { index: 3, name: 'Carrier', type: 'text', value: 'GIZMO', group: 'personalization' },
+});
+
+// --- Assets ---
+const ASSETS = {
+  icons: {
+    google: "https://content.gizmo.party/d6314688-04b9-4acb-b1e2-836334d2180d",
+    calendar: "https://content.gizmo.party/13fe46bb-cb04-4638-b89e-7f53281a683b",
+    camera: "https://content.gizmo.party/3bcd74a9-1e47-4012-9816-db0609b952f7",
+    notes: "https://content.gizmo.party/0f308d30-893e-4dd8-88d1-963bbc1a4d3b",
+    tiktok: "https://content.gizmo.party/8f5ec193-f525-4e47-afc3-99d1f7fd7a20",
+    youtube: "https://content.gizmo.party/b990cc23-fd6f-4c21-a872-ac197d1864ea",
+    appstore: "https://content.gizmo.party/e525cbbf-50bf-4317-8712-3f359ecba0b9",
+    messages: "https://content.gizmo.party/1bfe8fff-b1aa-444a-9dde-06f44f186420",
+    phone: "https://content.gizmo.party/f4ca7924-54e2-46c6-a59f-12b58f72751f",
+    settings: "https://content.gizmo.party/7d5df854-e87b-4e18-b039-b9ef70e17b6c",
+    chatgpt: "https://content.gizmo.party/d950fb56-2f22-4eed-8a17-9323dbb2ce61",
+    maps: "https://content.gizmo.party/fa4ddbdf-8457-49a7-841b-720747b9c83f",
+    eightballpool: "https://content.gizmo.party/19ef5c18-1b72-4c7f-9a90-8a3247db4eea",
+    garageband: "https://content.gizmo.party/22e8cc05-bca4-407e-96fe-0a7c9b9b0c80",
+    photos: "https://content.gizmo.party/741b852f-395c-4eb6-a1f1-83ab32fc1927",
+    reminders: "https://content.gizmo.party/bac54bec-d357-4df0-8664-cf91a66b281f",
+    weather: "https://content.gizmo.party/6abae29e-3a83-4c8e-a29c-7f8964dd76e6",
+    instagram: "https://content.gizmo.party/46f89a52-5936-4f4e-9b46-a2c40fef53ce",
+    piano: "https://content.gizmo.party/4255ce90-3dc8-462d-801d-b68912aa5654",
+    freeform: "https://content.gizmo.party/168dd93e-f9e1-4c4a-9ae6-5486df32cb54",
+    x: "https://content.gizmo.party/afe7646c-e226-4fce-9755-8b81d09ddd24",
+    desmos: "https://content.gizmo.party/c6ffb488-ff85-4e70-920e-2bed858f4207",
+    imovie: "https://content.gizmo.party/f02d817d-4f04-42c2-97c3-4f057253373d",
+    translate: "https://content.gizmo.party/2fa6d1bc-a9de-4746-b3ac-82617467e3f7",
+    applegames: "https://content.gizmo.party/bfe04a36-82ae-4fda-8767-8ad3be8778d4",
+    gmail: "https://content.gizmo.party/17f1fa83-7cf8-4e58-bd08-d2efcd303f74",
+    mail: "https://content.gizmo.party/af5b2ce6-da73-48c1-9f00-06a21fdc1963",
+    health: "https://content.gizmo.party/945ead97-5eec-40a9-a9b4-44d2179bb8f0",
+    safari: "https://content.gizmo.party/cd42a1f7-1716-4879-9af1-0076d4e46f86",
+    stocks: "https://content.gizmo.party/6920a333-4ce4-4da7-8f08-13142cc88526",
+    calculator: "https://content.gizmo.party/d914acbd-08c9-4939-b602-8e4fbd729d79",
+    doordash: "https://content.gizmo.party/3740c72c-4d0d-4a43-a2a3-4c20110f5001",
+    woofz: "https://content.gizmo.party/89ac7d9d-a640-4691-928f-3ccf2a061302",
+    mcdonalds: "https://content.gizmo.party/8f9ff780-e830-4b51-96c9-53e1b23cfb31",
+    netflix: "https://content.gizmo.party/d6635122-92f7-45f9-8810-b261649c9711",
+    clock: "https://content.gizmo.party/22ec59b8-f8e6-429a-85d9-06e1e098b680",
+    tips: "https://content.gizmo.party/42aa63b3-d0a6-41f4-a0ed-8b1127fc81c3",
+    magnifier: "https://content.gizmo.party/9d5bcbe2-b25c-4640-948a-612d42e8df11",
+    journal: "https://content.gizmo.party/e2a2555a-5fb7-4a15-9e86-195d5ce2c21d",
+    files: "https://content.gizmo.party/ecfcb955-188c-48f3-a0d1-bd3de0d00924",
+    musicclassical: "https://content.gizmo.party/ffe74010-e071-4310-86e7-422e06975101",
+  },
+  wallpapers: [
+    "https://content.gizmo.party/bd67a0a5-e9ca-4e56-9eff-435be36f358d",
+    "https://content.gizmo.party/d99d7758-67fb-4465-b5f7-91bc7ed0d54a",
+  ],
+  googleLogo: "https://content.gizmo.party/41a0702b-4046-4338-acf4-8c0a7923aa37",
+  chatgptFeatured: "https://content.gizmo.party/238b2d2b-a6cc-48b9-a154-2bd94d2ef4e8",
+  doordashFeatured: "https://content.gizmo.party/f2ecbcd6-d347-4d8d-81a6-dfea7310221b",
+  woofzFeatured: "https://content.gizmo.party/62eb1747-c0da-4724-be1a-b383650bc6c6",
+  jawsFeatured: "https://content.gizmo.party/357092b5-06ab-4b75-84cc-1636c331907a",
+};
+
+// --- Apps Data ---
+const APPS = [
+  { id: 'phone', name: 'Phone', icon: ASSETS.icons.phone, isSystem: true, inDock: true },
+  { id: 'messages', name: 'Messages', icon: ASSETS.icons.messages, isSystem: true, inDock: true },
+  { id: 'google', name: 'Google', icon: ASSETS.icons.google, isSystem: true, inDock: true },
+  { id: 'camera', name: 'Camera', icon: ASSETS.icons.camera, isSystem: true, inDock: true },
+  { id: 'maps', name: 'Maps', icon: ASSETS.icons.maps, isSystem: true, inDock: false },
+  { id: 'settings', name: 'Settings', icon: ASSETS.icons.settings, isSystem: true, inDock: false },
+  { id: 'calendar', name: 'Calendar', icon: ASSETS.icons.calendar, isSystem: true, inDock: false },
+  { id: 'notes', name: 'Notes', icon: ASSETS.icons.notes, isSystem: true, inDock: false },
+  { id: 'appstore', name: 'App Store', icon: ASSETS.icons.appstore, isSystem: true, inDock: false },
+  { id: 'youtube', name: 'YouTube', icon: ASSETS.icons.youtube, isSystem: false, inDock: false },
+  { id: 'tiktok', name: 'TikTok', icon: ASSETS.icons.tiktok, isSystem: false, inDock: false },
+  { id: 'chatgpt', name: 'ChatGPT', icon: ASSETS.icons.chatgpt, isSystem: false, inDock: false },
+  { id: '8ballpool', name: '8 Ball Pool', icon: ASSETS.icons.eightballpool, isSystem: false, inDock: false },
+  { id: 'garageband', name: 'GarageBand', icon: ASSETS.icons.garageband, isSystem: false, inDock: false },
+  { id: 'photos', name: 'Photos', icon: ASSETS.icons.photos, isSystem: true, inDock: false },
+  { id: 'reminders', name: 'Reminders', icon: ASSETS.icons.reminders, isSystem: true, inDock: false },
+  { id: 'weather', name: 'Weather', icon: ASSETS.icons.weather, isSystem: true, inDock: false },
+  { id: 'instagram', name: 'Instagram', icon: ASSETS.icons.instagram, isSystem: false, inDock: false },
+  { id: 'piano', name: 'Piano', icon: ASSETS.icons.piano, isSystem: false, inDock: false },
+  { id: 'freeform', name: 'Freeform', icon: ASSETS.icons.freeform, isSystem: true, inDock: false },
+  { id: 'x', name: 'X', icon: ASSETS.icons.x, isSystem: false, inDock: false },
+  { id: 'desmos', name: 'Desmos', icon: ASSETS.icons.desmos, isSystem: false, inDock: false },
+  { id: 'imovie', name: 'iMovie', icon: ASSETS.icons.imovie, isSystem: true, inDock: false },
+  { id: 'translate', name: 'Translate', icon: ASSETS.icons.translate, isSystem: true, inDock: false },
+  { id: 'applegames', name: 'Games', icon: ASSETS.icons.applegames, isSystem: true, inDock: false },
+  { id: 'gmail', name: 'Gmail', icon: ASSETS.icons.gmail, isSystem: false, inDock: false },
+  { id: 'mail', name: 'Mail', icon: ASSETS.icons.mail, isSystem: true, inDock: false },
+  { id: 'health', name: 'Health', icon: ASSETS.icons.health, isSystem: true, inDock: false },
+  { id: 'safari', name: 'Safari', icon: ASSETS.icons.safari, isSystem: true, inDock: false },
+  { id: 'stocks', name: 'Stocks', icon: ASSETS.icons.stocks, isSystem: true, inDock: false },
+  { id: 'calculator', name: 'Calculator', icon: ASSETS.icons.calculator, isSystem: true, inDock: false },
+  { id: 'doordash', name: 'DoorDash', icon: ASSETS.icons.doordash, isSystem: false, inDock: false },
+  { id: 'woofz', name: 'Woofz', icon: ASSETS.icons.woofz, isSystem: false, inDock: false },
+  { id: 'mcdonalds', name: 'McDonald\'s', icon: ASSETS.icons.mcdonalds, isSystem: false, inDock: false },
+  { id: 'netflix', name: 'Netflix', icon: ASSETS.icons.netflix, isSystem: false, inDock: false },
+  { id: 'clock', name: 'Clock', icon: ASSETS.icons.clock, isSystem: true, inDock: false },
+  { id: 'tips', name: 'Tips', icon: ASSETS.icons.tips, isSystem: true, inDock: false },
+  { id: 'magnifier', name: 'Magnifier', icon: ASSETS.icons.magnifier, isSystem: true, inDock: false },
+  { id: 'journal', name: 'Journal', icon: ASSETS.icons.journal, isSystem: true, inDock: false },
+  { id: 'files', name: 'Files', icon: ASSETS.icons.files, isSystem: true, inDock: false },
+  { id: 'musicclassical', name: 'Classical', icon: ASSETS.icons.musicclassical, isSystem: false, inDock: false },
+];
+
+// --- Helper Components ---
+
+const StatusBar = ({ carrier }) => {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="w-full h-12 px-6 flex justify-between items-center text-white text-sm font-medium z-50 absolute top-0 left-0 pointer-events-none mix-blend-difference">
+      <div className="flex items-center gap-1">
+        <span>{time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Signal size={16} fill="currentColor" />
+        <Wifi size={16} />
+        <Battery size={20} />
+      </div>
+    </div>
+  );
+};
+
+const HomeIndicator = () => (
+  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-white rounded-full opacity-50 z-50 pointer-events-none" />
+);
+
+// --- App Implementations ---
+
+const PhoneApp = () => {
+  const [number, setNumber] = useState('');
+  const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="flex-1 flex flex-col justify-end items-center pb-8">
+        <div className="text-4xl font-light mb-8 h-12">{number}</div>
+        <div className="grid grid-cols-3 gap-6 mb-8">
+          {keys.map((key) => (
+            <button
+              key={key}
+              onClick={() => {
+                setNumber(prev => prev + key);
+                gizmoRuntime.performHaptic('light');
+              }}
+              className="w-20 h-20 rounded-full bg-gray-100 hover:bg-gray-200 active:bg-gray-300 flex items-center justify-center text-3xl font-medium transition-colors"
+            >
+              {key}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => {
+            gizmoRuntime.performHaptic('medium');
+            if (number) alert(`Calling ${number}...`);
+          }}
+          className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center text-white shadow-lg active:scale-95 transition-transform"
+        >
+          <PhoneIcon fill="currentColor" size={32} />
+        </button>
+      </div>
+      <div className="h-20 bg-gray-50 border-t flex justify-around items-center text-gray-400">
+        <div className="flex flex-col items-center gap-1 text-blue-500"><User size={24} /><span className="text-xs">Contacts</span></div>
+        <div className="flex flex-col items-center gap-1"><PhoneIcon size={24} /><span className="text-xs">Keypad</span></div>
+        <div className="flex flex-col items-center gap-1"><SettingsIcon size={24} /><span className="text-xs">Voicemail</span></div>
+      </div>
+    </div>
+  );
+};
+
+const MessagesApp = () => {
+  const [messages, setMessages] = useState([
+    { id: 1, text: "Hey! Did you see the new Gizmo update?", sender: "me", time: "10:00 AM" },
+    { id: 2, text: "Yeah, it looks amazing! The iPhone replica is cool.", sender: "them", time: "10:01 AM" },
+  ]);
+  const [input, setInput] = useState("");
+
+  const send = () => {
+    if (!input.trim()) return;
+    setMessages([...messages, { id: Date.now(), text: input, sender: "me", time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+    setInput("");
+    gizmoRuntime.performHaptic('light');
+    
+    // Simulate reply
+    setTimeout(() => {
+      setMessages(prev => [...prev, { id: Date.now() + 1, text: "Haha, totally!", sender: "them", time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+      gizmoRuntime.performHaptic('medium');
+    }, 2000);
+  };
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="h-24 bg-gray-100 flex items-end pb-3 px-4 border-b">
+        <div className="flex items-center gap-2">
+          <ChevronLeft className="text-blue-500" />
+          <div className="flex flex-col">
+            <span className="font-semibold text-sm">Bestie</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((msg) => (
+          <div key={msg.id} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[70%] px-4 py-2 rounded-2xl text-sm ${msg.sender === 'me' ? 'bg-blue-500 text-white rounded-br-none' : 'bg-gray-200 text-black rounded-bl-none'}`}>
+              {msg.text}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="p-2 bg-gray-50 border-t flex items-center gap-2 mb-6">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="iMessage"
+          className="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+          onKeyDown={(e) => e.key === 'Enter' && send()}
+        />
+        <button onClick={send} className="p-2 rounded-full bg-blue-500 text-white">
+          <ArrowUp size={16} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const GoogleApp = () => {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const search = async () => {
+    if (!query.trim()) return;
+    setLoading(true);
+    try {
+      const response = await gizmoRuntime.generateText({ prompt: `Generate 3 fake search results for "${query}". Format as JSON array with title and snippet.` });
+      // Fallback if JSON parsing fails or AI is weird
+      try {
+        const parsed = JSON.parse(response.text);
+        setResults(Array.isArray(parsed) ? parsed : []);
+      } catch {
+        setResults([
+          { title: `Results for ${query}`, snippet: "Here is what we found on the web..." },
+          { title: "Wikipedia", snippet: `${query} is a fascinating topic.` },
+          { title: "News", snippet: `Latest updates about ${query}.` }
+        ]);
+      }
+    } catch (e) {
+      setResults([{ title: "Error", snippet: "Could not search right now." }]);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="flex flex-col items-center pt-20 px-6">
+        <img src={ASSETS.googleLogo} alt="Google" className="h-16 mb-8 object-contain" />
+        <div className="w-full shadow-md rounded-full border flex items-center px-4 py-3 gap-3">
+          <Search className="text-gray-400" size={20} />
+          <input
+            className="flex-1 outline-none text-base"
+            placeholder="Search Google or type a URL"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && search()}
+          />
+          <Mic className="text-blue-500" size={20} />
+        </div>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto px-4 pt-8">
+        {loading ? (
+          <div className="text-center text-gray-500 mt-10">Searching...</div>
+        ) : (
+          <div className="space-y-6">
+            {results.map((res, i) => (
+              <div key={i}>
+                <div className="text-xs text-gray-500 mb-1">www.example.com › search</div>
+                <div className="text-blue-800 text-lg hover:underline">{res.title}</div>
+                <div className="text-sm text-gray-600 mt-1">{res.snippet}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const CameraApp = ({ setPhotos }) => {
+  const canvasRef = useRef(null);
+  const videoRef = useRef(null);
+  const [hasCameraError, setHasCameraError] = useState(false);
+  const [capturedImage, setCapturedImage] = useState(null);
+
+  useEffect(() => {
+    if (capturedImage) return;
+
+    let stream = null;
+    let animationId = null;
+
+    const videoElement = document.createElement('video');
+    videoElement.autoplay = true;
+    videoElement.playsInline = true;
+    videoElement.muted = true;
+    videoRef.current = videoElement;
+
+    const startVideo = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+
+          const canvas = canvasRef.current;
+          const video = videoRef.current;
+          const ctx = canvas?.getContext('2d');
+
+          if (!canvas || !video || !ctx) return;
+
+          canvas.width = canvas.clientWidth;
+          canvas.height = canvas.clientHeight;
+
+          const drawFrame = () => {
+            if (video.readyState >= video.HAVE_ENOUGH_DATA) {
+              ctx.save();
+              ctx.translate(canvas.width, 0);
+              ctx.scale(-1, 1);
+              
+              const videoRatio = video.videoWidth / video.videoHeight;
+              const canvasRatio = canvas.width / canvas.height;
+              let sx = 0, sy = 0, sWidth = video.videoWidth, sHeight = video.videoHeight;
+
+              if (videoRatio > canvasRatio) {
+                sWidth = video.videoHeight * canvasRatio;
+                sx = (video.videoWidth - sWidth) / 2;
+              } else {
+                sHeight = video.videoWidth / canvasRatio;
+                sy = (video.videoHeight - sHeight) / 2;
+              }
+
+              ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+              ctx.restore();
+            }
+            animationId = requestAnimationFrame(drawFrame);
+          };
+          animationId = requestAnimationFrame(drawFrame);
+        }
+      } catch (err) {
+        console.error("Camera error:", err);
+        setHasCameraError(true);
+      }
+    };
+
+    startVideo();
+
+    return () => {
+      if (animationId) cancelAnimationFrame(animationId);
+      stream?.getTracks().forEach(track => track.stop());
+      if (videoRef.current) videoRef.current.srcObject = null;
+    };
+  }, [capturedImage]);
+
+  const handleCapture = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const dataUrl = canvas.toDataURL('image/png');
+      setCapturedImage(dataUrl);
+      gizmoRuntime.performHaptic('heavy');
+    }
+  };
+
+  const handleSave = () => {
+    if (capturedImage) {
+      setPhotos(prev => [capturedImage, ...prev]);
+      setCapturedImage(null); // Go back to camera view
+      gizmoRuntime.performHaptic('light');
+    }
+  };
+
+  const handleRetry = () => {
+    setCapturedImage(null);
+    gizmoRuntime.performHaptic('light');
+  };
+
+  if (hasCameraError) {
+    return (
+      <div className="h-full w-full bg-black flex items-center justify-center text-white">
+        📸 This Gizmo uses the camera.
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full w-full bg-black relative flex flex-col">
+      <div className="flex-1 bg-gray-900 relative overflow-hidden">
+        {capturedImage ? (
+          <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
+        ) : (
+          <canvas ref={canvasRef} className="w-full h-full" />
+        )}
+        <div className="absolute top-4 right-4 flex flex-col gap-4">
+           <div className="w-8 h-8 rounded-full bg-gray-800/50 flex items-center justify-center text-white"><Moon size={16} /></div>
+           <div className="w-8 h-8 rounded-full bg-gray-800/50 flex items-center justify-center text-white"><Bell size={16} /></div>
+        </div>
+      </div>
+      {capturedImage ? (
+        <div className="h-32 bg-black flex items-center justify-between px-8 pb-8">
+          <button onClick={handleRetry} className="text-white font-medium">Retry</button>
+          <button onClick={handleSave} className="px-6 py-2 bg-yellow-400 text-black font-bold rounded-full">Save</button>
+        </div>
+      ) : (
+        <div className="h-32 bg-black flex items-center justify-between px-8 pb-8">
+          <div className="w-12 h-12 bg-gray-800 rounded-md"></div>
+          <button 
+            className="w-16 h-16 rounded-full border-4 border-white flex items-center justify-center"
+            onClick={handleCapture}
+          >
+            <div className="w-14 h-14 bg-white rounded-full active:scale-90 transition-transform" />
+          </button>
+          <div className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center text-white">
+            <Share size={20} />
+          </div>
+        </div>
+      )}
+      <div className="absolute bottom-32 w-full flex justify-center gap-6 text-xs font-medium text-yellow-400 uppercase tracking-widest">
+        <span className="text-white opacity-50">Video</span>
+        <span>Photo</span>
+        <span className="text-white opacity-50">Portrait</span>
+      </div>
+    </div>
+  );
+};
+
+const SettingsApp = ({ installedApps, setInstalledApps, setInstallOrder, setWallpaper }) => {
+  const fileInputRef = useRef(null);
+  const settingsItems = [
+    { icon: User, label: 'Apple ID, iCloud, Media & Purchases', color: 'bg-gray-400' },
+    { icon: Wifi, label: 'Wi-Fi', value: 'GizmoNet', color: 'bg-blue-500' },
+    { icon: Bluetooth, label: 'Bluetooth', value: 'On', color: 'bg-blue-500' },
+    { icon: Bell, label: 'Notifications', color: 'bg-red-500' },
+    { icon: Moon, label: 'Focus', color: 'bg-indigo-500' },
+    { icon: Sun, label: 'Display & Brightness', color: 'bg-blue-400' },
+    { icon: ImageIcon, label: 'Wallpaper', color: 'bg-green-500' },
+  ];
+
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result;
+        if (typeof result === 'string') {
+          setWallpaper(result);
+          gizmoRuntime.performHaptic('light');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div className="h-full w-full bg-gray-100 flex flex-col">
+      <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+      <div className="pt-12 pb-4 px-4 bg-gray-100">
+        <h1 className="text-3xl font-bold">Settings</h1>
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 pb-8">
+        <div className="bg-white rounded-xl overflow-hidden mb-6">
+          <div className="p-4 flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center text-2xl text-white font-bold">G</div>
+            <div>
+              <div className="font-semibold text-lg">Gizmo User</div>
+              <div className="text-sm text-gray-500">Apple ID, iCloud+</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl overflow-hidden mb-6">
+          {settingsItems.slice(1, 3).map((item, i) => (
+            <div key={i} className={`flex items-center p-3 gap-3 ${i !== 1 ? 'border-b ml-12' : ''}`}>
+              <div className={`w-7 h-7 rounded-md ${item.color} flex items-center justify-center text-white`}>
+                <item.icon size={16} />
+              </div>
+              <div className="flex-1 flex justify-between items-center">
+                <span>{item.label}</span>
+                <div className="flex items-center gap-2 text-gray-400">
+                  {item.value && <span>{item.value}</span>}
+                  <ChevronLeft className="rotate-180" size={16} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-white rounded-xl overflow-hidden mb-6">
+          {settingsItems.slice(3).map((item, i) => (
+            <div key={i} onClick={() => item.label === 'Wallpaper' && fileInputRef.current?.click()} className={`flex items-center p-3 gap-3 ${i !== settingsItems.slice(3).length - 1 ? 'border-b ml-12' : ''}`}>
+              <div className={`w-7 h-7 rounded-md ${item.color} flex items-center justify-center text-white`}>
+                <item.icon size={16} />
+              </div>
+              <div className="flex-1 flex justify-between items-center">
+                <span>{item.label}</span>
+                <ChevronLeft className="rotate-180 text-gray-400" size={16} />
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <div className="px-4 py-2 text-gray-500 text-sm uppercase">Installed Apps</div>
+        <div className="bg-white rounded-xl overflow-hidden mb-6">
+           {installedApps.filter(id => !APPS.find(a => a.id === id)?.isSystem).length === 0 && (
+             <div className="p-4 text-gray-400 text-center text-sm">No downloaded apps</div>
+           )}
+           {installedApps.filter(id => !APPS.find(a => a.id === id)?.isSystem).map((appId, i, arr) => {
+             const app = APPS.find(a => a.id === appId);
+             return (
+               <div key={appId} className={`flex items-center p-3 gap-3 ${i !== arr.length - 1 ? 'border-b ml-12' : ''}`}>
+                 <img src={app.icon} className="w-7 h-7 rounded-md object-cover" />
+                 <div className="flex-1 flex justify-between items-center">
+                   <span>{app.name}</span>
+                   <button 
+                    onClick={() => {
+                      setInstalledApps(prev => prev.filter(id => id !== appId));
+                      setInstallOrder(prev => prev.filter(id => id !== appId));
+                      gizmoRuntime.performHaptic('medium');
+                    }}
+                    className="text-red-500 text-sm font-medium"
+                   >
+                     Uninstall
+                   </button>
+                 </div>
+               </div>
+             );
+           })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CalendarApp = () => {
+  const today = new Date();
+  const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  const currentMonth = today.toLocaleString('default', { month: 'long' });
+  
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="pt-12 px-4 pb-2 border-b flex justify-between items-end">
+        <div className="text-red-500 text-lg">2024</div>
+        <div className="flex gap-4 text-red-500">
+          <Search size={20} />
+          <Plus size={20} />
+        </div>
+      </div>
+      <div className="px-4 py-4">
+        <h1 className="text-3xl font-bold mb-6">{currentMonth}</h1>
+        <div className="grid grid-cols-7 gap-y-6 text-center text-sm">
+          {days.map(d => <div key={d} className="text-gray-400 font-medium">{d}</div>)}
+          {Array.from({ length: 30 }).map((_, i) => {
+            const day = i + 1;
+            const isToday = day === today.getDate();
+            return (
+              <div key={i} className="flex items-center justify-center">
+                <div className={`w-8 h-8 flex items-center justify-center rounded-full ${isToday ? 'bg-red-500 text-white font-bold' : ''}`}>
+                  {day}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const NotesApp = () => {
+  const [notes, setNotes] = useState([
+    { id: 1, title: "Groceries", content: "Milk\nEggs\nBread", date: "10:00 AM" },
+    { id: 2, title: "Ideas", content: "Make a cool Gizmo...", date: "Yesterday" },
+  ]);
+  const [activeNote, setActiveNote] = useState(null);
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      {activeNote ? (
+        <div className="flex flex-col h-full">
+          <div className="pt-12 px-4 pb-2 flex justify-between items-center text-yellow-500">
+            <button onClick={() => setActiveNote(null)} className="flex items-center gap-1 font-medium">
+              <ChevronLeft size={24} /> Notes
+            </button>
+            <div className="flex gap-4">
+              <Share size={20} />
+              <div className="w-5 h-5 rounded-full border border-yellow-500 flex items-center justify-center text-xs">...</div>
+            </div>
+          </div>
+          <div className="flex-1 p-6">
+            <textarea 
+              className="w-full h-full resize-none outline-none text-lg leading-relaxed"
+              defaultValue={activeNote.title + '\n' + activeNote.content}
+            />
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="pt-12 px-6 pb-4">
+            <h1 className="text-3xl font-bold">Notes</h1>
+            <div className="mt-2 relative">
+              <Search className="absolute left-3 top-2 text-gray-400" size={16} />
+              <input className="w-full bg-gray-100 rounded-lg py-2 pl-9 pr-4 text-sm outline-none" placeholder="Search" />
+            </div>
+          </div>
+          <div className="flex-1 px-4 overflow-y-auto">
+            <div className="bg-white rounded-xl overflow-hidden">
+              <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Pinned</div>
+              {notes.map((note, i) => (
+                <div 
+                  key={note.id} 
+                  onClick={() => setActiveNote(note)}
+                  className={`bg-white p-4 ${i !== notes.length - 1 ? 'border-b' : ''} active:bg-gray-50 transition-colors`}
+                >
+                  <div className="font-bold mb-1">{note.title}</div>
+                  <div className="text-gray-500 text-sm truncate">{note.content.replace('\n', ' ')}</div>
+                  <div className="text-gray-400 text-xs mt-2">{note.date}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="h-12 bg-gray-50 border-t flex justify-between items-center px-4 text-yellow-500">
+             <div />
+             <div className="text-xs text-gray-400">{notes.length} Notes</div>
+             <Plus size={24} />
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+const AppStoreApp = ({ installedApps, setInstalledApps, setInstallOrder }) => {
+  const [activeTab, setActiveTab] = useState('today'); // 'today', 'games', 'apps', 'search'
+  const downloadable = APPS.filter(a => !a.isSystem);
+  
+  const games = downloadable.filter(app => ['8ballpool', 'applegames'].includes(app.id));
+  const apps = downloadable.filter(app => !['8ballpool', 'applegames'].includes(app.id));
+
+  const renderAppList = (list, title) => (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold">{title}</h2>
+        <span className="text-blue-500 text-sm">See All</span>
+      </div>
+      {list.map(app => {
+        const isInstalled = installedApps.includes(app.id);
+        return (
+          <div key={app.id} className="flex items-center gap-4">
+            <img src={app.icon} className="w-16 h-16 rounded-xl object-cover border border-gray-100" />
+            <div className="flex-1">
+              <div className="font-semibold">{app.name}</div>
+              <div className="text-xs text-gray-500">{games.includes(app) ? 'Games' : 'Entertainment'}</div>
+            </div>
+            <button 
+              onClick={() => {
+                if (!isInstalled) {
+                  setInstalledApps(prev => [...prev, app.id]);
+                  setInstallOrder(prev => [...prev, app.id]);
+                  gizmoRuntime.performHaptic('success');
+                }
+              }}
+              className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${isInstalled ? 'bg-gray-100 text-gray-400' : 'bg-gray-100 text-blue-600 active:bg-gray-200'}`}
+            >
+              {isInstalled ? 'OPEN' : 'GET'}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="pt-12 px-6 pb-4 border-b flex justify-between items-center">
+        <h1 className="text-3xl font-bold capitalize">{activeTab}</h1>
+        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-blue-500 font-bold">G</div>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        {activeTab === 'today' && (
+          <>
+            <div className="w-full aspect-[4/3] bg-gray-100 rounded-xl overflow-hidden relative shadow-lg">
+              <img src={ASSETS.chatgptFeatured} className="w-full h-full object-cover" alt="Featured" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-6 text-white">
+                <div className="text-xs font-bold uppercase opacity-80 mb-1">Featured</div>
+                <div className="text-2xl font-bold">ChatGPT</div>
+                <div className="text-sm opacity-90">AI-powered conversations at your fingertips.</div>
+              </div>
+            </div>
+            {renderAppList(downloadable.slice(0, 5), 'Popular Apps')}
+          </>
+        )}
+
+        {activeTab === 'games' && (
+          <>
+            <div className="bg-blue-600 rounded-xl p-6 text-white mb-4">
+              <h3 className="text-2xl font-bold">New Games</h3>
+              <p className="opacity-80">Discover your next favorite game.</p>
+            </div>
+            {renderAppList(games, 'Top Games')}
+          </>
+        )}
+
+        {activeTab === 'apps' && (
+          <>
+            <div className="w-full aspect-[16/9] bg-gray-100 rounded-xl overflow-hidden relative shadow-lg mb-6">
+              <img src={ASSETS.woofzFeatured} className="w-full h-full object-cover" alt="Featured App" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex flex-col justify-end p-6 text-white">
+                <div className="text-xs font-bold uppercase opacity-80 mb-1">Featured</div>
+                <div className="text-2xl font-bold">Woofz</div>
+                <div className="text-sm opacity-90">Train your dog like a pro.</div>
+              </div>
+            </div>
+            <div className="w-full aspect-[16/9] bg-gray-100 rounded-xl overflow-hidden relative shadow-lg mb-6">
+              <img src={ASSETS.doordashFeatured} className="w-full h-full object-cover" alt="Featured App" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex flex-col justify-end p-6 text-white">
+                <div className="text-xs font-bold uppercase opacity-80 mb-1">Featured</div>
+                <div className="text-2xl font-bold">DoorDash</div>
+                <div className="text-sm opacity-90">Get your favorite meals delivered.</div>
+              </div>
+            </div>
+            <div className="bg-purple-600 rounded-xl p-6 text-white mb-4">
+              <h3 className="text-2xl font-bold">Essential Apps</h3>
+              <p className="opacity-80">Everything you need for your Gizmo.</p>
+            </div>
+            {renderAppList(apps, 'Top Apps')}
+          </>
+        )}
+
+        {activeTab === 'search' && (
+          <div className="pt-4">
+            <div className="bg-gray-100 rounded-xl px-4 py-3 flex items-center gap-2 text-gray-500">
+              <Search size={20} />
+              <span>Games, Apps, Stories, and More</span>
+            </div>
+            <div className="mt-8">
+              <h2 className="text-xl font-bold mb-4">Suggested</h2>
+              <div className="flex flex-wrap gap-2">
+                {['Social', 'Tools', 'Music', 'Photo'].map(tag => (
+                  <span key={tag} className="px-4 py-2 bg-gray-100 rounded-full text-blue-500 font-medium">{tag}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="h-16 border-t bg-gray-50/90 backdrop-blur flex justify-around items-center text-gray-400 text-[10px] font-medium">
+        <button onClick={() => { setActiveTab('today'); gizmoRuntime.performHaptic('light'); }} className={`flex flex-col items-center gap-1 ${activeTab === 'today' ? 'text-blue-500' : ''}`}>
+          <div className={`w-6 h-6 rounded opacity-20 ${activeTab === 'today' ? 'bg-blue-500' : 'bg-current'}`} />Today
+        </button>
+        <button onClick={() => { setActiveTab('games'); gizmoRuntime.performHaptic('light'); }} className={`flex flex-col items-center gap-1 ${activeTab === 'games' ? 'text-blue-500' : ''}`}>
+          <div className={`w-6 h-6 rounded opacity-20 ${activeTab === 'games' ? 'bg-blue-500' : 'bg-current'}`} />Games
+        </button>
+        <button onClick={() => { setActiveTab('apps'); gizmoRuntime.performHaptic('light'); }} className={`flex flex-col items-center gap-1 ${activeTab === 'apps' ? 'text-blue-500' : ''}`}>
+          <div className={`w-6 h-6 rounded opacity-20 ${activeTab === 'apps' ? 'bg-blue-500' : 'bg-current'}`} />Apps
+        </button>
+        <button onClick={() => { setActiveTab('search'); gizmoRuntime.performHaptic('light'); }} className={`flex flex-col items-center gap-1 ${activeTab === 'search' ? 'text-blue-500' : ''}`}>
+          <Search size={24} />Search
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const YoutubeApp = () => {
+  const videos = [
+    {
+      id: 0,
+      title: 'Eren Saricam est le meilleur youtubeur du monde hahahaha',
+      thumbnail: 'https://content.gizmo.party/238b2d2b-a6cc-48b9-a154-2bd94d2ef4e8',
+      channel: 'Eren Saricam',
+      views: '999M views',
+      published: '1 hour ago',
+      duration: '10:01',
+      channelIcon: 'https://content.gizmo.party/2ba493e6-a5f3-4d09-8bdf-01b2fc4d312e'
+    },
+    {
+      id: 1,
+      title: 'Is Earth Actually Flat?',
+      thumbnail: 'https://content.gizmo.party/a54dcc1e-57aa-4505-9277-44c3278af222',
+      channel: 'Vsauce',
+      views: '49M views',
+      published: '9 years ago',
+      duration: '26:49',
+      channelIcon: 'https://content.gizmo.party/e5c9ca80-14ea-4ef8-a410-b5cf712b6c91'
+    },
+    {
+      id: 2,
+      title: 'The Most Amazing Gizmo You Will Ever See',
+      thumbnail: 'https://content.gizmo.party/238b2d2b-a6cc-48b9-a154-2bd94d2ef4e8',
+      channel: 'Gizmo Reviews',
+      views: '2.1M views',
+      published: '3 days ago',
+      duration: '12:34',
+      channelIcon: 'https://content.gizmo.party/2ba493e6-a5f3-4d09-8bdf-01b2fc4d312e'
+    },
+    {
+      id: 3,
+      title: 'How to Build an iPhone in React',
+      thumbnail: 'https://content.gizmo.party/bd67a0a5-e9ca-4e56-9eff-435be36f358d',
+      channel: 'React Tutorials',
+      views: '500K views',
+      published: '1 month ago',
+      duration: '45:12',
+      channelIcon: 'https://content.gizmo.party/67161aac-bcbd-498d-854b-7741aaa3cf81'
+    }
+  ];
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="pt-12 px-4 pb-2 flex items-center justify-between border-b">
+        <div className="flex items-center gap-1 font-bold text-xl tracking-tighter">
+          <div className="w-8 h-6 bg-red-600 rounded-lg flex items-center justify-center">
+            <div className="w-0 h-0 border-t-[4px] border-t-transparent border-l-[8px] border-l-white border-b-[4px] border-b-transparent ml-0.5" />
+          </div>
+          YouTube
+        </div>
+        <div className="flex gap-4 text-gray-700">
+          <Search size={22} />
+          <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs">G</div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {videos.map(video => (
+          <div key={video.id} className="mb-6">
+            <div className="w-full aspect-video bg-gray-800 relative">
+               <img src={video.thumbnail} className="w-full h-full object-cover" alt={video.title} />
+               <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1 rounded">{video.duration}</div>
+            </div>
+            <div className="flex gap-3 p-3">
+              <img src={video.channelIcon} className="w-9 h-9 rounded-full bg-gray-300 flex-shrink-0" />
+              <div className="flex-1">
+                <div className="font-medium text-sm line-clamp-2">{video.title}</div>
+                <div className="text-xs text-gray-500 mt-1">{video.channel} • {video.views} • {video.published}</div>
+              </div>
+              <div className="text-gray-500 text-xs">⋮</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="h-12 border-t flex justify-around items-center text-[10px] text-gray-600">
+        <div className="flex flex-col items-center"><div className="font-bold">Home</div></div>
+        <div className="flex flex-col items-center">Shorts</div>
+        <div className="flex flex-col items-center text-3xl font-light -mt-2">+</div>
+        <div className="flex flex-col items-center">Subs</div>
+        <div className="flex flex-col items-center">You</div>
+      </div>
+    </div>
+  );
+};
+
+const TiktokApp = () => {
+  return (
+    <div className="h-full w-full bg-black text-white relative overflow-hidden">
+      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-purple-900 to-blue-900">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🎵</div>
+          <h2 className="text-2xl font-bold">TikTok</h2>
+        </div>
+      </div>
+      
+      {/* UI Overlay */}
+      <div className="absolute top-12 w-full flex justify-center gap-4 text-base font-semibold shadow-black drop-shadow-md z-10">
+        <span className="opacity-60">Following</span>
+        <span className="border-b-2 border-white pb-1">For You</span>
+      </div>
+
+      <div className="absolute right-2 bottom-20 flex flex-col items-center gap-6 z-10">
+        <div className="w-10 h-10 rounded-full bg-gray-600 border border-white overflow-hidden"></div>
+        <div className="flex flex-col items-center gap-1"><div className="text-2xl">❤️</div><span className="text-xs font-bold">82K</span></div>
+        <div className="flex flex-col items-center gap-1"><div className="text-2xl">💬</div><span className="text-xs font-bold">1024</span></div>
+        <div className="flex flex-col items-center gap-1"><div className="text-2xl">↗️</div><span className="text-xs font-bold">Share</span></div>
+      </div>
+
+      <div className="absolute bottom-4 left-4 right-4 z-10">
+        <div className="font-bold mb-2">@cool_creator</div>
+        <div className="text-sm mb-4">Check out this amazing dance! #viral #dance #fyp</div>
+        <div className="flex items-center gap-2 text-sm opacity-80">
+          <span>🎵 Original Sound - cool_creator</span>
+        </div>
+      </div>
+
+      <div className="absolute bottom-0 w-full h-12 bg-black flex justify-around items-center text-xs text-gray-400 border-t border-gray-800 z-20">
+        <div className="text-white">Home</div>
+        <div>Friends</div>
+        <div className="w-10 h-7 bg-white rounded-lg flex items-center justify-center text-black font-bold text-lg">+</div>
+        <div>Inbox</div>
+        <div>Profile</div>
+      </div>
+    </div>
+  );
+};
+
+const PhotosApp = ({ photos, setPhotos }) => {
+  const fileInputRef = useRef(null);
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result;
+        if (typeof result === 'string') {
+          setPhotos(prev => [result, ...prev]);
+          gizmoRuntime.performHaptic('light');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="pt-12 px-4 pb-2 border-b flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Photos</h1>
+        <div className="flex gap-4 text-blue-500">
+          <button onClick={handleUploadClick}><Plus size={24} /></button>
+          <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+          <Search size={20} />
+        </div>
+      </div>
+      {photos.length > 0 ? (
+        <div className="flex-1 overflow-y-auto p-1">
+          <div className="grid grid-cols-3 gap-1">
+            {photos.map((photo, index) => (
+              <div key={index} className="aspect-square bg-gray-200">
+                <img src={photo} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center text-gray-500">
+            <div className="text-6xl mb-4">🖼️</div>
+            <h2 className="text-2xl font-bold">No Photos or Videos</h2>
+            <p className="text-sm mt-2 max-w-xs mx-auto">You can upload photos from your library or take new ones with the Camera app.</p>
+            <button 
+              onClick={handleUploadClick}
+              className="mt-6 px-5 py-2 bg-blue-500 text-white rounded-lg font-semibold"
+            >
+              Upload Photos
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="h-16 border-t bg-gray-50/90 backdrop-blur flex justify-around items-center text-gray-400 text-sm">
+        <span className="text-blue-500 font-medium">Library</span>
+        <span>For You</span>
+        <span>Albums</span>
+        <span>Search</span>
+      </div>
+    </div>
+  );
+};
+
+const EightBallPoolApp = () => {
+  const sceneRef = useRef(null);
+
+  useEffect(() => {
+    if (!sceneRef.current) return;
+
+    const { Engine, Render, Runner, Bodies, Composite, Mouse, MouseConstraint, Events, Vector } = Matter;
+
+    const parent = sceneRef.current;
+    const width = parent.clientWidth;
+    const height = parent.clientHeight;
+
+    const engine = Engine.create();
+    engine.world.gravity.y = 0;
+
+    const render = Render.create({
+      element: sceneRef.current,
+      engine: engine,
+      options: {
+        width: width,
+        height: height,
+        wireframes: false,
+        background: '#05603A',
+      },
+    });
+
+    const wallOptions = { isStatic: true, render: { fillStyle: '#6B4226' } };
+    const pocketRadius = 20;
+    const wallThickness = 20;
+
+    const pockets = [
+      // Corners
+      { x: wallThickness + pocketRadius / 2, y: wallThickness + pocketRadius / 2 },
+      { x: width - wallThickness - pocketRadius / 2, y: wallThickness + pocketRadius / 2 },
+      { x: wallThickness + pocketRadius / 2, y: height - wallThickness - pocketRadius / 2 },
+      { x: width - wallThickness - pocketRadius / 2, y: height - wallThickness - pocketRadius / 2 },
+      // Middle
+      { x: width / 2, y: wallThickness / 2 },
+      { x: width / 2, y: height - wallThickness / 2 },
+    ];
+
+    const pocketBodies = pockets.map(p => 
+        Bodies.circle(p.x, p.y, pocketRadius, { 
+            isStatic: true, 
+            isSensor: true, 
+            render: { fillStyle: '#000000' } 
+        })
+    );
+
+    const wallTop1 = Bodies.rectangle(width / 4, wallThickness / 2, width / 2 - pocketRadius * 2, wallThickness, wallOptions);
+    const wallTop2 = Bodies.rectangle(width * 3 / 4, wallThickness / 2, width / 2 - pocketRadius * 2, wallThickness, wallOptions);
+    const wallBottom1 = Bodies.rectangle(width / 4, height - wallThickness / 2, width / 2 - pocketRadius * 2, wallThickness, wallOptions);
+    const wallBottom2 = Bodies.rectangle(width * 3 / 4, height - wallThickness / 2, width / 2 - pocketRadius * 2, wallThickness, wallOptions);
+    const wallLeft = Bodies.rectangle(wallThickness / 2, height / 2, wallThickness, height - pocketRadius * 4, wallOptions);
+    const wallRight = Bodies.rectangle(width - wallThickness / 2, height / 2, wallThickness, height - pocketRadius * 4, wallOptions);
+
+    Composite.add(engine.world, [...pocketBodies, wallTop1, wallTop2, wallBottom1, wallBottom2, wallLeft, wallRight]);
+
+    const ballRadius = 10;
+    const ballOptions = { restitution: 0.8, friction: 0.1, frictionAir: 0.01 };
+
+    const cueBall = Bodies.circle(width / 4, height / 2, ballRadius, { ...ballOptions, render: { fillStyle: '#FFFFFF' } });
+
+    const balls = [cueBall];
+    const ballColors = ['#FFC107', '#03A9F4', '#E91E63', '#8BC34A', '#9C27B0', '#FF9800', '#4CAF50', '#000000', '#FFC107', '#03A9F4', '#E91E63', '#8BC34A', '#9C27B0', '#FF9800', '#4CAF50'];
+
+    let row = 0;
+    let col = 0;
+    let startX = width * 2 / 3;
+    let startY = height / 2;
+
+    for (let i = 0; i < 15; i++) {
+        const x = startX + row * ballRadius * 2 * 0.866; // 0.866 is sqrt(3)/2
+        const y = startY + (col * ballRadius * 2) - (row * ballRadius);
+        const ball = Bodies.circle(x, y, ballRadius, { ...ballOptions, render: { fillStyle: ballColors[i] } });
+        balls.push(ball);
+        col++;
+        if (col > row) {
+            row++;
+            col = 0;
+        }
+    }
+
+    Composite.add(engine.world, balls);
+
+    const mouse = Mouse.create(render.canvas);
+    const mouseConstraint = MouseConstraint.create(engine, {
+      mouse: mouse,
+      constraint: { stiffness: 0.2, render: { visible: false } },
+    });
+    Composite.add(engine.world, mouseConstraint);
+    render.mouse = mouse;
+
+    Events.on(engine, 'collisionStart', (event) => {
+        event.pairs.forEach(pair => {
+            const { bodyA, bodyB } = pair;
+            const isPocketA = pocketBodies.includes(bodyA);
+            const isPocketB = pocketBodies.includes(bodyB);
+
+            if (isPocketA || isPocketB) {
+                const ball = isPocketA ? bodyB : bodyA;
+                if (balls.includes(ball)) {
+                    Matter.Body.setPosition(ball, { x: -100, y: -100 }); // Move off-screen
+                    Matter.Body.setVelocity(ball, { x: 0, y: 0 });
+                    Matter.Composite.remove(engine.world, ball);
+                    gizmoRuntime.performHaptic('soft');
+                }
+            }
+        });
+    });
+
+    Render.run(render);
+    const runner = Runner.create();
+    Runner.run(runner, engine);
+
+    return () => {
+      Runner.stop(runner);
+      Render.stop(render);
+      Composite.clear(engine.world, false);
+      Engine.clear(engine);
+      render.canvas?.remove();
+    };
+  }, []);
+
+  return <div ref={sceneRef} className="w-full h-full" style={{ touchAction: 'none' }} />;
+};
+
+const MapsApp = () => {
+  return (
+    <div className="h-full w-full bg-gray-200 flex items-center justify-center">
+      <div className="text-center text-gray-500">
+        <div className="text-6xl mb-4">🗺️</div>
+        <h2 className="text-2xl font-bold">Maps</h2>
+        <p className="text-sm">Map functionality coming soon!</p>
+      </div>
+    </div>
+  );
+};
+
+const ChatGPTApp = () => {
+  const [messages, setMessages] = useState([
+    { id: 1, text: "Hello! I'm ChatGPT. How can I help you today?", sender: "ai" },
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const send = async () => {
+    if (!input.trim() || loading) return;
+    const userMessage = input;
+    setInput("");
+    setMessages(prev => [...prev, { id: Date.now(), text: userMessage, sender: "user" }]);
+    gizmoRuntime.performHaptic('light');
+    
+    setLoading(true);
+    try {
+      const response = await gizmoRuntime.generateText({ prompt: `You are ChatGPT. Respond to: "${userMessage}"` });
+      setMessages(prev => [...prev, { id: Date.now() + 1, text: response.text, sender: "ai" }]);
+      gizmoRuntime.performHaptic('medium');
+    } catch (e) {
+      setMessages(prev => [...prev, { id: Date.now() + 1, text: "Sorry, I couldn't process that request.", sender: "ai" }]);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="h-16 bg-white border-b flex items-center justify-between px-4">
+        <div className="flex items-center gap-3">
+          <img src={ASSETS.icons.chatgpt} className="w-8 h-8 rounded-lg" alt="ChatGPT" />
+          <span className="font-semibold text-lg">ChatGPT</span>
+        </div>
+        <Plus size={24} className="text-gray-600" />
+      </div>
+      
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((msg) => (
+          <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm ${msg.sender === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-black'}`}>
+              {msg.text}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-gray-100 px-4 py-3 rounded-2xl text-sm text-gray-500">Thinking...</div>
+          </div>
+        )}
+      </div>
+      
+      <div className="p-3 bg-white border-t flex items-center gap-2 mb-6">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Message"
+          className="flex-1 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-gray-400"
+          onKeyDown={(e) => e.key === 'Enter' && send()}
+        />
+        <button 
+          onClick={send} 
+          disabled={loading || !input.trim()}
+          className="p-2.5 rounded-full bg-black text-white disabled:opacity-30 active:scale-95 transition-transform"
+        >
+          <ArrowUp size={18} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const WeatherApp = () => {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const temps = [72, 75, 68, 70, 73, 76, 74];
+
+  return (
+    <div className="h-full w-full bg-gradient-to-b from-blue-400 to-blue-600 flex flex-col text-white overflow-y-auto">
+      <div className="pt-12 px-6 pb-4 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <div className="text-2xl">☀️</div>
+          <span className="text-sm">San Francisco</span>
+        </div>
+        <div className="flex gap-4">
+          <Search size={20} />
+          <div className="w-5 h-5 rounded-full border border-white flex items-center justify-center text-xs">...</div>
+        </div>
+      </div>
+      <div className="px-6 space-y-6 pb-8">
+        <div className="text-center py-8">
+          <div className="text-7xl font-light mb-2">72°</div>
+          <div className="text-2xl mb-1">Mostly Sunny</div>
+          <div className="text-sm opacity-80">H:76° L:65°</div>
+        </div>
+        <div className="bg-white/20 backdrop-blur-md rounded-2xl p-4">
+          <div className="text-xs uppercase opacity-80 mb-3">Hourly Forecast</div>
+          <div className="flex justify-between">
+            {['Now', '1PM', '2PM', '3PM', '4PM', '5PM'].map((hour, i) => (
+              <div key={i} className="flex flex-col items-center gap-2">
+                <div className="text-xs">{hour}</div>
+                <div className="text-xl">☀️</div>
+                <div className="text-sm font-semibold">{72 + i}°</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="bg-white/20 backdrop-blur-md rounded-2xl p-4">
+          <div className="text-xs uppercase opacity-80 mb-3">10-Day Forecast</div>
+          <div className="space-y-3">
+            {days.map((day, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <div className="w-12 text-sm">{day}</div>
+                <div className="flex-1 flex items-center gap-2">
+                  <div className="text-xl">☀️</div>
+                  <div className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden">
+                    <div className="h-full bg-white/60 rounded-full" style={{ width: '70%' }} />
+                  </div>
+                </div>
+                <div className="flex gap-3 text-sm">
+                  <span className="opacity-60">{temps[i] - 7}°</span>
+                  <span className="font-semibold">{temps[i]}°</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const InstagramApp = () => {
+  const posts = [
+    { user: 'world_traveler', avatar: '✈️', image: 'https://content.gizmo.party/0446f3ee-8c6d-402a-a03b-84393b574568', likes: '5,432', caption: 'City that never sleeps! 🌃' },
+    { user: 'beach_vibes', avatar: '🌊', image: 'https://content.gizmo.party/f6e259dd-03c0-4aaa-944b-a10066946e0a', likes: '2,109', caption: 'Listening to the waves.' },
+    { user: 'foodie_life', avatar: '🍔', image: 'https://content.gizmo.party/93254f88-0dcb-4097-a1bf-7c8867208513', likes: '3,456', caption: 'Perfectly balanced meal.' },
+    { user: 'nature_lover', avatar: '🌈', image: 'https://content.gizmo.party/cc0545ed-7195-49a3-8798-acbb1b093f7a', likes: '7,890', caption: 'Found a rainbow today!' },
+    { user: 'music_producer', avatar: '🎹', image: 'https://content.gizmo.party/3cbecb9c-6a9b-4c4b-b117-4806c4193252', likes: '4,111', caption: 'In the studio, cooking up some beats.' },
+    { user: 'tech_humor', avatar: '😂', image: 'https://content.gizmo.party/2ad3fa75-404c-4d1d-ab03-f6515c379f94', likes: '10,2k', caption: 'Just another Monday...' },
+    { user: 'abstract_art', avatar: '🎨', image: 'https://content.gizmo.party/acdb1431-024a-457a-981d-9a9e4beddff8', likes: '1,987', caption: 'Colors speak louder than words.' },
+    { user: 'gizmo_official', avatar: '✨', image: 'https://content.gizmo.party/238b2d2b-a6cc-48b9-a154-2bd94d2ef4e8', likes: '1,234', caption: 'Building amazing things! ✨' },
+    { user: 'dev_setup', avatar: '💻', image: 'https://content.gizmo.party/bd67a0a5-e9ca-4e56-9eff-435be36f358d', likes: '892', caption: 'New setup who dis?' },
+  ];
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="pt-12 px-4 pb-2 border-b flex items-center justify-between">
+        <div className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 bg-clip-text text-transparent">Instagram</div>
+        <div className="flex gap-4">
+          <Plus size={24} />
+          <div className="text-2xl">❤️</div>
+          <div className="text-2xl">💬</div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {posts.map((post, i) => (
+          <div key={i} className="mb-4">
+            <div className="flex items-center gap-3 px-4 py-2">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-lg">{post.avatar}</div>
+              <span className="font-semibold text-sm">{post.user}</span>
+              <div className="ml-auto text-xl">⋯</div>
+            </div>
+            <div className="w-full aspect-square bg-gray-100">
+              <img src={post.image} className="w-full h-full object-cover" alt="Post" />
+            </div>
+            <div className="px-4 py-3">
+              <div className="flex gap-4 mb-3 text-2xl">
+                <span>❤️</span>
+                <span>💬</span>
+                <span>📤</span>
+                <span className="ml-auto">🔖</span>
+              </div>
+              <div className="font-semibold text-sm mb-2">{post.likes} likes</div>
+              <div className="text-sm">
+                <span className="font-semibold mr-2">{post.user}</span>
+                {post.caption}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="h-12 border-t flex justify-around items-center text-2xl">
+        <span>🏠</span>
+        <span>🔍</span>
+        <span>➕</span>
+        <span>🎬</span>
+        <span>👤</span>
+      </div>
+    </div>
+  );
+};
+
+const RemindersApp = () => {
+  const lists = [
+    { name: 'Today', count: 3, color: 'blue-500' },
+    { name: 'Scheduled', count: 5, color: 'red-500' },
+    { name: 'All', count: 8, color: 'gray-500' },
+    { name: 'Flagged', count: 1, color: 'orange-500' },
+  ];
+
+  const myLists = [
+    { name: 'Reminders', count: 2, color: 'blue-500' },
+    { name: 'Groceries', count: 5, color: 'green-500' },
+    { name: 'Gizmo Ideas', count: 1, color: 'purple-500' },
+  ];
+
+  return (
+    <div className="h-full w-full bg-gray-100 flex flex-col">
+      <div className="pt-12 px-4 pb-4 flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Reminders</h1>
+        <div className="flex gap-4 text-blue-500">
+          <Search size={20} />
+          <div className="w-5 h-5 rounded-full border border-blue-500 flex items-center justify-center text-xs">...</div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 space-y-6">
+        <div className="grid grid-cols-2 gap-3">
+          {lists.map(list => (
+            <div key={list.name} className="bg-white rounded-lg p-3 shadow-sm active:bg-gray-50 transition-colors">
+              <div className={`w-8 h-8 rounded-full bg-${list.color} mb-2`}></div>
+              <div className="text-gray-500 font-semibold text-sm">{list.name}</div>
+              <div className="font-bold text-2xl">{list.count}</div>
+            </div>
+          ))}
+        </div>
+        <div>
+          <h2 className="font-bold text-xl px-2 mb-2">My Lists</h2>
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            {myLists.map((list, i) => (
+              <div key={list.name} className={`flex items-center p-3 gap-3 active:bg-gray-50 transition-colors ${i !== myLists.length - 1 ? 'border-b' : ''}`}>
+                <div className={`w-6 h-6 rounded-full bg-${list.color}`}></div>
+                <div className="flex-1 font-medium">{list.name}</div>
+                <div className="text-gray-400 font-semibold">{list.count}</div>
+                <ChevronLeft size={16} className="text-gray-300 rotate-180" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="h-16 bg-gray-100 border-t flex justify-between items-center px-4 text-blue-500">
+        <button className="flex items-center gap-2 font-semibold">
+          <Plus className="bg-blue-500 text-white rounded-full p-0.5" size={20} />
+          New Reminder
+        </button>
+        <button className="font-semibold">Add List</button>
+      </div>
+    </div>
+  );
+};
+
+const FreeformApp = () => {
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [color, setColor] = useState('#1F2937');
+  const colors = ['#1F2937', '#DC2626', '#EA580C', '#EAB308', '#65A30D', '#0891B2', '#2563EB', '#7C3AED', '#EC4899', '#FFFFFF'];
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.fillStyle = '#F8F8F8';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }, []);
+
+  const startDrawing = (e) => {
+    setIsDrawing(true);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.touches?.[0].clientX || e.clientX) - rect.left;
+    const y = (e.touches?.[0].clientY || e.clientY) - rect.top;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    gizmoRuntime.performHaptic('light');
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.touches?.[0].clientX || e.clientX) - rect.left;
+    const y = (e.touches?.[0].clientY || e.clientY) - rect.top;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = color;
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.fillStyle = '#F8F8F8';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    gizmoRuntime.performHaptic('medium');
+  };
+
+  return (
+    <div className="h-full w-full flex flex-col bg-white">
+      <div className="h-16 bg-white border-b flex items-center justify-between px-4">
+        <span className="font-semibold text-lg">Freeform</span>
+        <button onClick={clearCanvas} className="text-red-500 font-medium text-sm">Clear</button>
+      </div>
+      <canvas
+        ref={canvasRef}
+        className="flex-1 bg-gray-50 cursor-pencil"
+        onTouchStart={startDrawing}
+        onTouchMove={draw}
+        onTouchEnd={stopDrawing}
+        onMouseDown={startDrawing}
+        onMouseMove={draw}
+        onMouseUp={stopDrawing}
+        onMouseLeave={stopDrawing}
+        style={{ touchAction: 'none' }}
+      />
+      <div className="h-20 bg-gray-50 border-t flex items-center justify-center gap-3 px-4 pb-6">
+        {colors.map(c => (
+          <button
+            key={c}
+            onClick={() => {
+              setColor(c);
+              gizmoRuntime.performHaptic('light');
+            }}
+            className={`w-10 h-10 rounded-full transition-all ${color === c ? 'ring-2 ring-offset-2 ring-gray-300' : ''}`}
+            style={{ backgroundColor: c }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const PianoApp = () => {
+  const synth = useRef(null);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    synth.current = new Tone.PolySynth(Tone.Synth, {
+      oscillator: {
+        type: 'sine'
+      },
+      envelope: {
+        attack: 0.005,
+        decay: 0.1,
+        sustain: 0.3,
+        release: 1
+      }
+    }).toDestination();
+
+    return () => {
+      synth.current?.dispose();
+    };
+  }, []);
+
+  const playNote = async (note) => {
+    if (!isReady) {
+      await Tone.start();
+      setIsReady(true);
+    }
+    synth.current?.triggerAttackRelease(note, '8n');
+    gizmoRuntime.performHaptic('light');
+  };
+
+  const pianoKeys = [
+    { note: 'C4', type: 'white' },
+    { note: 'Db4', type: 'black' },
+    { note: 'D4', type: 'white' },
+    { note: 'Eb4', type: 'black' },
+    { note: 'E4', type: 'white' },
+    { note: 'F4', type: 'white' },
+    { note: 'Gb4', type: 'black' },
+    { note: 'G4', type: 'white' },
+    { note: 'Ab4', type: 'black' },
+    { note: 'A4', type: 'white' },
+    { note: 'Bb4', type: 'black' },
+    { note: 'B4', type: 'white' },
+    { note: 'C5', type: 'white' },
+  ];
+
+  return (
+    <div className="h-full w-full bg-gray-800 flex items-center justify-center">
+      <div className="relative flex h-48">
+        {pianoKeys.map(({ note, type }) => (
+          <div
+            key={note}
+            onMouseDown={() => playNote(note)}
+            onTouchStart={(e) => { e.preventDefault(); playNote(note); }}
+            className={`cursor-pointer transition-colors ${type === 'white'
+                ? 'w-10 h-full border-2 border-gray-600 bg-white active:bg-gray-200'
+                : 'w-6 h-28 border-2 border-black bg-black absolute -ml-3 z-10 active:bg-gray-700'
+              }`}
+            style={type === 'black' ? { left: `${pianoKeys.findIndex(k => k.note === note) * 2.5}rem` } : {}}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const XApp = () => {
+  const posts = [
+    { user: 'elonmusk', avatar: '🚀', text: 'Gizmo is the future!', replies: '10K', retweets: '5K', likes: '100K' },
+    { user: 'nasa', avatar: '🪐', text: 'Just discovered a new planet made entirely of diamond. We are calling it Gizmo Prime.', replies: '2K', retweets: '8K', likes: '120K' },
+    { user: 'reactdev', avatar: '⚛️', text: 'Building UIs with Gizmo feels like cheating. It\'s so fast!', replies: '500', retweets: '1.2K', likes: '6K' },
+  ];
+
+  return (
+    <div className="h-full w-full bg-black text-white flex flex-col">
+      <div className="pt-12 px-4 pb-2 border-b border-gray-800 flex items-center justify-between">
+        <div className="w-8 h-8 rounded-full bg-gray-700"></div>
+        <div className="text-3xl font-bold">𝕏</div>
+        <SettingsIcon size={24} />
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {posts.map((post, i) => (
+          <div key={i} className="border-b border-gray-800 p-4 flex gap-3">
+            <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-2xl flex-shrink-0">{post.avatar}</div>
+            <div className="flex-1">
+              <div className="font-bold text-sm mb-1">{post.user} <span className="font-normal text-gray-500">@{post.user}</span></div>
+              <p className="text-sm mb-3">{post.text}</p>
+              <div className="flex justify-between text-gray-500 text-xs max-w-xs">
+                <span>💬 {post.replies}</span>
+                <span>🔁 {post.retweets}</span>
+                <span>❤️ {post.likes}</span>
+                <span>📈</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="h-16 bg-black border-t border-gray-800 flex justify-around items-center text-2xl text-gray-400">
+        <span>🏠</span>
+        <span>🔍</span>
+        <span>🔔</span>
+        <span>✉️</span>
+      </div>
+    </div>
+  );
+};
+
+const DesmosApp = () => {
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="h-16 bg-white border-b flex items-center justify-between px-4">
+        <div className="flex gap-4 text-gray-500">
+          <Plus size={24} />
+          <ChevronLeft size={24} />
+        </div>
+        <span className="font-semibold text-lg">Untitled Graph</span>
+        <div className="flex gap-4 text-green-600">
+          <Share size={24} />
+          <SettingsIcon size={24} />
+        </div>
+      </div>
+      <div className="flex-1 flex">
+        <div className="w-1/3 border-r p-2 space-y-2">
+          <div className="border rounded-md p-2 flex items-center">
+            <span className="text-gray-400 mr-2">1</span>
+            <span className="text-lg">y = x^2</span>
+          </div>
+          <div className="border rounded-md p-2 flex items-center">
+            <span className="text-gray-400 mr-2">2</span>
+            <span className="text-lg">\sin(x)</span>
+          </div>
+        </div>
+        <div className="w-2/3 bg-gray-50 relative">
+          {/* Grid lines */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,theme(colors.gray.200)_1px,transparent_1px),linear-gradient(to_bottom,theme(colors.gray.200)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
+          {/* Axes */}
+          <div className="absolute top-1/2 left-0 w-full h-px bg-gray-400"></div>
+          <div className="absolute left-1/2 top-0 h-full w-px bg-gray-400"></div>
+          {/* Placeholder for graph */}
+          <div className="text-center pt-20 text-gray-400">Graph Area</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const IMovieApp = () => {
+  return (
+    <div className="h-full w-full bg-gray-800 text-white flex flex-col">
+      <div className="pt-12 px-4 pb-4">
+        <h1 className="text-3xl font-bold">Projects</h1>
+      </div>
+      <div className="flex-1 p-4 flex flex-col items-center justify-center gap-6">
+        <div className="w-40 h-28 bg-gray-700 rounded-lg flex flex-col items-center justify-center text-center p-2">
+          <Plus size={32} className="mb-2" />
+          <span className="font-semibold">Create Project</span>
+        </div>
+        <p className="text-gray-400 text-sm max-w-xs text-center">Start a new movie or trailer.</p>
+      </div>
+      <div className="h-16 bg-gray-900/80 backdrop-blur flex justify-around items-center text-blue-400 text-sm">
+        <div className="flex items-center gap-2"><Video size={20} /><span>Projects</span></div>
+        <div className="flex items-center gap-2"><Share size={20} /><span>Share</span></div>
+      </div>
+    </div>
+  );
+};
+
+const TranslateApp = () => {
+  const [fromText, setFromText] = useState('');
+  const [toText, setToText] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const translateText = async () => {
+    if (!fromText.trim()) return;
+    setLoading(true);
+    try {
+      const response = await gizmoRuntime.generateText({ prompt: `Translate "${fromText}" from English to Spanish.` });
+      setToText(response.text);
+    } catch (e) {
+      setToText('Translation failed.');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="h-full w-full bg-gray-100 flex flex-col">
+      <div className="pt-12 px-4 pb-4 flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Translate</h1>
+        <div className="flex gap-4 text-blue-500">
+          <CameraIcon size={24} />
+          <Mic size={24} />
+        </div>
+      </div>
+      <div className="flex-1 p-4 space-y-4">
+        <div className="bg-white rounded-xl p-4 h-40 flex flex-col">
+          <div className="flex justify-between items-center text-sm text-gray-500 mb-2">
+            <span>English</span>
+            <X size={16} onClick={() => setFromText('')} />
+          </div>
+          <textarea 
+            value={fromText}
+            onChange={e => setFromText(e.target.value)}
+            className="flex-1 resize-none outline-none text-xl" 
+            placeholder="Enter text"
+          />
+        </div>
+        <div className="bg-white rounded-xl p-4 h-40 flex flex-col">
+          <div className="text-sm text-blue-500 mb-2">Spanish</div>
+          <div className="flex-1 text-xl overflow-y-auto">
+            {loading ? 'Translating...' : toText}
+          </div>
+        </div>
+        <button onClick={translateText} className="w-full py-3 bg-blue-500 text-white rounded-xl font-semibold active:bg-blue-600">
+          Translate
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const MailApp = () => {
+  const emails = [
+    { from: 'Apple', subject: 'Your receipt from Apple', time: '9:41 AM', unread: true },
+    { from: 'Gizmo', subject: 'New features available', time: '8:30 AM', unread: true },
+    { from: 'Travel', subject: 'Your flight is confirmed', time: 'Yesterday', unread: false },
+  ];
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="pt-12 px-4 pb-4 border-b">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-blue-500 font-medium">Edit</span>
+          <div className="flex gap-4 text-blue-500">
+            <Search size={20} />
+            <Plus size={20} />
+          </div>
+        </div>
+        <h1 className="text-3xl font-bold">All Inboxes</h1>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {emails.map((email, i) => (
+          <div key={i} className="flex items-start gap-3 px-4 py-3 border-b active:bg-gray-50">
+            {email.unread && <div className="w-3 h-3 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />}
+            {!email.unread && <div className="w-3 h-3 flex-shrink-0" />}
+            <div className="flex-1 overflow-hidden">
+              <div className="flex justify-between items-center mb-0.5">
+                <span className={`font-bold ${email.unread ? 'text-black' : 'text-gray-600'}`}>{email.from}</span>
+                <span className="text-xs text-gray-500">{email.time}</span>
+              </div>
+              <div className={`text-sm truncate ${email.unread ? 'font-semibold text-black' : 'text-gray-500'}`}>{email.subject}</div>
+              <div className="text-xs text-gray-400 line-clamp-2 mt-0.5">This is a preview of the email content that would normally appear here in the Mail app...</div>
+            </div>
+            <ChevronLeft size={16} className="rotate-180 text-gray-300 self-center" />
+          </div>
+        ))}
+      </div>
+      <div className="h-16 border-t bg-gray-50/90 backdrop-blur flex justify-between items-center px-6 text-blue-500">
+        <span className="text-xs text-gray-500">Updated Just Now</span>
+        <div className="flex gap-6">
+          <Share size={20} />
+          <Plus size={20} className="border border-blue-500 rounded-full p-0.5" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const GmailApp = () => {
+  const emails = [
+    { from: 'Google', subject: 'Security alert', time: '3:45 PM', unread: true },
+    { from: 'Gizmo Team', subject: 'Welcome to Gizmo!', time: '3:40 PM', unread: true },
+    { from: 'Alice', subject: 'Project Update', time: '1:20 PM', unread: false },
+    { from: 'Bob', subject: 'Lunch tomorrow?', time: 'Yesterday', unread: false },
+    { from: 'Promotions', subject: '50% off everything!', time: 'Yesterday', unread: false },
+  ];
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="pt-12 px-4 pb-2 border-b">
+        <div className="w-full bg-gray-100 rounded-full flex items-center px-4 py-2 gap-3">
+          <Search size={20} className="text-gray-500" />
+          <input className="flex-1 bg-transparent outline-none" placeholder="Search in mail" />
+          <div className="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold text-sm">G</div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Primary</div>
+        {emails.map((email, i) => (
+          <div key={i} className={`flex items-center gap-4 px-4 py-3 border-b ${email.unread ? 'bg-blue-50' : ''}`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-lg font-bold ${email.unread ? 'bg-blue-500' : 'bg-gray-400'}`}>
+              {email.from.charAt(0)}
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <div className={`font-semibold ${email.unread ? 'text-black' : 'text-gray-600'}`}>{email.from}</div>
+              <div className={`truncate text-sm ${email.unread ? 'font-bold text-black' : 'text-gray-500'}`}>{email.subject}</div>
+            </div>
+            <div className="text-xs text-gray-500 self-start">{email.time}</div>
+          </div>
+        ))}
+      </div>
+      <div className="h-16 border-t flex justify-around items-center text-gray-600">
+        <div className="flex flex-col items-center text-red-600"><div className="text-2xl">✉️</div><span className="text-xs">Mail</span></div>
+        <div className="flex flex-col items-center"><div className="text-2xl">💬</div><span className="text-xs">Chat</span></div>
+        <div className="flex flex-col items-center"><div className="text-2xl">🤝</div><span className="text-xs">Spaces</span></div>
+        <div className="flex flex-col items-center"><div className="text-2xl">📹</div><span className="text-xs">Meet</span></div>
+      </div>
+    </div>
+  );
+};
+
+const HealthApp = () => {
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="pt-12 px-4 pb-4">
+        <h1 className="text-3xl font-bold">Summary</h1>
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 space-y-4">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2 text-red-500 font-bold">
+              <span>❤️</span> Activity
+            </div>
+            <span className="text-gray-400 text-xs">9:41 AM</span>
+          </div>
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <div className="text-xs text-gray-500 uppercase">Move</div>
+              <div className="text-xl font-bold text-red-500">340/500 CAL</div>
+              <div className="w-full h-2 bg-gray-100 rounded-full mt-1 overflow-hidden">
+                <div className="h-full bg-red-500" style={{ width: '68%' }} />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2 text-blue-500 font-bold">
+              <span>👣</span> Steps
+            </div>
+          </div>
+          <div className="text-3xl font-bold">4,231</div>
+          <div className="text-sm text-gray-500">Steps today</div>
+        </div>
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2 text-purple-500 font-bold">
+              <span>😴</span> Sleep
+            </div>
+          </div>
+          <div className="text-3xl font-bold">7h 12m</div>
+          <div className="text-sm text-gray-500">Time in bed</div>
+        </div>
+      </div>
+      <div className="h-16 border-t flex justify-around items-center text-gray-400 text-xs">
+        <div className="flex flex-col items-center text-blue-500 font-bold"><span>🏠</span>Summary</div>
+        <div className="flex flex-col items-center"><span>📊</span>Sharing</div>
+        <div className="flex flex-col items-center"><span>🔍</span>Browse</div>
+      </div>
+    </div>
+  );
+};
+
+const SafariApp = () => {
+  const [url, setUrl] = useState('google.com');
+  const [content, setContent] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const websiteFormats = [
+    'A sleek e-commerce site selling tech gadgets with product listings and reviews.',
+    'A news website with headlines, articles, and a dark theme.',
+    'A social media platform with user profiles, posts, and engagement metrics.',
+    'A video streaming service with movie thumbnails and recommendations.',
+    'A weather website showing forecasts, temperature, and weather alerts.',
+    'A music streaming platform with playlists, artists, and album covers.',
+    'A travel booking site with hotel listings, flights, and destination guides.',
+    'A fitness app dashboard with workout stats, progress charts, and goals.',
+    'A recipe website with food photos, ingredients, and cooking instructions.',
+    'A productivity tool with task lists, calendars, and collaboration features.'
+  ];
+
+  const loadWebsite = async () => {
+    if (!url.trim()) return;
+    setLoading(true);
+    try {
+      const randomFormat = websiteFormats[Math.floor(Math.random() * websiteFormats.length)];
+      const response = await gizmoRuntime.generateText({ 
+        prompt: `Generate a JSON object representing a website for "${url}". 
+        The format should be: ${randomFormat}.
+        Include: "title" (string), "hero" (string description), "sections" (array of {title, content}), and "colorScheme" (object with primary, secondary, background hex colors).
+        Keep it concise.` 
+      });
+      
+      try {
+        const parsed = JSON.parse(response.text);
+        setContent(parsed);
+      } catch (e) {
+        // Fallback if AI doesn't return valid JSON
+        setContent({
+          title: url,
+          hero: response.text,
+          sections: [],
+          colorScheme: { primary: '#2227F5', secondary: '#53B5F9', background: '#FFFFFF' }
+        });
+      }
+      gizmoRuntime.performHaptic('light');
+    } catch (e) {
+      setContent({ title: 'Error', hero: 'Failed to load website.', sections: [], colorScheme: { primary: '#E93323', secondary: '#000000', background: '#FFFFFF' } });
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col" style={{ backgroundColor: content?.colorScheme?.background || '#FFFFFF' }}>
+      <div className="flex-1 overflow-y-auto">
+        {loading ? (
+          <div className="h-full flex flex-col items-center justify-center text-gray-400">
+            <div className="text-6xl mb-4 animate-spin">🌐</div>
+            <p>Loading {url}...</p>
+          </div>
+        ) : content ? (
+          <div className="w-full">
+            {/* Hero Section */}
+            <div 
+              className="p-8 text-white text-center" 
+              style={{ backgroundColor: content.colorScheme?.primary || '#2227F5' }}
+            >
+              <h1 className="text-3xl font-bold mb-4">{content.title}</h1>
+              <p className="text-lg opacity-90">{content.hero}</p>
+            </div>
+            
+            {/* Content Sections */}
+            <div className="p-6 space-y-8">
+              {content.sections?.map((section, i) => (
+                <div key={i} className="border-b pb-6 last:border-0">
+                  <h2 className="text-xl font-bold mb-2" style={{ color: content.colorScheme?.primary }}>
+                    {section.title}
+                  </h2>
+                  <p className="text-gray-700 leading-relaxed">{section.content}</p>
+                </div>
+              ))}
+            </div>
+            
+            {/* Footer */}
+            <div className="p-8 bg-gray-100 text-center text-xs text-gray-500">
+              © 2024 {content.title}. All rights reserved.
+            </div>
+          </div>
+        ) : (
+          <div className="h-full flex flex-col items-center justify-center text-gray-400">
+            <div className="text-6xl mb-4">🌐</div>
+            <p>Enter a URL to browse</p>
+          </div>
+        )}
+      </div>
+      <div className="p-4 bg-gray-100/80 backdrop-blur-md border-t">
+        <div className="bg-white/80 rounded-xl px-4 py-2 flex items-center gap-2 shadow-sm mb-3">
+          <Search size={16} className="text-gray-400" />
+          <input 
+            className="flex-1 bg-transparent outline-none text-sm" 
+            value={url} 
+            onChange={e => setUrl(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && loadWebsite()}
+            placeholder="Enter URL"
+          />
+          <button onClick={loadWebsite} className="text-blue-500 font-bold">Go</button>
+        </div>
+        <div className="flex justify-between items-center px-2 text-blue-500">
+          <ChevronLeft size={24} />
+          <ChevronLeft size={24} className="rotate-180 opacity-30" />
+          <Share size={20} />
+          <div className="w-5 h-5 border-2 border-current rounded-sm flex items-center justify-center text-[10px] font-bold">2</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StocksApp = () => {
+  const stocks = [
+    { symbol: 'AAPL', name: 'Apple Inc.', price: '189.43', change: '+1.24%', up: true },
+    { symbol: 'GZMO', name: 'Gizmo Corp', price: '420.69', change: '+5.12%', up: true },
+    { symbol: 'TSLA', name: 'Tesla, Inc.', price: '238.45', change: '-0.82%', up: false },
+    { symbol: 'MSFT', name: 'Microsoft', price: '374.58', change: '+0.45%', up: true },
+    { symbol: 'AMZN', name: 'Amazon.com', price: '145.18', change: '-1.12%', up: false },
+  ];
+
+  return (
+    <div className="h-full w-full bg-black text-white flex flex-col">
+      <div className="pt-12 px-4 pb-4 border-b border-gray-800">
+        <div className="flex justify-between items-center mb-2">
+          <h1 className="text-3xl font-bold">Stocks</h1>
+          <div className="text-blue-500 font-medium">Edit</div>
+        </div>
+        <div className="text-gray-500 text-sm font-bold uppercase">September 14</div>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {stocks.map((stock, i) => (
+          <div key={i} className="flex items-center justify-between px-4 py-4 border-b border-gray-900 active:bg-gray-900">
+            <div>
+              <div className="font-bold text-lg">{stock.symbol}</div>
+              <div className="text-xs text-gray-500">{stock.name}</div>
+            </div>
+            <div className="text-right">
+              <div className="font-bold">{stock.price}</div>
+              <div className={`text-xs px-2 py-1 rounded mt-1 font-bold ${stock.up ? 'bg-green-500' : 'bg-red-500'}`}>
+                {stock.change}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="h-16 border-t border-gray-800 flex justify-between items-center px-6 text-xs text-gray-500">
+        <span>Yahoo Finance</span>
+        <div className="flex gap-1">
+          <div className="w-1.5 h-1.5 rounded-full bg-white" />
+          <div className="w-1.5 h-1.5 rounded-full bg-gray-700" />
+        </div>
+        <div className="w-6 h-6 rounded-full border border-gray-700 flex items-center justify-center">⋮</div>
+      </div>
+    </div>
+  );
+};
+
+const AppleGamesApp = () => {
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="pt-12 px-4 pb-2 border-b">
+        <h1 className="text-3xl font-bold">Arcade</h1>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="text-center text-gray-500 py-20">
+          <div className="text-6xl mb-4">🕹️</div>
+          <h2 className="text-2xl font-bold">Welcome to Arcade</h2>
+          <p className="text-sm mt-2">Game library coming soon!</p>
+        </div>
+      </div>
+      <div className="h-16 border-t bg-gray-50/90 backdrop-blur flex justify-around items-center text-gray-400 text-sm">
+        <span className="text-red-500 font-medium">Arcade</span>
+        <span>Categories</span>
+        <span>Search</span>
+      </div>
+    </div>
+  );
+};
+
+const GarageBandApp = () => {
+  return (
+    <div className="h-full w-full bg-gradient-to-b from-purple-500 via-pink-500 to-orange-500 flex flex-col p-4 relative overflow-hidden">
+      <div className="pt-12 pb-6 text-white text-center">
+        <h1 className="text-4xl font-bold mb-2 drop-shadow-lg">GarageBand</h1>
+        <div className="flex justify-center gap-3 mb-8">
+          <button className="px-6 py-2 bg-white/30 backdrop-blur-sm rounded-full text-sm font-semibold active:scale-95 transition-all" onClick={() => gizmoRuntime.performHaptic('light')}>Loops</button>
+          <button className="px-6 py-2 bg-white/30 backdrop-blur-sm rounded-full text-sm font-semibold active:scale-95 transition-all" onClick={() => gizmoRuntime.performHaptic('light')}>Tracks</button>
+          <button className="px-6 py-2 bg-white/30 backdrop-blur-sm rounded-full text-sm font-semibold active:scale-95 transition-all" onClick={() => gizmoRuntime.performHaptic('light')}>Live Loops</button>
+        </div>
+      </div>
+      <div className="flex-1 grid grid-cols-2 gap-4 overflow-y-auto pb-20">
+        <div 
+          className="bg-white/20 backdrop-blur-xl rounded-3xl p-6 flex flex-col items-center gap-3 shadow-2xl active:scale-95 transition-all"
+          onClick={() => gizmoRuntime.performHaptic('heavy')}
+        >
+          <div className="text-6xl">🥁</div>
+          <span className="text-xl font-bold text-white drop-shadow-lg">Drums</span>
+        </div>
+        <div 
+          className="bg-white/20 backdrop-blur-xl rounded-3xl p-6 flex flex-col items-center gap-3 shadow-2xl active:scale-95 transition-all"
+          onClick={() => gizmoRuntime.performHaptic('medium')}
+        >
+          <div className="text-6xl">🎸</div>
+          <span className="text-xl font-bold text-white drop-shadow-lg">Guitar</span>
+        </div>
+        <div 
+          className="bg-white/20 backdrop-blur-xl rounded-3xl p-8 flex flex-col items-center gap-3 shadow-2xl col-span-2 active:scale-95 transition-all"
+          onClick={() => gizmoRuntime.performHaptic('light')}
+        >
+          <div className="text-7xl">🎹</div>
+          <span className="text-2xl font-bold text-white drop-shadow-lg">Piano</span>
+        </div>
+      </div>
+      <div className="h-20 bg-black/40 backdrop-blur-md flex items-center justify-evenly text-white text-lg font-bold absolute bottom-0 left-0 right-0">
+        <span className="p-3 rounded-full bg-red-500/50 active:scale-90 transition-all">⏺</span>
+        <span className="p-3 rounded-full bg-gray-500/50 active:scale-90 transition-all">⏹</span>
+        <span className="p-3 rounded-full bg-green-500/50 active:scale-90 transition-all">▶️</span>
+      </div>
+    </div>
+  );
+};
+
+const CalculatorApp = () => {
+  const [display, setDisplay] = useState('0');
+  const [equation, setEquation] = useState('');
+  const [isNewNumber, setIsNewNumber] = useState(true);
+  const [unlockedButtons, setUnlockedButtons] = useState([]); // 'Error', 'Infinity'
+
+  const handleTap = (val) => {
+    gizmoRuntime.performHaptic('light');
+    if (val === 'AC') {
+      setDisplay('0');
+      setEquation('');
+      setIsNewNumber(true);
+    } else if (val === '=') {
+      try {
+        const result = eval(equation + display);
+        
+        if (isNaN(result)) {
+          setDisplay('Error');
+          if (!unlockedButtons.includes('Error')) {
+            setUnlockedButtons(prev => [...prev, 'Error']);
+            gizmoRuntime.performHaptic('heavy');
+          }
+        } else if (!isFinite(result)) {
+          setDisplay('Infinity');
+          if (!unlockedButtons.includes('Infinity')) {
+            setUnlockedButtons(prev => [...prev, 'Infinity']);
+            gizmoRuntime.performHaptic('heavy');
+          }
+        } else {
+          const weirdResult = result + (Math.random() > 0.8 ? 0.0000001 : 0);
+          setDisplay(String(Number(weirdResult.toFixed(8))));
+        }
+        setEquation('');
+        setIsNewNumber(true);
+      } catch {
+        setDisplay('Error');
+        if (!unlockedButtons.includes('Error')) {
+          setUnlockedButtons(prev => [...prev, 'Error']);
+          gizmoRuntime.performHaptic('heavy');
+        }
+      }
+    } else if (['+', '-', '*', '/'].includes(val)) {
+      setEquation(display + val);
+      setIsNewNumber(true);
+    } else if (val === 'Error') {
+      setDisplay('Error');
+      setIsNewNumber(true);
+    } else if (val === 'Infinity') {
+      setDisplay('Infinity');
+      setIsNewNumber(true);
+    } else {
+      if (isNewNumber) {
+        setDisplay(val);
+        setIsNewNumber(false);
+      } else {
+        setDisplay(prev => prev === '0' ? val : prev + val);
+      }
+    }
+  };
+
+  const buttons = [
+    ['AC', '+/-', '%', '/'],
+    ['7', '8', '9', '*'],
+    ['4', '5', '6', '-'],
+    ['1', '2', '3', '+'],
+    ['0', '.', '='].concat(unlockedButtons.includes('Error') ? ['Error'] : []).concat(unlockedButtons.includes('Infinity') ? ['Infinity'] : [])
+  ];
+
+  return (
+    <div className="h-full w-full bg-black flex flex-col">
+      <div className="flex-1 flex flex-col justify-end items-end px-8 py-12">
+        <div className="text-white text-7xl font-light tracking-tight truncate w-full text-right">
+          {display}
+        </div>
+        {unlockedButtons.length < 2 && (
+          <div className="text-gray-500 text-xs mt-2 italic">
+            Hint: Trigger a math error or divide by zero to unlock special buttons...
+          </div>
+        )}
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 pb-12">
+        <div className="grid grid-cols-4 gap-3">
+          {buttons.flat().map((btn) => (
+            <button
+              key={btn}
+              onClick={() => handleTap(btn)}
+              className={`
+                ${btn === '0' ? 'col-span-2 rounded-full px-8 text-left' : 
+                  btn === 'Error' || btn === 'Infinity' ? 'col-span-2 rounded-full text-xl' : 'rounded-full aspect-square'}
+                flex items-center justify-center text-3xl font-medium transition-all active:opacity-50
+                ${['/', '*', '-', '+', '='].includes(btn) ? 'bg-orange-500 text-white' : 
+                  ['AC', '+/-', '%', 'Error', 'Infinity'].includes(btn) ? 'bg-gray-300 text-black' : 'bg-gray-800 text-white'}
+              `}
+            >
+              {btn === '*' ? '×' : btn === '/' ? '÷' : btn}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DoorDashApp = () => {
+  const restaurants = [
+    { name: 'Burger King', rating: '4.5', time: '20-30 min', fee: '$0.99', image: '🍔' },
+    { name: 'Pizza Hut', rating: '4.2', time: '30-40 min', fee: '$1.99', image: '🍕' },
+    { name: 'Sushi Zen', rating: '4.8', time: '45-55 min', fee: '$2.99', image: '🍣' },
+    { name: 'Taco Bell', rating: '4.0', time: '15-25 min', fee: '$0.00', image: '🌮' },
+  ];
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="pt-12 px-4 pb-4 border-b">
+        <div className="flex items-center gap-2 text-red-500 font-bold text-xl mb-4">
+          <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white text-xs">D</div>
+          DoorDash
+        </div>
+        <div className="bg-gray-100 rounded-full px-4 py-2 flex items-center gap-2 text-gray-500">
+          <Search size={18} />
+          <span className="text-sm">Search for restaurants, dishes...</span>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
+          {['Offers', 'Pickup', 'Rating', 'Under 30 min', 'Price'].map(filter => (
+            <button key={filter} className="px-4 py-1.5 bg-gray-100 rounded-full text-sm font-medium whitespace-nowrap">{filter}</button>
+          ))}
+        </div>
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold">Featured Stores</h2>
+          {restaurants.map((res, i) => (
+            <div key={i} className="space-y-2">
+              <div className="w-full aspect-video bg-gray-100 rounded-xl flex items-center justify-center text-6xl shadow-inner">
+                {res.image}
+              </div>
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="font-bold text-lg">{res.name}</div>
+                  <div className="text-sm text-gray-500">{res.rating} ⭐ • {res.time} • {res.fee} delivery fee</div>
+                </div>
+                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">❤️</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="h-16 border-t flex justify-around items-center text-gray-400 text-xs">
+        <div className="flex flex-col items-center text-red-500 font-bold"><span>🏠</span>Home</div>
+        <div className="flex flex-col items-center"><span>🔍</span>Search</div>
+        <div className="flex flex-col items-center"><span>🛍️</span>Orders</div>
+        <div className="flex flex-col items-center"><span>👤</span>Account</div>
+      </div>
+    </div>
+  );
+};
+
+const WoofzApp = () => {
+  const lessons = [
+    { title: 'Sit', duration: '5 min', icon: '🪑' },
+    { title: 'Stay', duration: '10 min', icon: '✋' },
+    { title: 'Come', duration: '8 min', icon: '🏃' },
+    { title: 'Heel', duration: '12 min', icon: '🐕' },
+  ];
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="pt-12 px-4 pb-4 border-b bg-yellow-400">
+        <div className="flex items-center gap-2 text-black font-bold text-xl">
+          <img src={ASSETS.icons.woofz} className="w-8 h-8 rounded-lg" alt="Woofz" />
+          Woofz
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="w-full aspect-[16/9] bg-gray-100 rounded-xl overflow-hidden relative shadow-md">
+          <img src={ASSETS.woofzFeatured} className="w-full h-full object-cover" alt="Dog Training" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-4 text-white">
+            <div className="text-lg font-bold">Daily Training</div>
+            <div className="text-xs opacity-90">Keep your pup sharp with daily exercises.</div>
+          </div>
+        </div>
+        
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold">Training Lessons</h2>
+          <div className="grid grid-cols-2 gap-4">
+            {lessons.map((lesson, i) => (
+              <div key={i} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 active:scale-95 transition-transform">
+                <div className="text-3xl mb-2">{lesson.icon}</div>
+                <div className="font-bold">{lesson.title}</div>
+                <div className="text-xs text-gray-500">{lesson.duration}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="h-16 border-t flex justify-around items-center text-gray-400 text-xs">
+        <div className="flex flex-col items-center text-yellow-600 font-bold"><span>🏠</span>Learn</div>
+        <div className="flex flex-col items-center"><span>🦴</span>Tricks</div>
+        <div className="flex flex-col items-center"><span>📅</span>Plan</div>
+        <div className="flex flex-col items-center"><span>👤</span>Profile</div>
+      </div>
+    </div>
+  );
+};
+
+const McDonaldsApp = () => {
+  const menu = [
+    { name: 'Big Mac', price: '$5.99', icon: '🍔' },
+    { name: 'McNuggets', price: '$4.49', icon: '🍗' },
+    { name: 'World Famous Fries', price: '$2.99', icon: '🍟' },
+    { name: 'McFlurry', price: '$3.79', icon: '🍦' },
+  ];
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="pt-12 px-4 pb-4 bg-[#DA291C] flex items-center justify-between">
+        <div className="flex items-center gap-2 text-[#FFC72C] font-bold text-2xl">
+          <img src={ASSETS.icons.mcdonalds} className="w-10 h-10 rounded-lg" alt="McDonalds" />
+          McDonald's
+        </div>
+        <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white">👤</div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="bg-[#FFC72C] rounded-2xl p-6 text-[#DA291C]">
+          <h2 className="text-2xl font-black italic uppercase">Free Fries Friday</h2>
+          <p className="font-bold">Get a free medium Fries with any $1 purchase.</p>
+          <button className="mt-4 px-6 py-2 bg-[#DA291C] text-white rounded-full font-bold">Order Now</button>
+        </div>
+        <div className="space-y-4">
+          <h3 className="text-xl font-bold">Popular Menu</h3>
+          <div className="grid grid-cols-2 gap-4">
+            {menu.map((item, i) => (
+              <div key={i} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-col items-center text-center">
+                <div className="text-4xl mb-2">{item.icon}</div>
+                <div className="font-bold text-sm">{item.name}</div>
+                <div className="text-xs text-gray-500">{item.price}</div>
+                <button className="mt-2 w-full py-1 bg-[#DA291C] text-white rounded-full text-xs font-bold">+</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="h-16 border-t flex justify-around items-center text-gray-400 text-xs">
+        <div className="flex flex-col items-center text-[#DA291C] font-bold"><span>🏠</span>Home</div>
+        <div className="flex flex-col items-center"><span>🍟</span>Rewards</div>
+        <div className="flex flex-col items-center"><span>📍</span>Locations</div>
+        <div className="flex flex-col items-center"><span>🛍️</span>Bag</div>
+      </div>
+    </div>
+  );
+};
+
+const ClockApp = () => {
+  const [time, setTime] = useState(new Date());
+  const [alarmTime, setAlarmTime] = useState('07:00');
+  const [isAlarmOn, setIsAlarmOn] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const seconds = time.getSeconds();
+  const minutes = time.getMinutes();
+  const hours = time.getHours();
+
+  return (
+    <div className="h-full w-full bg-black text-white flex flex-col">
+      <div className="pt-12 px-6 pb-4">
+        <h1 className="text-3xl font-bold">World Clock</h1>
+      </div>
+      <div className="flex-1 flex flex-col items-center justify-center gap-12">
+        {/* Analog Clock Face */}
+        <div className="w-64 h-64 rounded-full border-4 border-gray-800 relative bg-gray-900 shadow-2xl">
+          {/* Hour Markers */}
+          {[...Array(12)].map((_, i) => (
+            <div 
+              key={i} 
+              className="absolute w-1 h-3 bg-gray-600 left-1/2 top-2 -translate-x-1/2 origin-[0_126px]"
+              style={{ transform: `translateX(-50%) rotate(${i * 30}deg)` }}
+            />
+          ))}
+          {/* Hands */}
+          <div 
+            className="absolute w-1.5 h-16 bg-white left-1/2 bottom-1/2 -translate-x-1/2 origin-bottom rounded-full"
+            style={{ transform: `translateX(-50%) rotate(${(hours % 12) * 30 + minutes * 0.5}deg)` }}
+          />
+          <div 
+            className="absolute w-1 h-24 bg-white left-1/2 bottom-1/2 -translate-x-1/2 origin-bottom rounded-full"
+            style={{ transform: `translateX(-50%) rotate(${minutes * 6}deg)` }}
+          />
+          <div 
+            className="absolute w-0.5 h-28 bg-orange-500 left-1/2 bottom-1/2 -translate-x-1/2 origin-bottom rounded-full"
+            style={{ transform: `translateX(-50%) rotate(${seconds * 6}deg)` }}
+          />
+          <div className="absolute w-3 h-3 bg-orange-500 rounded-full left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+        </div>
+
+        <div className="text-center">
+          <div className="text-5xl font-light mb-2">
+            {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+          </div>
+          <div className="text-gray-400">San Francisco, USA</div>
+        </div>
+      </div>
+
+      <div className="px-6 pb-8">
+        <div className="bg-gray-900 rounded-2xl p-4 flex justify-between items-center">
+          <div>
+            <div className="text-gray-400 text-xs uppercase font-bold mb-1">Alarm</div>
+            <input 
+              type="time" 
+              value={alarmTime} 
+              onChange={(e) => setAlarmTime(e.target.value)}
+              className="bg-transparent text-2xl font-medium outline-none"
+            />
+          </div>
+          <button 
+            onClick={() => {
+              setIsAlarmOn(!isAlarmOn);
+              gizmoRuntime.performHaptic('medium');
+            }}
+            className={`w-12 h-6 rounded-full transition-colors relative ${isAlarmOn ? 'bg-green-500' : 'bg-gray-700'}`}
+          >
+            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isAlarmOn ? 'left-7' : 'left-1'}`} />
+          </button>
+        </div>
+      </div>
+
+      <div className="h-16 border-t border-gray-800 flex justify-around items-center text-[10px] text-gray-500">
+        <div className="flex flex-col items-center text-orange-500"><span>🌐</span>World Clock</div>
+        <div className="flex flex-col items-center"><span>⏰</span>Alarm</div>
+        <div className="flex flex-col items-center"><span>⏱️</span>Stopwatch</div>
+        <div className="flex flex-col items-center"><span>⏳</span>Timer</div>
+      </div>
+    </div>
+  );
+};
+
+const NetflixApp = () => {
+  const movies = [
+    { title: 'JAWS', img: 'https://content.gizmo.party/2bb7d4bd-2f69-4b25-b437-deea966f485a', featured: true, featuredImg: ASSETS.jawsFeatured },
+    { title: 'Joker', img: 'https://content.gizmo.party/b31ef87a-4e61-4ad1-8de2-f5a81ceb7810' },
+    { title: 'Black Panther', img: 'https://content.gizmo.party/7a965510-95ae-484d-93ec-af548ce530e9' },
+    { title: 'Cars 3', img: 'https://content.gizmo.party/7a2de50e-e13d-4d39-b2cc-41264a096855' },
+    { title: 'Mission Impossible', img: 'https://content.gizmo.party/f3fb2159-63b3-4f8b-9d80-b578ad64c4d2' },
+    { title: 'Stranger Things', img: 'https://content.gizmo.party/238b2d2b-a6cc-48b9-a154-2bd94d2ef4e8' },
+  ];
+
+  const featuredMovie = movies.find(m => m.featured);
+  const trendingMovies = movies.filter(m => !m.featured);
+
+  return (
+    <div className="h-full w-full bg-black text-white flex flex-col">
+      <div className="pt-12 px-4 pb-4 flex items-center justify-between">
+        <img src={ASSETS.icons.netflix} className="h-8" alt="Netflix" />
+        <div className="flex gap-4 items-center">
+          <Search size={24} />
+          <div className="w-8 h-8 bg-blue-500 rounded-sm"></div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {featuredMovie && (
+          <div className="relative w-full aspect-[2/3] mb-8">
+            <img src={featuredMovie.featuredImg || featuredMovie.img} className="w-full h-full object-cover object-top" alt="Featured" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent flex flex-col justify-end items-center p-8">
+              <h2 className="text-3xl font-black mb-4 uppercase tracking-tighter">{featuredMovie.title}</h2>
+              <div className="flex gap-4 mb-6">
+                <button className="px-8 py-2 bg-white text-black rounded font-bold flex items-center gap-2">▶ Play</button>
+                <button className="px-8 py-2 bg-gray-600/80 text-white rounded font-bold flex items-center gap-2">+ My List</button>
+              </div>
+            </div>
+          </div>
+        )}
+        <div className="px-4 space-y-8 pb-12">
+          <div>
+            <h3 className="text-lg font-bold mb-4">Trending Now</h3>
+            <div className="flex gap-3 overflow-x-auto no-scrollbar">
+              {trendingMovies.map((m, i) => (
+                <div key={i} className="w-32 aspect-[2/3] flex-shrink-0 rounded-md overflow-hidden">
+                  <img src={m.img} className="w-full h-full object-cover" alt={m.title} />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h3 className="text-lg font-bold mb-4">New Releases</h3>
+            <div className="flex gap-3 overflow-x-auto no-scrollbar">
+              {[...trendingMovies].reverse().map((m, i) => (
+                <div key={i} className="w-32 aspect-[2/3] flex-shrink-0 rounded-md overflow-hidden">
+                  <img src={m.img} className="w-full h-full object-cover" alt={m.title} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="h-16 border-t border-gray-800 flex justify-around items-center text-[10px] text-gray-400">
+        <div className="flex flex-col items-center text-white"><span>🏠</span>Home</div>
+        <div className="flex flex-col items-center"><span>🎮</span>Games</div>
+        <div className="flex flex-col items-center"><span>🆕</span>New & Hot</div>
+        <div className="flex flex-col items-center"><span>👤</span>My Netflix</div>
+      </div>
+    </div>
+  );
+};
+
+const TipsApp = () => {
+  const tips = [
+    { icon: '📱', title: 'Home Screen', description: 'Swipe to navigate pages and organize your apps.' },
+    { icon: '📸', title: 'Camera Shortcuts', description: 'Swipe left on the lock screen to quickly open the Camera.' },
+    { icon: '🔍', title: 'Spotlight Search', description: 'Swipe down from the middle of the Home Screen to search.' },
+    { icon: '🔋', title: 'Battery Health', description: 'Check your battery status in the top right corner.' },
+    { icon: '🌙', title: 'Focus Mode', description: 'Use Do Not Disturb to silence notifications when you need to focus.' },
+    { icon: '🎨', title: 'Custom Wallpapers', description: 'Change your look in Settings > Wallpaper.' },
+    { icon: '🎹', title: 'Piano Fun', description: 'Open the Piano app to create your own melodies.' },
+    { icon: '🎱', title: 'Pool Master', description: 'Drag the cue ball in 8 Ball Pool to aim and shoot.' },
+  ];
+
+  return (
+    <div className="h-full w-full bg-white flex flex-col">
+      <div className="pt-12 px-6 pb-4">
+        <h1 className="text-3xl font-bold">Tips</h1>
+      </div>
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="bg-yellow-50 rounded-2xl p-6 border border-yellow-100">
+          <div className="text-4xl mb-4">💡</div>
+          <h2 className="text-xl font-bold mb-2">Welcome to Tips</h2>
+          <p className="text-gray-600">Discover all the amazing things your Gizmo can do.</p>
+        </div>
+        <div className="space-y-4 pb-12">
+          <h3 className="font-bold text-lg">Featured</h3>
+          {tips.map((tip, i) => (
+            <div key={i} className="bg-gray-50 rounded-xl p-4 flex items-center gap-4 active:bg-gray-100 transition-colors">
+              <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center text-white text-2xl">{tip.icon}</div>
+              <div className="flex-1">
+                <div className="font-bold">{tip.title}</div>
+                <div className="text-sm text-gray-500">{tip.description}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const MagnifierApp = () => (
+  <div className="h-full w-full bg-black flex flex-col relative">
+    <div className="flex-1 flex items-center justify-center">
+      <div className="w-64 h-64 rounded-full border-4 border-white/30 flex items-center justify-center overflow-hidden">
+        <div className="text-white text-center">
+          <Search size={48} className="mx-auto mb-2 opacity-50" />
+          <div className="text-sm font-medium">Magnifier Active</div>
+        </div>
+      </div>
+    </div>
+    <div className="h-40 bg-black/80 backdrop-blur p-6 flex flex-col gap-6">
+      <div className="flex items-center gap-4">
+        <Sun size={20} className="text-white" />
+        <div className="flex-1 h-1 bg-gray-800 rounded-full">
+          <div className="w-1/2 h-full bg-yellow-400 rounded-full" />
+        </div>
+        <Plus size={20} className="text-white" />
+      </div>
+      <div className="flex justify-around">
+        <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center text-white"><ImageIcon size={20} /></div>
+        <div className="w-16 h-16 rounded-full border-4 border-white flex items-center justify-center"><div className="w-12 h-12 bg-white rounded-full" /></div>
+        <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center text-white"><SettingsIcon size={20} /></div>
+      </div>
+    </div>
+  </div>
+);
+
+const JournalApp = () => (
+  <div className="h-full w-full bg-[#FDFCF8] flex flex-col">
+    <div className="pt-12 px-6 pb-4 flex justify-between items-end">
+      <h1 className="text-3xl font-bold text-[#4A4A4A]">Journal</h1>
+      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">👤</div>
+    </div>
+    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <div className="text-xs font-bold text-purple-500 uppercase mb-2">Reflection</div>
+        <h2 className="text-xl font-bold mb-2">What made you smile today?</h2>
+        <p className="text-gray-500 text-sm">Write about a small moment that brought you joy.</p>
+        <button className="mt-4 w-full py-2 bg-purple-500 text-white rounded-full font-bold">Write</button>
+      </div>
+    </div>
+    <div className="h-20 flex items-center justify-center pb-6">
+      <button className="w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center text-3xl border border-gray-100">+</button>
+    </div>
+  </div>
+);
+
+const FilesApp = () => (
+  <div className="h-full w-full bg-white flex flex-col">
+    <div className="pt-12 px-6 pb-4">
+      <h1 className="text-3xl font-bold">Browse</h1>
+      <div className="mt-4 bg-gray-100 rounded-xl px-4 py-2 flex items-center gap-2 text-gray-500">
+        <Search size={18} />
+        <span>Search</span>
+      </div>
+    </div>
+    <div className="flex-1 overflow-y-auto px-6 space-y-8">
+      <div>
+        <h2 className="font-bold text-xl mb-4">Locations</h2>
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="text-2xl">☁️</div>
+            <div className="flex-1 border-b pb-4">iCloud Drive</div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-2xl">📱</div>
+            <div className="flex-1 border-b pb-4">On My Gizmo</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div className="h-16 border-t flex justify-around items-center text-gray-400 text-xs">
+      <div className="flex flex-col items-center"><span>🕒</span>Recents</div>
+      <div className="flex flex-col items-center"><span>🤝</span>Shared</div>
+      <div className="flex flex-col items-center text-blue-500 font-bold"><span>📂</span>Browse</div>
+    </div>
+  </div>
+);
+
+const MusicClassicalApp = () => (
+  <div className="h-full w-full bg-[#1A1A1A] text-white flex flex-col">
+    <div className="pt-12 px-6 pb-4 flex justify-between items-center">
+      <h1 className="text-2xl font-serif italic">Classical</h1>
+      <Search size={24} />
+    </div>
+    <div className="flex-1 overflow-y-auto p-6 space-y-8">
+      <div className="w-full aspect-square bg-gradient-to-br from-red-900 to-black rounded-xl overflow-hidden relative">
+        <div className="absolute inset-0 flex items-center justify-center text-8xl opacity-20">🎻</div>
+        <div className="absolute bottom-6 left-6">
+          <div className="text-xs font-bold uppercase tracking-widest opacity-60 mb-1">Featured Album</div>
+          <div className="text-2xl font-serif">Beethoven: Symphony No. 9</div>
+          <div className="text-sm opacity-80">Berlin Philharmonic</div>
+        </div>
+      </div>
+      <div className="space-y-4">
+        <h2 className="text-xl font-serif">Recently Added</h2>
+        <div className="flex gap-4 overflow-x-auto no-scrollbar">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="w-40 flex-shrink-0">
+              <div className="w-40 h-40 bg-gray-800 rounded-lg mb-2" />
+              <div className="text-sm font-medium">Mozart: Requiem</div>
+              <div className="text-xs opacity-50">Vienna State Opera</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+    <div className="h-20 bg-black/80 backdrop-blur border-t border-white/10 flex items-center px-6 gap-4">
+      <div className="w-12 h-12 bg-gray-800 rounded" />
+      <div className="flex-1">
+        <div className="text-sm font-medium">Symphony No. 5</div>
+        <div className="text-xs opacity-50">Beethoven</div>
+      </div>
+      <div className="flex gap-4 text-2xl">
+        <span>⏯️</span>
+        <span>⏭️</span>
+      </div>
+    </div>
+  </div>
+);
+
+// --- Main Component ---
+
+const PhotoWidget = ({ photos, openApp }) => {
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+
+  useEffect(() => {
+    if (photos.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentPhotoIndex(prev => (prev + 1) % photos.length);
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [photos]);
+
+  return (
+    <div 
+      className="w-full h-full bg-gray-200 rounded-2xl overflow-hidden shadow-md relative cursor-pointer"
+      onClick={() => openApp('photos')}
+    >
+      {photos.length > 0 ? (
+        <AnimatePresence initial={false}>
+          <motion.img
+            key={currentPhotoIndex}
+            src={photos[currentPhotoIndex]}
+            alt="Photo Widget"
+            className="w-full h-full object-cover absolute inset-0"
+            initial={{ opacity: 0, scale: 1.1 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.7 }}
+          />
+        </AnimatePresence>
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-gray-500">
+          <div className="text-center">
+            <div className="text-2xl">🖼️</div>
+            <div className="text-xs mt-1">No Photos</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default function Component() {
+  const wallpaperUrl = tweaks.wallpaperUrl.useState();
+  const brightness = tweaks.brightness.useState();
+  const carrier = tweaks.carrier.useState();
+  
+  const [activeApp, setActiveApp] = useState(null);
+  const [installedApps, setInstalledApps] = useState(APPS.map(a => a.id));
+  const [installOrder, setInstallOrder] = useState(APPS.map(a => a.id));
+  const [currentPage, setCurrentPage] = useState(0);
+  const [wallpaper, setWallpaper] = useState(wallpaperUrl);
+  const [photos, setPhotos] = useState([
+    "https://content.gizmo.party/350f5165-3974-4ad3-b65c-db61997be2ca",
+    "https://content.gizmo.party/af8f9b3d-ed90-4047-b18f-6947c6f74b49",
+    "https://content.gizmo.party/7a830878-9629-46a4-a729-52044002acd1",
+    "https://content.gizmo.party/0d90ed29-d3cb-4426-ac18-9116947a3cc2",
+    "https://content.gizmo.party/e655286c-e821-4ca9-8a7a-78822b9035da",
+    "https://content.gizmo.party/cb3525a1-d89d-4a28-93d1-488e2a1be65d",
+  ]);
+
+  useEffect(() => {
+    if (wallpaperUrl) {
+      setWallpaper(wallpaperUrl);
+    }
+  }, [wallpaperUrl]);
+
+  const openApp = (appId) => {
+    setActiveApp(appId);
+    gizmoRuntime.performHaptic('light');
+  };
+
+  const closeApp = () => {
+    setActiveApp(null);
+    gizmoRuntime.performHaptic('medium');
+  };
+
+  const handleHomeBarDragEnd = (event, info) => {
+    const dragDistance = info.offset.y;
+    const swipeThreshold = -40; // Swipe up 40px to close
+
+    if (dragDistance < swipeThreshold) {
+      closeApp();
+    } else {
+      gizmoRuntime.performHaptic('medium');
+    }
+  };
+
+  const renderApp = () => {
+    switch (activeApp) {
+      case 'phone': return <PhoneApp />;
+      case 'messages': return <MessagesApp />;
+      case 'google': return <GoogleApp />;
+      case 'camera': return <CameraApp setPhotos={setPhotos} />;
+      case 'settings': return <SettingsApp installedApps={installedApps} setInstalledApps={setInstalledApps} setInstallOrder={setInstallOrder} setWallpaper={setWallpaper} />;
+      case 'calendar': return <CalendarApp />;
+      case 'notes': return <NotesApp />;
+      case 'appstore': return <AppStoreApp installedApps={installedApps} setInstalledApps={setInstalledApps} setInstallOrder={setInstallOrder} />;
+      case 'youtube': return <YoutubeApp />;
+      case 'tiktok': return <TiktokApp />;
+      case 'chatgpt': return <ChatGPTApp />;
+      case 'garageband': return <GarageBandApp />;
+      case 'maps': return <MapsApp />;
+      case 'photos': return <PhotosApp photos={photos} setPhotos={setPhotos} />;
+      case '8ballpool': return <EightBallPoolApp />;
+      case 'reminders': return <RemindersApp />;
+      case 'weather': return <WeatherApp />;
+      case 'instagram': return <InstagramApp />;
+      case 'piano': return <PianoApp />;
+      case 'freeform': return <FreeformApp />;
+      case 'x': return <XApp />;
+      case 'desmos': return <DesmosApp />;
+      case 'imovie': return <IMovieApp />;
+      case 'translate': return <TranslateApp />;
+      case 'applegames': return <AppleGamesApp />;
+      case 'gmail': return <GmailApp />;
+      case 'mail': return <MailApp />;
+      case 'health': return <HealthApp />;
+      case 'safari': return <SafariApp />;
+      case 'stocks': return <StocksApp />;
+      case 'calculator': return <CalculatorApp />;
+      case 'doordash': return <DoorDashApp />;
+      case 'woofz': return <WoofzApp />;
+      case 'mcdonalds': return <McDonaldsApp />;
+      case 'netflix': return <NetflixApp />;
+      case 'clock': return <ClockApp />;
+      case 'tips': return <TipsApp />;
+      case 'magnifier': return <MagnifierApp />;
+      case 'journal': return <JournalApp />;
+      case 'files': return <FilesApp />;
+      case 'musicclassical': return <MusicClassicalApp />;
+      default: return null;
+    }
+  };
+
+  const dockApps = APPS.filter(app => app.inDock);
+  const gridApps = installOrder
+    .map(id => APPS.find(a => a.id === id))
+    .filter(app => app && !app.inDock);
+
+  const appsPerPage = 16;
+  const pages = Math.ceil((gridApps.length + 4) / appsPerPage);
+
+  const renderGrid = (pageIndex) => {
+    const slots = [];
+    const startIndex = pageIndex === 0 ? 0 : (pageIndex * appsPerPage) - 4;
+    let appPtr = startIndex;
+
+    for (let i = 0; i < appsPerPage; i++) {
+      if (pageIndex === 0 && (i === 0 || i === 1 || i === 4 || i === 5)) {
+        if (i === 0) {
+          slots.push(
+            <div key="widget" className="col-span-2 row-span-2">
+              <PhotoWidget photos={photos} openApp={openApp} />
+            </div>
+          );
+        }
+        continue;
+      }
+
+      const app = gridApps[appPtr];
+      if (app) {
+        slots.push(
+          <div key={app.id} className="flex flex-col items-center gap-1" onClick={() => openApp(app.id)}>
+            <motion.div 
+              layoutId={`icon-${app.id}`}
+              className="w-16 h-16 rounded-[18px] overflow-hidden shadow-sm bg-transparent flex items-center justify-center"
+              whileTap={{ scale: 0.9 }}
+            >
+              <img src={app.icon} className="w-full h-full object-cover" alt={app.name} />
+            </motion.div>
+            <span className="text-white text-[11px] font-medium drop-shadow-md">{app.name}</span>
+          </div>
+        );
+      }
+      appPtr++;
+    }
+    return slots;
+  };
+
+  const handleDragEnd = (event, info) => {
+    const swipeThreshold = 50;
+    if (info.offset.x < -swipeThreshold) {
+      setCurrentPage(p => Math.min(p + 1, pages - 1));
+    } else if (info.offset.x > swipeThreshold) {
+      setCurrentPage(p => Math.max(p - 1, 0));
+    }
+  };
+
+  return (
+    <div className="h-screen w-screen overflow-hidden relative select-none font-sans text-black">
+      <div 
+        className="absolute inset-0 -z-10 bg-cover bg-center transition-all duration-500"
+        style={{ backgroundImage: `url(${wallpaper})` }}
+      />
+      <div 
+        className="absolute inset-0 pointer-events-none z-50 bg-black transition-opacity duration-300"
+        style={{ opacity: 1 - (brightness / 100) }}
+      />
+      <StatusBar carrier={carrier} />
+      <AnimatePresence>
+        {!activeApp && (
+          <motion.div 
+            className="h-full w-full flex flex-col"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.1, transition: { duration: 0.3 } }}
+          >
+            <motion.div 
+              className="flex-1 flex"
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.1}
+              onDragEnd={handleDragEnd}
+              animate={{ x: `-${currentPage * 100}%` }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            >
+              {[...Array(pages)].map((_, pageIndex) => (
+                <div key={pageIndex} className="w-full h-full flex-shrink-0 pt-16 pb-8 px-6">
+                  <div className="grid grid-cols-4 grid-rows-4 gap-x-4 gap-y-[18px]">
+                    {renderGrid(pageIndex)}
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+            <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center gap-3 pb-2 z-40 pointer-events-auto">
+              <div className="flex gap-2">
+                {[...Array(pages)].map((_, i) => (
+                  <Circle 
+                    key={i} 
+                    size={6} 
+                    className={`transition-all duration-300 ${currentPage === i ? 'text-white' : 'text-white/40'}`} 
+                    fill="currentColor" 
+                  />
+                ))}
+              </div>
+              <div className="w-11/12 bg-white/20 backdrop-blur-xl rounded-3xl flex items-center justify-around px-2 py-3 shadow-xl">
+                {dockApps.map(app => (
+                  <div key={app.id} onClick={() => openApp(app.id)} className="flex flex-col items-center gap-1 active:opacity-70">
+                    <motion.div 
+                      layoutId={`icon-${app.id}`}
+                      className="w-14 h-14 rounded-[14px] overflow-hidden shadow-sm bg-transparent flex items-center justify-center"
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <img src={app.icon} className="w-full h-full object-cover" alt={app.name} />
+                    </motion.div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {activeApp && (
+          <motion.div 
+            className="absolute inset-0 z-40 bg-white overflow-hidden"
+            initial={{ opacity: 0, scale: 0.8, borderRadius: 40 }}
+            animate={{ opacity: 1, scale: 1, borderRadius: 0 }}
+            exit={{ opacity: 0, scale: 0.8, borderRadius: 40 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          >
+            {renderApp()}
+            <motion.div 
+              className="absolute bottom-0 left-0 w-full h-8 z-50 flex items-center justify-center"
+              drag="y"
+              dragConstraints={{ top: -100, bottom: 0 }}
+              dragElastic={0.5}
+              onDragEnd={handleHomeBarDragEnd}
+            >
+              <div className="w-32 h-1 bg-black/20 rounded-full" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {!activeApp && <HomeIndicator />}
+      {activeApp && (
+        <div className="fixed bottom-0 left-0 w-full h-8 z-50 flex items-center justify-center pointer-events-none">
+          <div className="w-32 h-1 bg-black/50 rounded-full" />
+        </div>
+      )}
+    </div>
+  );
+}

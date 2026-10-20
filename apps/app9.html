@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Simulateur PC Gamer</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Modules utilisés par le code Gizmo -->
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.3.1",
+      "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+      "react-dom": "https://esm.sh/react-dom@18.3.1?external=react",
+      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client?external=react",
+      "lucide-react": "https://esm.sh/lucide-react@0.454.0?external=react",
+      "framer-motion": "https://esm.sh/framer-motion@11.11.17?external=react,react-dom",
+      "matter-js": "https://esm.sh/matter-js@0.19.0",
+      "tone": "https://esm.sh/tone@15.0.4",
+      "@gizmo/runtime": "./gizmo-runtime.js"
+    }
+  }
+  </script>
+
+  <!-- Babel pour interpréter le React/TypeScript (TSX) -->
+  <script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+  <script>
+    Babel.registerPreset('gizmo-tsx', {
+      presets: [
+        [Babel.availablePresets.typescript, { allExtensions: true, isTSX: true }],
+        Babel.availablePresets.react,
+      ],
+    });
+  </script>
+
+  <style>
+    html, body, #root { margin: 0; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-type="module" data-presets="gizmo-tsx">
+// ===== CODE GIZMO ORIGINAL (non modifié) =====
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { gizmoRuntime } from '@gizmo/runtime';
+import { 
+  Cpu, 
+  Zap, 
+  HardDrive, 
+  Layout, 
+  Wind, 
+  Monitor, 
+  CheckCircle2, 
+  RotateCcw, 
+  DollarSign, 
+  Activity,
+  Thermometer,
+  Info,
+  ShoppingBag,
+  TrendingUp,
+  Zap as Lightning,
+  Percent,
+  ChevronLeft
+} from 'lucide-react';
+
+// --- Tweaks ---
+const tweaks = gizmoRuntime.tweaks({
+  bgColor: { index: 0, name: 'Background Color', type: 'color', value: '#000000' },
+  accentColor: { index: 1, name: 'Accent Color', type: 'color', value: '#2227F5' },
+  rgbMode: { index: 2, name: 'RGB Glow Mode', type: 'toggle', value: true },
+  initialBudget: { index: 3, name: 'Starting Budget', type: 'slider', value: 2000, min: 800, max: 5000, step: 100 },
+  
+  titleText: { index: 4, name: 'Texte du Titre', type: 'text', value: 'Simulateur PC Gamer', group: 'title' },
+  titleColor: { index: 5, name: 'Couleur du Titre', type: 'color', value: '#FFFFFF', group: 'title' },
+  titleVisible: { index: 6, name: 'Titre Visible', type: 'toggle', value: true, group: 'title' },
+  titleSize: { index: 7, name: 'Taille du Titre', type: 'slider', value: 24, min: 12, max: 48, step: 1, group: 'title' },
+
+  statusText: { index: 8, name: 'Label de Statut', type: 'text', value: 'État du Système', group: 'status' },
+  statusColor: { index: 9, name: 'Couleur du Statut', type: 'color', value: '#75F94C', group: 'status' },
+  statusVisible: { index: 10, name: 'Statut Visible', type: 'toggle', value: true, group: 'status' },
+  statusSize: { index: 11, name: 'Taille du Statut', type: 'slider', value: 14, min: 8, max: 24, step: 1, group: 'status' },
+
+  buildBtnText: { index: 12, name: 'Bouton Construire', type: 'text', value: 'Finaliser le PC', group: 'build-btn' },
+  buildBtnColor: { index: 13, name: 'Couleur Bouton Construire', type: 'color', value: '#E432B7', group: 'build-btn' },
+  buildBtnVisible: { index: 14, name: 'Bouton Construire Visible', type: 'toggle', value: true, group: 'build-btn' },
+  buildBtnSize: { index: 15, name: 'Taille Bouton Construire', type: 'slider', value: 18, min: 12, max: 32, step: 1, group: 'build-btn' },
+
+  sellBtnText: { index: 16, name: 'Bouton Vendre', type: 'text', value: 'Vendre le PC', group: 'sell-btn' },
+  sellBtnColor: { index: 17, name: 'Couleur Bouton Vendre', type: 'color', value: '#75F94C', group: 'sell-btn' },
+
+  shopTitle: { index: 18, name: 'Titre Boutique', type: 'text', value: 'BOUTIQUE D\'AMÉLIORATIONS', group: 'shop' },
+  shopDesc: { index: 19, name: 'Description Boutique', type: 'text', value: 'Boostez vos futurs builds !', group: 'shop' },
+});
+
+// --- Data ---
+const COMPONENTS = {
+  CPU: [
+    { id: 'cpu1', name: 'i3-12100F', price: 110, perf: 40, heat: 30, power: 65, emoji: '⚙️' },
+    { id: 'cpu2', name: 'Ryzen 5 5600', price: 160, perf: 65, heat: 45, power: 65, emoji: '⚙️' },
+    { id: 'cpu3', name: 'i7-13700K', price: 380, perf: 90, heat: 85, power: 125, emoji: '⚙️' },
+    { id: 'cpu4', name: 'Ryzen 9 7950X', price: 550, perf: 100, heat: 95, power: 170, emoji: '⚙️' },
+  ],
+  GPU: [
+    { id: 'gpu1', name: 'GTX 1650', price: 160, perf: 30, heat: 40, power: 75, emoji: '🖼️' },
+    { id: 'gpu2', name: 'RTX 3060', price: 300, perf: 60, heat: 60, power: 170, emoji: '🖼️' },
+    { id: 'gpu3', name: 'RTX 4070 Ti', price: 800, perf: 85, heat: 75, power: 285, emoji: '🖼️' },
+    { id: 'gpu4', name: 'RTX 4090', price: 1600, perf: 100, heat: 90, power: 450, emoji: '🖼️' },
+  ],
+  RAM: [
+    { id: 'ram1', name: '8GB DDR4', price: 40, perf: 30, heat: 10, power: 5, emoji: '💾' },
+    { id: 'ram2', name: '16GB DDR4', price: 70, perf: 60, heat: 15, power: 10, emoji: '💾' },
+    { id: 'ram3', name: '32GB DDR5', price: 150, perf: 90, heat: 25, power: 20, emoji: '💾' },
+    { id: 'ram4', name: '64GB DDR5', price: 280, perf: 100, heat: 35, power: 30, emoji: '💾' },
+  ],
+  STORAGE: [
+    { id: 'st1', name: '500GB HDD', price: 30, perf: 10, heat: 15, power: 10, emoji: '💿' },
+    { id: 'st2', name: '1TB SATA SSD', price: 60, perf: 50, heat: 10, power: 5, emoji: '💿' },
+    { id: 'st3', name: '1TB NVMe Gen4', price: 110, perf: 90, heat: 20, power: 8, emoji: '💿' },
+    { id: 'st4', name: '2TB NVMe Gen5', price: 250, perf: 100, heat: 30, power: 12, emoji: '💿' },
+  ],
+  COOLING: [
+    { id: 'cl1', name: 'Stock Cooler', price: 0, perf: 20, heat: -10, power: 5, emoji: '💨' },
+    { id: 'cl2', name: 'Air Tower', price: 40, perf: 50, heat: -30, power: 10, emoji: '💨' },
+    { id: 'cl3', name: '240mm AIO', price: 100, perf: 80, heat: -50, power: 20, emoji: '💨' },
+    { id: 'cl4', name: 'Custom Loop', price: 350, perf: 100, heat: -80, power: 40, emoji: '💨' },
+  ],
+};
+
+const UPGRADES = [
+  { id: 'up1', name: 'Boost Performance V1', desc: '+10% FPS', cost: 500, bonus: 0.1, type: 'perf', icon: '🚀', emoji: '⚡' },
+  { id: 'up2', name: 'Module d\'Efficacité', desc: '-5% Consommation', cost: 600, bonus: 0.05, type: 'power', icon: '🔋', emoji: '💡' },
+  { id: 'up3', name: 'Amélioration Refroidissement', desc: '-8°C Température', cost: 400, bonus: 8, type: 'cooling', icon: '❄️', emoji: '🧊' },
+  { id: 'up4', name: 'Boost Performance V2', desc: '+15% FPS', cost: 1200, bonus: 0.15, type: 'perf', icon: '🚀', emoji: '⚡' },
+  { id: 'up5', name: 'Efficacité Premium', desc: '-10% Consommation', cost: 1500, bonus: 0.1, type: 'power', icon: '🔋', emoji: '💡' },
+  { id: 'up6', name: 'Maîtrise Thermique', desc: '-15°C Température', cost: 1800, bonus: 15, type: 'cooling', icon: '❄️', emoji: '🧊' },
+  { id: 'up7', name: 'Extension Budget V1', desc: '+2000€ Budget', cost: 2000, bonus: 2000, type: 'budget', icon: '💰', emoji: '💵' },
+  { id: 'up8', name: 'Extension Budget V2', desc: '+2000€ Budget', cost: 3500, bonus: 2000, type: 'budget', icon: '💰', emoji: '💵' },
+  { id: 'up9', name: 'Extension Budget V3', desc: '+2000€ Budget', cost: 5000, bonus: 2000, type: 'budget', icon: '💰', emoji: '💵' },
+];
+
+const CATEGORIES = Object.keys(COMPONENTS);
+
+const STORAGE_KEY = 'pc-builder-progress';
+
+export default function Component() {
+  // Tweak values
+  const bgColor = tweaks.bgColor.useState();
+  const accentColor = tweaks.accentColor.useState();
+  const rgbMode = tweaks.rgbMode.useState();
+  const initialBudget = tweaks.initialBudget.useState();
+  
+  const titleText = tweaks.titleText.useState();
+  const titleColor = tweaks.titleColor.useState();
+  const titleVisible = tweaks.titleVisible.useState();
+  const titleSize = tweaks.titleSize.useState();
+
+  const statusText = tweaks.statusText.useState();
+  const statusColor = tweaks.statusColor.useState();
+  const statusVisible = tweaks.statusVisible.useState();
+  const statusSize = tweaks.statusSize.useState();
+
+  const buildBtnText = tweaks.buildBtnText.useState();
+  const buildBtnColor = tweaks.buildBtnColor.useState();
+  const buildBtnVisible = tweaks.buildBtnVisible.useState();
+  const buildBtnSize = tweaks.buildBtnSize.useState();
+
+  const sellBtnText = tweaks.sellBtnText.useState();
+  const sellBtnColor = tweaks.sellBtnColor.useState();
+
+  const shopTitle = tweaks.shopTitle.useState();
+  const shopDesc = tweaks.shopDesc.useState();
+
+  // State
+  const [selected, setSelected] = useState({});
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [isFinished, setIsFinished] = useState(false);
+  const [shakeCount, setShakeCount] = useState(0);
+  const [money, setMoney] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved).money || 0;
+    } catch (e) {
+      console.error('Failed to load progress:', e);
+    }
+    return 0;
+  });
+  const [ownedUpgrades, setOwnedUpgrades] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved).upgrades || [];
+    } catch (e) {
+      console.error('Failed to load upgrades:', e);
+    }
+    return [];
+  });
+
+  // Calculate budget limit based on owned upgrades
+  const budgetUpgrades = ownedUpgrades.filter(id => {
+    const upgrade = UPGRADES.find(u => u.id === id);
+    return upgrade && upgrade.type === 'budget';
+  }).length;
+  const currentBudgetLimit = initialBudget + (budgetUpgrades * 2000);
+  const [showShop, setShowShop] = useState(false);
+  const [currentBuildValue, setCurrentBuildValue] = useState(0);
+  const [hackerClickCount, setHackerClickCount] = useState(0);
+  const [showHackerPanel, setShowHackerPanel] = useState(false);
+
+  // Save progress
+  const saveProgress = useCallback(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ money, upgrades: ownedUpgrades }));
+    } catch (e) {
+      console.error('Failed to save progress:', e);
+    }
+  }, [money, ownedUpgrades]);
+
+  useEffect(() => {
+    saveProgress();
+  }, [money, ownedUpgrades, saveProgress]);
+
+  // Shake listener for "cleaning" the PC
+  useEffect(() => {
+    const removeShake = gizmoRuntime.addShakeListener(() => {
+      gizmoRuntime.performHaptic('medium');
+      setShakeCount(prev => prev + 1);
+    });
+    return () => removeShake();
+  }, []);
+
+  // Calculations
+  const stats = useMemo(() => {
+    let totalCost = 0;
+    let totalPerf = 0;
+    let totalHeat = 25;
+    let totalPower = 50;
+
+    Object.entries(selected).forEach(([cat, item]) => {
+      totalCost += item.price;
+      totalPerf += item.perf;
+      totalHeat += item.heat;
+      totalPower += item.power;
+    });
+
+    const cpuPerf = selected.CPU?.perf || 0;
+    const gpuPerf = selected.GPU?.perf || 0;
+    const ramPerf = selected.RAM?.perf || 0;
+    let fps = Math.floor((cpuPerf * 0.4 + gpuPerf * 0.5 + ramPerf * 0.1) * 1.5);
+
+    // Apply performance upgrades
+    const perfUpgrades = ownedUpgrades.filter(id => {
+      const upgrade = UPGRADES.find(u => u.id === id);
+      return upgrade && upgrade.type === 'perf';
+    });
+    perfUpgrades.forEach(id => {
+      const upgrade = UPGRADES.find(u => u.id === id);
+      fps = Math.round(fps * (1 + upgrade.bonus));
+    });
+
+    // Apply cooling upgrades
+    let cooling = totalHeat;
+    const coolingUpgrades = ownedUpgrades.filter(id => {
+      const upgrade = UPGRADES.find(u => u.id === id);
+      return upgrade && upgrade.type === 'cooling';
+    });
+    coolingUpgrades.forEach(id => {
+      const upgrade = UPGRADES.find(u => u.id === id);
+      cooling -= upgrade.bonus;
+    });
+
+    // Apply power upgrades
+    let power = totalPower;
+    const powerUpgrades = ownedUpgrades.filter(id => {
+      const upgrade = UPGRADES.find(u => u.id === id);
+      return upgrade && upgrade.type === 'power';
+    });
+    powerUpgrades.forEach(id => {
+      const upgrade = UPGRADES.find(u => u.id === id);
+      power = Math.round(power * (1 - upgrade.bonus));
+    });
+
+    // Calculate sell value based on FPS
+    const sellValue = Math.round(100 + fps * 8);
+
+    return { totalCost, totalPerf, totalHeat: cooling, totalPower: power, fps, sellValue };
+  }, [selected, ownedUpgrades]);
+
+  const handleSelect = (category, item) => {
+    gizmoRuntime.performHaptic('light');
+    setSelected(prev => ({ ...prev, [category]: item }));
+    setActiveCategory(null);
+  };
+
+  const handleSellPC = () => {
+    gizmoRuntime.performHaptic('heavy');
+    const sellPrice = stats.sellValue;
+    setMoney(prev => prev + sellPrice);
+    setCurrentBuildValue(sellPrice);
+    setIsFinished(false);
+    setSelected({});
+    setShakeCount(0);
+  };
+
+  const handleBuildAnother = () => {
+    gizmoRuntime.performHaptic('light');
+    setIsFinished(false);
+    setSelected({});
+    setShakeCount(0);
+  };
+
+  const handleFinalizeClick = () => {
+    const newCount = hackerClickCount + 1;
+    setHackerClickCount(newCount);
+    
+    if (newCount >= 10) {
+      gizmoRuntime.performHaptic('rigid');
+      setShowHackerPanel(true);
+    } else {
+      gizmoRuntime.performHaptic('heavy');
+      setIsFinished(true);
+    }
+  };
+
+  const handleHackerAction = (action) => {
+    gizmoRuntime.performHaptic('medium');
+    switch(action) {
+      case 'money':
+        setMoney(prev => prev + 50000);
+        break;
+      case 'upgrades':
+        const missingUpgrades = UPGRADES.filter(u => !ownedUpgrades.includes(u.id)).map(u => u.id);
+        setOwnedUpgrades(prev => [...prev, ...missingUpgrades]);
+        break;
+      case 'fps':
+        setSelected(prev => ({
+          ...prev,
+          CPU: COMPONENTS.CPU[3],
+          GPU: COMPONENTS.GPU[3],
+          RAM: COMPONENTS.RAM[3],
+          STORAGE: COMPONENTS.STORAGE[3],
+          COOLING: COMPONENTS.COOLING[3]
+        }));
+        break;
+      case 'reset':
+        setShowHackerPanel(false);
+        setHackerClickCount(0);
+        setSelected({});
+        setIsFinished(false);
+        break;
+    }
+  };
+
+  const handleBuyUpgrade = (upgradeId) => {
+    const upgrade = UPGRADES.find(u => u.id === upgradeId);
+    if (money >= upgrade.cost && !ownedUpgrades.includes(upgradeId)) {
+      gizmoRuntime.performHaptic('heavy');
+      setMoney(prev => prev - upgrade.cost);
+      setOwnedUpgrades(prev => [...prev, upgradeId]);
+    }
+  };
+
+  const isOverBudget = stats.totalCost > currentBudgetLimit;
+
+  if (showHackerPanel) {
+    return (
+      <div className="h-screen w-screen overflow-hidden flex flex-col font-mono" style={{ backgroundColor: '#001100', color: '#00FF00' }}>
+        {/* Hacker Background Effect */}
+        <div className="fixed inset-0 -z-10 opacity-30">
+          <div className="absolute inset-0 bg-repeat" style={{
+            backgroundImage: 'linear-gradient(0deg, transparent 24%, rgba(0, 255, 0, .1) 25%, rgba(0, 255, 0, .1) 26%, transparent 27%, transparent 74%, rgba(0, 255, 0, .1) 75%, rgba(0, 255, 0, .1) 76%, transparent 77%, transparent)',
+            backgroundSize: '50px 50px',
+            animation: 'scan 8s linear infinite'
+          }} />
+        </div>
+
+        <style>{`
+          @keyframes scan {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 50px; }
+          }
+          @keyframes glitch {
+            0% { text-shadow: 3px 0 #00FF00; }
+            25% { text-shadow: -3px 0 #FF00FF; }
+            50% { text-shadow: 3px 0 #00FFFF; }
+            75% { text-shadow: -3px 0 #FF0000; }
+            100% { text-shadow: 0 0 #00FF00; }
+          }
+          .glitch-text {
+            animation: glitch 0.3s infinite;
+          }
+        `}</style>
+
+        {/* Header */}
+        <div className="p-6 border-b-2 border-green-500 bg-black/80 backdrop-blur-md">
+          <div className="text-2xl font-black mb-2 glitch-text">⚠️ HACKER PANEL ⚠️</div>
+          <div className="text-xs text-green-400/80">ROOT ACCESS GRANTED | SECURITY BYPASSED</div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-20">
+          {/* Status Display */}
+          <div className="bg-black/60 border-2 border-green-500 p-4 font-mono text-sm space-y-2">
+            <div>&gt; SYSTEM_STATUS: COMPROMISED</div>
+            <div>&gt; CURRENT_BALANCE: <span className="text-yellow-400">${money}</span></div>
+            <div>&gt; UPGRADES_OWNED: <span className="text-cyan-400">{ownedUpgrades.length}</span></div>
+            <div>&gt; ACCESS_LEVEL: <span className="text-red-500">ADMIN</span></div>
+          </div>
+
+          {/* Exploit Options */}
+          <div className="space-y-4">
+            <div className="text-xs uppercase tracking-widest text-green-500/80 font-bold">Available Exploits:</div>
+            
+            <button
+              onClick={() => handleHackerAction('money')}
+              className="w-full p-4 bg-black/60 border-2 border-green-500 hover:bg-green-500/10 transition-all text-left font-mono text-sm group"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-green-400">$</span>
+                <span className="font-bold">INJECT_CURRENCY</span>
+                <span className="text-xs text-green-500/60">+50000$</span>
+              </div>
+              <div className="text-xs text-green-500/60 ml-4">&gt; Insert unlimited funds into bank account</div>
+            </button>
+
+            <button
+              onClick={() => handleHackerAction('upgrades')}
+              className="w-full p-4 bg-black/60 border-2 border-green-500 hover:bg-green-500/10 transition-all text-left font-mono text-sm"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-green-400">⚡</span>
+                <span className="font-bold">UNLOCK_ALL_UPGRADES</span>
+                <span className="text-xs text-green-500/60">All</span>
+              </div>
+              <div className="text-xs text-green-500/60 ml-4">&gt; Bypass upgrade restrictions and obtain all items</div>
+            </button>
+
+            <button
+              onClick={() => handleHackerAction('fps')}
+              className="w-full p-4 bg-black/60 border-2 border-green-500 hover:bg-green-500/10 transition-all text-left font-mono text-sm"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-green-400">🎮</span>
+                <span className="font-bold">ELITE_BUILD_TEMPLATE</span>
+                <span className="text-xs text-green-500/60">Max</span>
+              </div>
+              <div className="text-xs text-green-500/60 ml-4">&gt; Auto-select the best components for maximum FPS</div>
+            </button>
+          </div>
+
+          {/* Terminal Output */}
+          <div className="bg-black/60 border-2 border-green-500 p-3 font-mono text-xs space-y-1 max-h-40 overflow-y-auto">
+            <div className="text-green-400">&gt; system_breach_initiated.exe</div>
+            <div className="text-yellow-400">&gt; warning: file integrity compromised</div>
+            <div className="text-cyan-400">&gt; loading exploit database...</div>
+            <div className="text-green-400">&gt; access_level: root</div>
+            <div className="text-green-400">&gt; executing payloads...</div>
+            <div className="text-yellow-400">&gt; antivirus_disabled</div>
+            <div className="text-green-400">&gt; all_systems_compromised.log</div>
+            <div className="text-cyan-400">&gt; Ready for next command_</div>
+          </div>
+        </div>
+
+        {/* Exit Button */}
+        <div className="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black to-transparent">
+          <button
+            onClick={() => handleHackerAction('reset')}
+            className="w-full py-4 bg-red-900/80 border-2 border-red-500 font-mono font-bold text-red-300 hover:bg-red-800 transition-all uppercase tracking-widest"
+          >
+            EXIT HACKER MODE [ESC]
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (showShop) {
+    return (
+      <div className="h-screen w-screen overflow-hidden flex flex-col font-sans" style={{ backgroundColor: bgColor, color: '#FFFFFF' }}>
+        {/* Background Glow */}
+        {rgbMode && (
+          <div 
+            className="fixed inset-0 -z-10 opacity-20 blur-[100px] animate-pulse"
+            style={{ background: `radial-gradient(circle, ${accentColor} 0%, transparent 70%)` }}
+          />
+        )}
+
+        {/* Header */}
+        <header className="p-4 flex justify-between items-center border-b border-white/10 bg-black/40 backdrop-blur-md">
+          <button 
+            onClick={() => setShowShop(false)}
+            className="flex items-center gap-2 active:scale-95 transition-transform"
+          >
+            <ChevronLeft size={24} />
+            <span className="font-bold">Retour</span>
+          </button>
+          <div className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full">
+            <DollarSign size={16} className="text-green-400" />
+            <span className="font-mono font-bold text-white">{money}</span>
+          </div>
+        </header>
+
+        {/* Shop Content */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-6">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-black italic">{shopTitle}</h1>
+            <p className="text-zinc-400">{shopDesc}</p>
+          </div>
+
+          {/* Upgrades Grid */}
+          <div className="space-y-3">
+            {UPGRADES.map(upgrade => {
+              const isOwned = ownedUpgrades.includes(upgrade.id);
+              const canAfford = money >= upgrade.cost;
+              return (
+                <button
+                  key={upgrade.id}
+                  onClick={() => handleBuyUpgrade(upgrade.id)}
+                  disabled={isOwned || !canAfford}
+                  className={`w-full p-4 rounded-2xl border-2 transition-all flex items-start justify-between ${
+                    isOwned 
+                      ? 'border-green-500 bg-green-500/10 opacity-60' 
+                      : canAfford 
+                      ? 'border-blue-500 bg-blue-500/10 hover:bg-blue-500/20' 
+                      : 'border-red-500/30 bg-red-500/5 opacity-50'
+                  }`}
+                >
+                  <div className="text-left">
+                    <div className="font-bold text-lg flex items-center gap-2">
+                      <span text-2xl>{upgrade.emoji}</span> {upgrade.name}
+                    </div>
+                    <div className="text-sm text-zinc-400 mt-1">{upgrade.desc}</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    {isOwned ? (
+                      <div className="text-xs font-bold uppercase text-green-400 bg-green-500/20 px-3 py-1 rounded-full">
+                        ✓ Acquis
+                      </div>
+                    ) : (
+                      <div className={`text-lg font-mono font-bold ${canAfford ? 'text-yellow-400' : 'text-red-400'}`}>
+                        {upgrade.cost} $
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-screen w-screen overflow-hidden flex flex-col font-sans" style={{ backgroundColor: bgColor, color: '#FFFFFF' }}>
+      {/* Background Glow */}
+      {rgbMode && (
+        <div 
+          className="fixed inset-0 -z-10 opacity-20 blur-[100px] animate-pulse"
+          style={{ background: `radial-gradient(circle, ${accentColor} 0%, transparent 70%)` }}
+        />
+      )}
+
+      {/* Header */}
+      <header className="p-4 flex justify-between items-center border-b border-white/10 bg-black/40 backdrop-blur-md">
+        {titleVisible && (
+          <h1 style={{ color: titleColor, fontSize: `${titleSize}px` }} className="font-black italic tracking-tighter">
+            {titleText}
+          </h1>
+        )}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowShop(true)}
+            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-2 rounded-full transition-all active:scale-95"
+          >
+            <ShoppingBag size={16} />
+            <span className="text-sm font-bold">{ownedUpgrades.length}</span>
+          </button>
+          <div className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full">
+            <DollarSign size={16} className={isOverBudget ? 'text-red-500' : 'text-green-400'} />
+            <span className={`font-mono font-bold ${isOverBudget ? 'text-red-500' : 'text-white'}`}>
+              {stats.totalCost} / {currentBudgetLimit}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
+        
+        {/* PC Case Visualization */}
+        <div className="relative aspect-[4/5] w-full max-w-[300px] mx-auto bg-zinc-900 rounded-3xl border-4 border-zinc-800 shadow-2xl overflow-hidden p-4 flex flex-col gap-4">
+          <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" 
+               style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+          
+          {/* Internal Components Layout */}
+          <div className="flex-1 grid grid-cols-2 grid-rows-3 gap-3 relative">
+            {/* CPU Slot */}
+            <div 
+              onClick={() => setActiveCategory('CPU')}
+              className={`rounded-xl border-2 flex flex-col items-center justify-center transition-all ${selected.CPU ? 'border-green-500 bg-green-500/10' : 'border-dashed border-zinc-700 bg-zinc-800/50'}`}
+            >
+              <Cpu size={24} className={selected.CPU ? 'text-green-400' : 'text-zinc-500'} />
+              <span className="text-[10px] mt-1 uppercase font-bold">{selected.CPU ? selected.CPU.name : 'CPU'}</span>
+            </div>
+
+            {/* RAM Slot */}
+            <div 
+              onClick={() => setActiveCategory('RAM')}
+              className={`rounded-xl border-2 flex flex-col items-center justify-center transition-all ${selected.RAM ? 'border-blue-500 bg-blue-500/10' : 'border-dashed border-zinc-700 bg-zinc-800/50'}`}
+            >
+              <Layout size={24} className={selected.RAM ? 'text-blue-400' : 'text-zinc-500'} />
+              <span className="text-[10px] mt-1 uppercase font-bold">{selected.RAM ? selected.RAM.name : 'RAM'}</span>
+            </div>
+
+            {/* GPU Slot (Spans 2 cols) */}
+            <div 
+              onClick={() => setActiveCategory('GPU')}
+              className={`col-span-2 rounded-xl border-2 flex flex-col items-center justify-center transition-all ${selected.GPU ? 'border-purple-500 bg-purple-500/10' : 'border-dashed border-zinc-700 bg-zinc-800/50'}`}
+            >
+              <Monitor size={24} className={selected.GPU ? 'text-purple-400' : 'text-zinc-500'} />
+              <span className="text-[10px] mt-1 uppercase font-bold">{selected.GPU ? selected.GPU.name : 'GPU'}</span>
+            </div>
+
+            {/* Storage Slot */}
+            <div 
+              onClick={() => setActiveCategory('STORAGE')}
+              className={`rounded-xl border-2 flex flex-col items-center justify-center transition-all ${selected.STORAGE ? 'border-orange-500 bg-orange-500/10' : 'border-dashed border-zinc-700 bg-zinc-800/50'}`}
+            >
+              <HardDrive size={24} className={selected.STORAGE ? 'text-orange-400' : 'text-zinc-500'} />
+              <span className="text-[10px] mt-1 uppercase font-bold">{selected.STORAGE ? selected.STORAGE.name : 'DISK'}</span>
+            </div>
+
+            {/* Cooling Slot */}
+            <div 
+              onClick={() => setActiveCategory('COOLING')}
+              className={`rounded-xl border-2 flex flex-col items-center justify-center transition-all ${selected.COOLING ? 'border-cyan-500 bg-cyan-500/10' : 'border-dashed border-zinc-700 bg-zinc-800/50'}`}
+            >
+              <Wind size={24} className={selected.COOLING ? 'text-cyan-400' : 'text-zinc-500'} />
+              <span className="text-[10px] mt-1 uppercase font-bold">{selected.COOLING ? selected.COOLING.name : 'COOLER'}</span>
+            </div>
+          </div>
+
+          {/* RGB Strip */}
+          {rgbMode && (
+            <div className="h-1 w-full rounded-full animate-pulse" 
+                 style={{ background: `linear-gradient(90deg, #ff0000, #00ff00, #0000ff, #ff0000)`, backgroundSize: '400% 100%' }} />
+          )}
+        </div>
+
+        {/* Stats Dashboard */}
+        <div className="bg-zinc-900/80 border border-white/10 rounded-2xl p-4 space-y-4">
+          {statusVisible && (
+            <div className="flex items-center gap-2 mb-2">
+              <Activity size={16} style={{ color: statusColor }} />
+              <h2 style={{ color: statusColor, fontSize: `${statusSize}px` }} className="font-bold uppercase tracking-widest">
+                {statusText}
+              </h2>
+            </div>
+          )}
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-black/40 p-3 rounded-xl border border-white/5">
+              <div className="text-zinc-500 text-[10px] uppercase font-bold mb-1">Performance</div>
+              <div className="text-2xl font-mono font-black text-white">{stats.fps} <span className="text-xs text-zinc-400">FPS</span></div>
+            </div>
+            <div className="bg-black/40 p-3 rounded-xl border border-white/5">
+              <div className="text-zinc-500 text-[10px] uppercase font-bold mb-1">Consommation</div>
+              <div className="text-2xl font-mono font-black text-white">{stats.totalPower} <span className="text-xs text-zinc-400">W</span></div>
+            </div>
+            <div className="bg-black/40 p-3 rounded-xl border border-white/5">
+              <div className="text-zinc-500 text-[10px] uppercase font-bold mb-1">Température</div>
+              <div className={`text-2xl font-mono font-black ${stats.totalHeat > 85 ? 'text-red-500' : 'text-white'}`}>
+                {stats.totalHeat}°C
+              </div>
+            </div>
+            <div className="bg-black/40 p-3 rounded-xl border border-white/5">
+              <div className="text-zinc-500 text-[10px] uppercase font-bold mb-1">Propreté</div>
+              <div className="text-2xl font-mono font-black text-white">{Math.min(100, 20 + shakeCount * 5)}%</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Instructions */}
+        {!activeCategory && !isFinished && (
+          <div className="text-center text-zinc-500 text-sm animate-bounce">
+            Appuyez sur un emplacement pour installer un composant
+          </div>
+        )}
+      </div>
+
+      {/* Component Selection Modal */}
+      {activeCategory && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end">
+          <div className="w-full bg-zinc-900 rounded-t-3xl p-6 border-t border-white/20 animate-in slide-in-from-bottom duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                Choisir {activeCategory}
+              </h3>
+              <button 
+                onClick={() => setActiveCategory(null)}
+                className="p-2 bg-white/10 rounded-full"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pb-8">
+              {COMPONENTS[activeCategory].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleSelect(activeCategory, item)}
+                  className={`w-full p-4 rounded-2xl border-2 text-left flex justify-between items-center transition-all ${selected[activeCategory]?.id === item.id ? 'border-blue-500 bg-blue-500/10' : 'border-white/5 bg-white/5'}`}
+                >
+                  <div>
+                    <div className="font-bold text-lg">{item.emoji} {item.name}</div>
+                    <div className="text-xs text-zinc-400 flex gap-3 mt-1">
+                      <span>Perf: +{item.perf}</span>
+                      <span>Chaleur: +{item.heat}</span>
+                      <span>Conso: {item.power}W</span>
+                    </div>
+                  </div>
+                  <div className="text-xl font-mono font-bold text-green-400">
+                    {item.price} $
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Finalize Overlay */}
+      {isFinished && (
+        <div className="fixed inset-0 z-[60] bg-black flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
+          <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(34,197,94,0.5)]">
+            <CheckCircle2 size={48} className="text-white" />
+          </div>
+          <h2 className="text-4xl font-black italic mb-2">MONTAGE TERMINÉ !</h2>
+          <p className="text-zinc-400 mb-8">Votre machine de guerre est prête.</p>
+          
+          <div className="w-full max-w-xs bg-zinc-900 rounded-2xl p-6 border border-white/10 space-y-4 mb-8">
+            <div className="flex justify-between">
+              <span className="text-zinc-500">FPS Final</span>
+              <span className="font-mono font-bold text-2xl">{stats.fps}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Coût Total</span>
+              <span className="font-mono font-bold text-2xl text-green-400">{stats.totalCost} $</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Valeur de Vente</span>
+              <span className="font-mono font-bold text-2xl text-yellow-400">{stats.sellValue} $</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Profit</span>
+              <span className="font-mono font-bold text-2xl text-cyan-400">+{stats.sellValue - stats.totalCost} $</span>
+            </div>
+          </div>
+
+          <div className="flex gap-4 w-full max-w-xs">
+            <button 
+              onClick={handleSellPC}
+              style={{ backgroundColor: sellBtnColor }}
+              className="flex-1 px-6 py-3 rounded-full font-bold text-black active:scale-95 transition-transform"
+            >
+              {sellBtnText}
+            </button>
+            <button 
+              onClick={handleBuildAnother}
+              className="flex-1 bg-zinc-700 text-white px-6 py-3 rounded-full font-bold active:scale-95 transition-transform"
+            >
+              Reconstruire
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Action Bar */}
+      {!isFinished && buildBtnVisible && (
+        <div className="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black to-transparent pointer-events-auto">
+          <button
+            disabled={Object.keys(selected).length < 5 || isOverBudget}
+            onClick={handleFinalizeClick}
+            style={{ 
+              backgroundColor: buildBtnColor, 
+              fontSize: `${buildBtnSize}px`,
+              opacity: (Object.keys(selected).length < 5 || isOverBudget) ? 0.5 : 1
+            }}
+            className="w-full py-4 rounded-2xl font-black italic uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed"
+          >
+            {isOverBudget ? 'BUDGET DÉPASSÉ !' : buildBtnText}
+            {Object.keys(selected).length < 5 && !isOverBudget && ` (${Object.keys(selected).length}/5)`}
+            {hackerClickCount > 0 && hackerClickCount < 10 && <span className="text-xs opacity-50">({hackerClickCount}/10)</span>}
+          </button>
+        </div>
+      )}
+
+      {/* Shake Hint */}
+      {!isFinished && shakeCount < 5 && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 flex items-center gap-2 animate-pulse">
+          <Info size={14} />
+          <span className="text-[10px] font-bold uppercase">Secouez pour nettoyer !</span>
+        </div>
+      )}
+    </div>
+  );
+}
+// ===== FIN DU CODE GIZMO =====
+
+import { createRoot as __gizmoCreateRoot } from 'react-dom/client';
+__gizmoCreateRoot(document.getElementById('root')).render(<Component />);
+  </script>
+</body>
+</html>

@@ -1,0 +1,389 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { gizmoRuntime } from '@gizmo/runtime';
+import { Camera, RotateCcw, Loader, AlertTriangle, Type, Image, Spline } from 'lucide-react';
+
+const tweaks = gizmoRuntime.tweaks({
+  backgroundColor: { index: 0, name: 'Background', type: 'color', value: '#1d2f30' },
+  primaryColor: { index: 1, name: 'Primary', type: 'color', value: '#f2f61e' },
+  secondaryColor: { index: 2, name: 'Secondary', type: 'color', value: '#f934f5' },
+  accentColor: { index: 3, name: 'Accent', type: 'color', value: '#38e2e5' },
+  textColor: { index: 4, name: 'Text', type: 'color', value: '#edf2f2' },
+  titleText: { index: 5, name: 'Title', type: 'text', value: 'Math Solver', group: 'title' },
+  titleColor: { index: 6, name: 'Title Color', type: 'color', value: '#38e2e5', group: 'title' },
+  titleSize: { index: 7, name: 'Title Size', type: 'slider', value: 34, min: 12, max: 60, step: 1, group: 'title' },
+  showTitle: { index: 8, name: 'Show Title', type: 'toggle', value: true, group: 'title' },
+  answerSize: { index: 9, name: 'Answer Size', type: 'slider', value: 30, min: 12, max: 60, step: 1 },
+});
+
+export default function MathSolverGizmo() {
+  const backgroundColor = tweaks.backgroundColor.useState();
+  const primaryColor = tweaks.primaryColor.useState();
+  const accentColor = tweaks.accentColor.useState();
+  const textColor = tweaks.textColor.useState();
+  const titleText = tweaks.titleText.useState();
+  const titleColor = tweaks.titleColor.useState();
+  const titleSize = tweaks.titleSize.useState();
+  const showTitle = tweaks.showTitle.useState();
+  const answerSize = tweaks.answerSize.useState();
+
+  const [mode, setMode] = useState<'camera' | 'draft' | 'graphing'>('camera');
+  const [graphingInput, setGraphingInput] = useState<'text' | 'camera'>('text');
+  const [draftQuestion, setDraftQuestion] = useState('');
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [hasCameraError, setHasCameraError] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [answer, setAnswer] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if ((mode !== 'camera' && !(mode === 'graphing' && graphingInput === 'camera')) || capturedImage || hasCameraError) return;
+
+    let stream: MediaStream | null = null;
+    let animationFrameId: number | null = null;
+
+    const videoElement = document.createElement('video');
+    videoElement.autoplay = true;
+    videoElement.playsInline = true;
+    videoElement.muted = true;
+    videoRef.current = videoElement;
+
+    const startCamera = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+          drawVideoFrame();
+        }
+      } catch (err) {
+        console.error("Error accessing camera:", err);
+        setHasCameraError(true);
+      }
+    };
+
+    const drawVideoFrame = () => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d');
+
+      if (video && canvas && ctx && video.readyState >= video.HAVE_METADATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        const videoRatio = video.videoWidth / video.videoHeight;
+        const canvasRatio = canvas.parentElement!.clientWidth / canvas.parentElement!.clientHeight;
+        let sx = 0, sy = 0, sWidth = video.videoWidth, sHeight = video.videoHeight;
+
+        if (videoRatio > canvasRatio) {
+            sWidth = video.videoHeight * canvasRatio;
+            sx = (video.videoWidth - sWidth) / 2;
+        } else {
+            sHeight = video.videoWidth / canvasRatio;
+            sy = (video.videoHeight - sHeight) / 2;
+        }
+
+        ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+      }
+      animationFrameId = requestAnimationFrame(drawVideoFrame);
+    };
+
+    startCamera();
+
+    return () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      stream?.getTracks().forEach(track => track.stop());
+      if (videoRef.current) videoRef.current.srcObject = null;
+    };
+  }, [capturedImage, hasCameraError, mode, graphingInput]);
+
+  const handleCapture = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const dataUrl = canvas.toDataURL('image/png', 1.0);
+    setCapturedImage(dataUrl);
+    gizmoRuntime.performHaptic('medium');
+    setIsLoading(true);
+    setError(null);
+    setAnswer(null);
+
+    try {
+      const base64ImageData = dataUrl.split(',')[1];
+      let prompt = "Solve the math problem in the image. Provide ONLY the final numerical or algebraic answer. If there is no math problem or calculation in the image, respond with exactly: 'Men wt... (there's no calculation here)'";
+      if (mode === 'graphing') {
+        prompt = "Analyze the graph in the image. Provide ONLY the final answer, such as the equation or key points. If there is no graph or calculation in the image, respond with exactly: 'Men wt... (there's no calculation here)'";
+      }
+      const response = await gizmoRuntime.generateText({
+        prompt,
+        imageData: base64ImageData,
+      });
+      setAnswer(response.text);
+    } catch (e) {
+      console.error("AI error:", e);
+      setError("Could not solve the problem. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDraftSolve = async () => {
+    if (!draftQuestion.trim()) return;
+
+    gizmoRuntime.performHaptic('medium');
+    setIsLoading(true);
+    setError(null);
+    setAnswer(null);
+
+    try {
+      let prompt = `Solve this math problem: "${draftQuestion}". Provide ONLY the final numerical or algebraic answer. If there is no valid math calculation in the input, respond with exactly: 'Men wt... (there's no calculation here)'`;
+      if (mode === 'graphing') {
+        prompt = `Analyze the graph for this equation: "${draftQuestion}". Provide ONLY the final answer, such as the equation or key points. If there is no valid calculation or graph, respond with exactly: 'Men wt... (there's no calculation here)'`
+      }
+      const response = await gizmoRuntime.generateText({ prompt });
+      setAnswer(response.text);
+    } catch (e) {
+      console.error("AI error:", e);
+      setError("Could not solve the problem. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRetry = () => {
+    setCapturedImage(null);
+    setAnswer(null);
+    setError(null);
+    setDraftQuestion('');
+    setGraphingInput('text'); // Reset graphing input mode
+    gizmoRuntime.performHaptic('light');
+  };
+
+  const renderAnswerContent = () => (
+    <div className="mt-6 text-center p-4 rounded-lg w-full max-w-sm" style={{ backgroundColor: '#223e3f' }}>
+      {isLoading && (
+        <div className="flex items-center justify-center" style={{ color: accentColor }}>
+          <Loader className="animate-spin mr-3" size={24} />
+          <span className="text-lg font-semibold">Calculating...</span>
+        </div>
+      )}
+      {error && (
+        <div className="flex flex-col items-center justify-center text-center" style={{ color: '#f04242' }}>
+          <AlertTriangle className="mb-2" size={32} />
+          <span className="text-lg font-semibold">{error}</span>
+        </div>
+      )}
+      {answer && (
+        <div className="max-h-48 overflow-y-auto">
+          <p className="font-bold text-center break-words whitespace-pre-wrap" style={{ color: primaryColor, fontSize: `${answerSize}px` }}>{answer}</p>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderContent = () => {
+    if (answer || isLoading || error) {
+        if (mode === 'camera') {
+            return (
+                <div className="w-full h-full flex flex-col items-center justify-center p-4 relative">
+                    <img src={capturedImage!} alt="Captured math problem" className="max-w-full max-h-[50%] object-contain rounded-lg shadow-lg" />
+                    {renderAnswerContent()}
+                </div>
+            );
+        } else { // mode === 'draft' or 'graphing'
+            return (
+                <div className="w-full h-full flex flex-col items-center justify-center p-4">
+                    <div className="w-full max-w-sm p-4 rounded-lg" style={{ backgroundColor: '#223e3f' }}>
+                        <p className="text-sm mb-2" style={{ color: textColor }}>Your question:</p>
+                        <p className="font-semibold break-words" style={{ color: textColor }}>{draftQuestion}</p>
+                    </div>
+                    {renderAnswerContent()}
+                </div>
+            );
+        }
+    }
+
+    if (mode === 'draft') {
+      return (
+        <div className="w-full h-full flex flex-col items-center justify-center p-8">
+          <textarea
+            value={draftQuestion}
+            onChange={(e) => setDraftQuestion(e.target.value)}
+            placeholder={"Type your math problem here..."}
+            className="w-full h-48 p-4 rounded-lg text-lg border-2"
+            style={{
+              backgroundColor: '#223e3f',
+              borderColor: accentColor,
+              color: textColor,
+              outline: 'none'
+            }}
+          />
+        </div>
+      );
+    }
+
+    if (mode === 'graphing') {
+        if (graphingInput === 'text') {
+            return (
+                <div className="w-full h-full flex flex-col items-center justify-center p-8">
+                    <textarea
+                        value={draftQuestion}
+                        onChange={(e) => setDraftQuestion(e.target.value)}
+                        placeholder={"Type your equation to graph..."}
+                        className="w-full h-48 p-4 rounded-lg text-lg border-2"
+                        style={{
+                            backgroundColor: '#223e3f',
+                            borderColor: accentColor,
+                            color: textColor,
+                            outline: 'none'
+                        }}
+                    />
+                </div>
+            );
+        }
+        // if graphingInput is 'camera', fall through to camera rendering
+    }
+
+    // Camera Mode Content (for mode 'camera' or 'graphing' with camera input)
+    if (hasCameraError) {
+      return (
+        <div className="flex flex-col items-center justify-center text-center p-8" style={{ color: textColor }}>
+          <Camera size={48} className="mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Camera Access Needed</h2>
+          <p>This Gizmo requires camera access to solve math problems. Please enable camera permissions in your browser settings.</p>
+        </div>
+      );
+    }
+
+    if (capturedImage) {
+      return (
+        <div className="w-full h-full flex flex-col items-center justify-center p-4 relative">
+          <img src={capturedImage} alt="Captured math problem" className="max-w-full max-h-[50%] object-contain rounded-lg shadow-lg" />
+          <div className="mt-6 text-center p-4 rounded-lg w-full max-w-sm" style={{ backgroundColor: '#223e3f' }}>
+            {isLoading && (
+              <div className="flex items-center justify-center" style={{ color: accentColor }}>
+                <Loader className="animate-spin mr-3" size={24} />
+                <span className="text-lg font-semibold">Calculating...</span>
+              </div>
+            )}
+            {error && (
+              <div className="flex flex-col items-center justify-center text-center" style={{ color: '#f04242' }}>
+                <AlertTriangle className="mb-2" size={32} />
+                <span className="text-lg font-semibold">{error}</span>
+              </div>
+            )}
+            {answer && (
+              <div>
+                <p className="font-bold text-center break-words whitespace-pre-wrap" style={{ color: primaryColor, fontSize: `${answerSize}px` }}>{answer}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <canvas ref={canvasRef} className="w-full h-full object-cover" />
+        {/* Camera guide overlay */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="relative w-[85%] aspect-[4/3] border-4 rounded-xl" style={{ borderColor: accentColor, boxShadow: `0 0 0 9999px rgba(0, 0, 0, 0.4)` }}>
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-sm font-semibold" style={{ backgroundColor: accentColor, color: '#1d2f30' }}>
+              {mode === 'graphing' ? 'Frame your graph here' : 'Frame your math problem here'}
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  return (
+    <div className="w-screen h-screen overflow-hidden flex flex-col items-center justify-center relative" style={{ backgroundColor }}>
+      {showTitle && (
+        <h1 className="absolute top-5 text-center font-semibold z-10" style={{ color: titleColor, fontSize: `${titleSize}px` }}>
+          {titleText}
+        </h1>
+      )}
+      <div className="w-full h-full flex items-center justify-center">{renderContent()}</div>
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex gap-4">
+        {answer || error ? (
+          <button
+            onClick={handleRetry}
+            className="p-4 rounded-full shadow-lg flex items-center justify-center"
+            style={{ backgroundColor: accentColor, color: '#1d2f30' }}
+          >
+            <RotateCcw size={32} />
+          </button>
+        ) : (
+          <>
+            {(mode === 'camera' || (mode === 'graphing' && graphingInput === 'camera')) ? (
+              <button
+                onClick={handleCapture}
+                disabled={hasCameraError}
+                className="p-5 rounded-full shadow-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: primaryColor, color: '#1d2f30' }}
+              >
+                <Camera size={40} />
+              </button>
+            ) : ( // draft or graphing text mode
+              <button
+                onClick={handleDraftSolve}
+                disabled={!draftQuestion.trim()}
+                className="px-8 py-4 rounded-full shadow-lg font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: primaryColor, color: '#1d2f30' }}
+              >
+                Solve
+              </button>
+            )}
+          </>
+        )}
+      </div>
+
+      {!(answer || error) && (
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 flex gap-2 p-1 rounded-full shadow-lg" style={{ backgroundColor: '#223e3f' }}>
+            <button
+                onClick={() => { setMode('camera'); setGraphingInput('text'); }}
+                className={`p-2 rounded-full transition-colors ${mode === 'camera' ? '' : 'opacity-60'}`}
+                style={{ backgroundColor: mode === 'camera' ? accentColor : 'transparent', color: '#1d2f30' }}
+            >
+                <Image size={24} style={{ color: mode === 'camera' ? '#1d2f30' : textColor }} />
+            </button>
+            <button
+                onClick={() => { setMode('draft'); setGraphingInput('text'); }}
+                className={`p-2 rounded-full transition-colors ${mode === 'draft' ? '' : 'opacity-60'}`}
+                style={{ backgroundColor: mode === 'draft' ? accentColor : 'transparent', color: '#1d2f30' }}
+            >
+                <Type size={24} style={{ color: mode === 'draft' ? '#1d2f30' : textColor }} />
+            </button>
+            <button
+                onClick={() => setMode('graphing')}
+                className={`p-2 rounded-full transition-colors ${mode === 'graphing' ? '' : 'opacity-60'}`}
+                style={{ backgroundColor: mode === 'graphing' ? accentColor : 'transparent', color: '#1d2f30' }}
+            >
+                <Spline size={24} style={{ color: mode === 'graphing' ? '#1d2f30' : textColor }} />
+            </button>
+        </div>
+      )}
+
+      {mode === 'graphing' && !(answer || error) && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 flex gap-2 p-1 rounded-full shadow-lg" style={{ backgroundColor: '#223e3f' }}>
+            <button
+                onClick={() => setGraphingInput('text')}
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${graphingInput === 'text' ? '' : 'opacity-60'}`}
+                style={{ backgroundColor: graphingInput === 'text' ? accentColor : 'transparent', color: graphingInput === 'text' ? '#1d2f30' : textColor }}
+            >
+                Type Equation
+            </button>
+            <button
+                onClick={() => setGraphingInput('camera')}
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${graphingInput === 'camera' ? '' : 'opacity-60'}`}
+                style={{ backgroundColor: graphingInput === 'camera' ? accentColor : 'transparent', color: graphingInput === 'camera' ? '#1d2f30' : textColor }}
+            >
+                Scan Graph
+            </button>
+        </div>
+      )}
+    </div>
+  );
+}
