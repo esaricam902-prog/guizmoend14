@@ -195,6 +195,7 @@ export default function Component() {
   const [hideDvds, setHideDvds] = useState(false);
   const [hasEverHadStimulus, setHasEverHadStimulus] = useState(() => loadState().count > 0);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
+  const debugTapsRef = useRef({ count: 0, last: 0 });
   const [isPressed, setIsPressed] = useState(false);
   const [floatingTexts, setFloatingTexts] = useState<{ id: number, x: number, y: number, text: string }[]>([]);
   const [sps, setSps] = useState(0);
@@ -659,6 +660,22 @@ export default function Component() {
   const buyDvdCounter = () => { if (count >= 500 && !hasDvdCounter) { setCount(prev => prev - 500); setHasDvdCounter(true); gizmoRuntime.performHaptic('heavy'); } };
 
   const toggleDarkMode = () => { setIsDarkMode(prev => !prev); gizmoRuntime.performHaptic('light'); };
+  // Accès secret au debug menu : taper 5 fois vite sur le texte du bas, puis entrer le code
+  const handleFooterTap = () => {
+    const now = Date.now();
+    const taps = now - debugTapsRef.current.last < 600 ? debugTapsRef.current.count + 1 : 1;
+    debugTapsRef.current = { count: taps, last: now };
+    if (taps < 5) return;
+    debugTapsRef.current.count = 0;
+    const code = window.prompt('code debug');
+    if (code === '2524') {
+      setHasDebugUnlocked(true);
+      setIsDebugOpen(true);
+      gizmoRuntime.performHaptic('heavy');
+    } else if (code !== null) {
+      gizmoRuntime.performHaptic('error');
+    }
+  };
   const debugAddStimulus = (amount: number) => { setCount(prev => prev + amount); gizmoRuntime.performHaptic('light'); };
   const debugReset = () => {
     setCount(0); setDvdCount(0); setHasAnimUpgrade(false); setHasSpsUpgrade(false); setHasDarkUpgrade(false);
@@ -883,7 +900,7 @@ export default function Component() {
       )}
 
       {footerVisible && (
-        <div className="absolute bottom-8 opacity-30 font-mono lowercase" style={{ color: currentFooterColor, fontSize: `${footerSize}px` }}>{footerText}</div>
+        <div onClick={handleFooterTap} className="absolute bottom-8 z-20 opacity-30 font-mono lowercase select-none" style={{ color: currentFooterColor, fontSize: `${footerSize}px` }}>{footerText}</div>
       )}
     </div>
   );
