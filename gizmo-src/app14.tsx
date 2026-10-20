@@ -1,0 +1,265 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { gizmoRuntime } from '@gizmo/runtime';
+import * as Tone from 'tone';
+
+const tweaks = gizmoRuntime.tweaks({
+  slimeColor: { index: 0, name: 'Slime Color', type: 'color', value: '#75F94C' },
+  glowColor: { index: 1, name: 'Glow Color', type: 'color', value: '#2227F5' },
+  backgroundColor: { index: 2, name: 'Background Color', type: 'color', value: '#000000' },
+  jiggleIntensity: { index: 3, name: 'Jiggle Intensity', type: 'slider', value: 15, min: 1, max: 50, step: 1 },
+  weirdnessSpeed: { index: 4, name: 'Weirdness Speed', type: 'slider', value: 5, min: 1, max: 20, step: 1 },
+  elasticity: { index: 5, name: 'Elasticity', type: 'slider', value: 0.1, min: 0.01, max: 0.5, step: 0.01 },
+  titleText: { index: 6, name: 'Title Text', type: 'text', value: 'BIZARRE SLIME', group: 'title' },
+  titleColor: { index: 7, name: 'Title Color', type: 'color', value: '#FFFFFF', group: 'title' },
+  titleSize: { index: 8, name: 'Title Size', type: 'slider', value: 32, min: 12, max: 64, step: 1, group: 'title' },
+  showTitle: { index: 9, name: 'Show Title', type: 'toggle', value: true, group: 'title' },
+  instructionText: { index: 10, name: 'Instruction Text', type: 'text', value: 'TAP OR SHAKE TO ANNOY IT', group: 'instruction' },
+  instructionColor: { index: 11, name: 'Instruction Color', type: 'color', value: '#D9D9D9', group: 'instruction' },
+  instructionSize: { index: 12, name: 'Instruction Size', type: 'slider', value: 16, min: 10, max: 30, step: 1, group: 'instruction' },
+  showInstruction: { index: 13, name: 'Show Instruction', type: 'toggle', value: true, group: 'instruction' },
+});
+
+export default function Component() {
+  const slimeColor = tweaks.slimeColor.useState();
+  const glowColor = tweaks.glowColor.useState();
+  const backgroundColor = tweaks.backgroundColor.useState();
+  const jiggleIntensity = tweaks.jiggleIntensity.useState();
+  const weirdnessSpeed = tweaks.weirdnessSpeed.useState();
+  const elasticity = tweaks.elasticity.useState();
+  const titleText = tweaks.titleText.useState();
+  const titleColor = tweaks.titleColor.useState();
+  const titleSize = tweaks.titleSize.useState();
+  const showTitle = tweaks.showTitle.useState();
+  const instructionText = tweaks.instructionText.useState();
+  const instructionColor = tweaks.instructionColor.useState();
+  const instructionSize = tweaks.instructionSize.useState();
+  const showInstruction = tweaks.showInstruction.useState();
+
+  const [points, setPoints] = useState([]);
+  const requestRef = useRef();
+  const timeRef = useRef(0);
+  const synthRef = useRef(null);
+  const containerRef = useRef(null);
+  const lastPokeRef = useRef({ x: 0, y: 0, active: false });
+
+  // Initialize points for the blob
+  useEffect(() => {
+    const numPoints = 12;
+    const initialPoints = Array.from({ length: numPoints }, (_, i) => {
+      const angle = (i / numPoints) * Math.PI * 2;
+      return {
+        x: 200 + Math.cos(angle) * 100,
+        y: 200 + Math.sin(angle) * 100,
+        ox: 200 + Math.cos(angle) * 100,
+        oy: 200 + Math.sin(angle) * 100,
+        vx: 0,
+        vy: 0,
+        angle,
+      };
+    });
+    setPoints(initialPoints);
+
+    // Initialize Audio
+    synthRef.current = new Tone.MonoSynth({
+      oscillator: { type: 'sine' },
+      envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.5 }
+    }).toDestination();
+
+    return () => {
+      if (synthRef.current) synthRef.current.dispose();
+    };
+  }, []);
+
+  const playSquish = (freq = 200) => {
+    if (synthRef.current && Tone.context.state === 'running') {
+      synthRef.current.triggerAttackRelease(freq, '8n');
+    } else if (Tone.context.state !== 'running') {
+      Tone.start();
+    }
+  };
+
+  const animate = (time) => {
+    timeRef.current += weirdnessSpeed * 0.01;
+    const t = timeRef.current;
+
+    setPoints((prevPoints) =>
+      prevPoints.map((p) => {
+        // Base organic movement
+        const noiseX = Math.sin(t + p.angle * 2) * jiggleIntensity;
+        const noiseY = Math.cos(t * 0.8 + p.angle * 3) * jiggleIntensity;
+        
+        // Target position with noise
+        const tx = p.ox + noiseX;
+        const ty = p.oy + noiseY;
+
+        // Physics: spring towards target
+        let ax = (tx - p.x) * elasticity;
+        let ay = (ty - p.y) * elasticity;
+
+        // Interaction: push away from poke
+        if (lastPokeRef.current.active) {
+          const dx = p.x - lastPokeRef.current.x;
+          const dy = p.y - lastPokeRef.current.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 100) {
+            const force = (100 - dist) * 0.5;
+            ax += (dx / dist) * force;
+            ay += (dy / dist) * force;
+          }
+        }
+
+        const vx = (p.vx + ax) * 0.9;
+        const vy = (p.vy + ay) * 0.9;
+
+        return {
+          ...p,
+          x: p.x + vx,
+          y: p.y + vy,
+          vx,
+          vy,
+        };
+      })
+    );
+
+    requestRef.current = requestAnimationFrame(animate);
+  };
+
+  useEffect(() => {
+    requestRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(requestRef.current);
+  }, [weirdnessSpeed, jiggleIntensity, elasticity]);
+
+  // Shake listener
+  useEffect(() => {
+    const removeShake = gizmoRuntime.addShakeListener(() => {
+      gizmoRuntime.performHaptic('heavy');
+      playSquish(100 + Math.random() * 400);
+      setPoints(prev => prev.map(p => ({
+        ...p,
+        vx: (Math.random() - 0.5) * 100,
+        vy: (Math.random() - 0.5) * 100
+      })));
+    });
+    return removeShake;
+  }, []);
+
+  const handleTouch = (e) => {
+    const rect = containerRef.current.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    const x = ((touch.clientX - rect.left) / rect.width) * 400;
+    const y = ((touch.clientY - rect.top) / rect.height) * 400;
+    
+    lastPokeRef.current = { x, y, active: true };
+    gizmoRuntime.performHaptic('light');
+    playSquish(300 + Math.random() * 200);
+  };
+
+  const handleTouchEnd = () => {
+    lastPokeRef.current.active = false;
+  };
+
+  // Generate SVG path from points
+  const pathData = useMemo(() => {
+    if (points.length === 0) return '';
+    const d = points.reduce((acc, p, i, arr) => {
+      const next = arr[(i + 1) % arr.length];
+      const xc = (p.x + next.x) / 2;
+      const yc = (p.y + next.y) / 2;
+      return i === 0 ? `M ${xc} ${yc}` : `${acc} Q ${p.x} ${p.y}, ${xc} ${yc}`;
+    }, '');
+    return d + ' Z';
+  }, [points]);
+
+  return (
+    <div className="h-screen w-screen overflow-hidden flex flex-col items-center justify-center relative" style={{ backgroundColor }}>
+      <div className="absolute inset-0 -z-10 opacity-30" style={{ 
+        background: `radial-gradient(circle at 50% 50%, ${glowColor} 0%, transparent 70%)` 
+      }} />
+
+      {showTitle && (
+        <h1 
+          className="absolute top-12 font-black tracking-tighter text-center px-4"
+          style={{ color: titleColor, fontSize: titleSize }}
+        >
+          {titleText}
+        </h1>
+      )}
+
+      <div 
+        ref={containerRef}
+        className="w-full aspect-[7/10] max-h-[70vh] relative touch-none select-none"
+        onTouchStart={handleTouch}
+        onTouchMove={handleTouch}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleTouch}
+        onMouseMove={(e) => e.buttons === 1 && handleTouch(e)}
+        onMouseUp={handleTouchEnd}
+      >
+        <svg viewBox="0 0 400 400" className="w-full h-full drop-shadow-2xl filter blur-[1px]">
+          <defs>
+            <radialGradient id="slimeGradient" cx="40%" cy="40%" r="60%">
+              <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.6" />
+              <stop offset="40%" stopColor={slimeColor} />
+              <stop offset="100%" stopColor={glowColor} />
+            </radialGradient>
+            <filter id="goo">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+              <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo" />
+            </filter>
+          </defs>
+          
+          <g filter="url(#goo)">
+            <path 
+              d={pathData} 
+              fill="url(#slimeGradient)" 
+              stroke={slimeColor} 
+              strokeWidth="4"
+              style={{ transition: 'fill 0.3s ease' }}
+            />
+            {/* Eyes that follow movement slightly */}
+            <circle cx={200 + (points[0]?.vx || 0) * 0.5} cy={180 + (points[0]?.vy || 0) * 0.5} r="12" fill="white" />
+            <circle cx={200 + (points[0]?.vx || 0) * 0.8} cy={180 + (points[0]?.vy || 0) * 0.8} r="6" fill="black" />
+            
+            <circle cx={240 + (points[2]?.vx || 0) * 0.5} cy={185 + (points[2]?.vy || 0) * 0.5} r="10" fill="white" />
+            <circle cx={240 + (points[2]?.vx || 0) * 0.8} cy={185 + (points[2]?.vy || 0) * 0.8} r="5" fill="black" />
+          </g>
+        </svg>
+      </div>
+
+      {showInstruction && (
+        <p 
+          className="absolute bottom-12 font-bold animate-pulse text-center px-6"
+          style={{ color: instructionColor, fontSize: instructionSize }}
+        >
+          {instructionText}
+        </p>
+      )}
+
+      {/* Decorative floating bits */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {[...Array(6)].map((_, i) => (
+          <div 
+            key={i}
+            className="absolute rounded-full opacity-20"
+            style={{
+              width: Math.random() * 40 + 20,
+              height: Math.random() * 40 + 20,
+              backgroundColor: slimeColor,
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              filter: 'blur(10px)',
+              animation: `float ${5 + Math.random() * 5}s infinite alternate ease-in-out`
+            }}
+          />
+        ))}
+      </div>
+
+      <style>{`
+        @keyframes float {
+          from { transform: translate(0, 0) scale(1); }
+          to { transform: translate(${Math.random() * 40 - 20}px, ${Math.random() * 40 - 20}px) scale(1.2); }
+        }
+      `}</style>
+    </div>
+  );
+}

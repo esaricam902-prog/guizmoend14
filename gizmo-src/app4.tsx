@@ -1,0 +1,890 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { gizmoRuntime } from '@gizmo/runtime';
+
+const tweaks = gizmoRuntime.tweaks({
+  backgroundColor: { index: 0, name: 'background color', type: 'color', value: '#FFFFFF' },
+  buttonText: { index: 1, name: 'button text', type: 'text', value: 'clique-moi', group: 'button-text' },
+  buttonTextColor: { index: 2, name: 'button text color', type: 'color', value: '#000000', group: 'button-text' },
+  buttonTextSize: { index: 3, name: 'button text size', type: 'slider', value: 18, min: 10, max: 48, step: 1, group: 'button-text' },
+  buttonTextVisible: { index: 4, name: 'button text visible', type: 'toggle', value: true, group: 'button-text' },
+  counterLabel: { index: 5, name: 'counter label', type: 'text', value: 'stimulus', group: 'counter-text' },
+  counterColor: { index: 6, name: 'counter color', type: 'color', value: '#000000', group: 'counter-text' },
+  counterSize: { index: 7, name: 'counter size', type: 'slider', value: 32, min: 16, max: 80, step: 1, group: 'counter-text' },
+  counterVisible: { index: 8, name: 'counter visible', type: 'toggle', value: true, group: 'counter-text' },
+  buttonBgColor: { index: 9, name: 'button color', type: 'color', value: '#D9D9D9' },
+  autoSaveText: { index: 10, name: 'auto save text', type: 'text', value: "sauvegarde automatique...", group: 'footer-text' },
+  autoSaveColor: { index: 11, name: 'auto save color', type: 'color', value: '#000000', group: 'footer-text' },
+  autoSaveSize: { index: 12, name: 'auto save size', type: 'slider', value: 12, min: 8, max: 24, step: 1, group: 'footer-text' },
+  autoSaveVisible: { index: 13, name: 'auto save visible', type: 'toggle', value: true, group: 'footer-text' },
+  footerText: { index: 14, name: 'footer text', type: 'text', value: "IB:neal.fun/stimulation clicker (CH)", group: 'footer-info' },
+  footerColor: { index: 15, name: 'footer color', type: 'color', value: '#000000', group: 'footer-info' },
+  footerSize: { index: 16, name: 'footer size', type: 'slider', value: 10, min: 8, max: 24, step: 1, group: 'footer-info' },
+  footerVisible: { index: 17, name: 'footer visible', type: 'toggle', value: true, group: 'footer-info' },
+  upgradeMenuTitle: { index: 18, name: 'upgrade menu title', type: 'text', value: 'améliorations', group: 'upgrade-menu' },
+  upgradeMenuColor: { index: 19, name: 'upgrade menu color', type: 'color', value: '#000000', group: 'upgrade-menu' },
+  upgradeMenuSize: { index: 20, name: 'upgrade menu size', type: 'slider', value: 20, min: 12, max: 40, step: 1, group: 'upgrade-menu' },
+  upgradeMenuVisible: { index: 21, name: 'upgrade menu visible', type: 'toggle', value: true, group: 'upgrade-menu' },
+  dvdUpgradeText: { index: 22, name: 'dvd upgrade text', type: 'text', value: 'acheter écran dvd', group: 'dvd-upgrade' },
+  dvdUpgradeColor: { index: 23, name: 'dvd upgrade color', type: 'color', value: '#000000', group: 'dvd-upgrade' },
+  dvdUpgradeSize: { index: 24, name: 'dvd upgrade size', type: 'slider', value: 14, min: 10, max: 32, step: 1, group: 'dvd-upgrade' },
+  dvdUpgradeVisible: { index: 25, name: 'dvd upgrade visible', type: 'toggle', value: true, group: 'dvd-upgrade' },
+  dvdUpgradeBgColor: { index: 26, name: 'dvd upgrade button color', type: 'color', value: '#D9D9D9' },
+  animUpgradeText: { index: 27, name: 'animation upgrade text', type: 'text', value: 'acheter animation montant', group: 'anim-upgrade' },
+  animUpgradeColor: { index: 28, name: 'animation upgrade color', type: 'color', value: '#000000', group: 'anim-upgrade' },
+  animUpgradeSize: { index: 29, name: 'animation upgrade size', type: 'slider', value: 14, min: 10, max: 32, step: 1, group: 'anim-upgrade' },
+  animUpgradeVisible: { index: 30, name: 'animation upgrade visible', type: 'toggle', value: true, group: 'anim-upgrade' },
+  animUpgradeBgColor: { index: 31, name: 'animation upgrade button color', type: 'color', value: '#D9D9D9' },
+  spsUpgradeText: { index: 32, name: 'sps upgrade text', type: 'text', value: 'afficher sps', group: 'sps-upgrade' },
+  spsUpgradeColor: { index: 33, name: 'sps upgrade color', type: 'color', value: '#000000', group: 'sps-upgrade' },
+  spsUpgradeSize: { index: 34, name: 'sps upgrade size', type: 'slider', value: 14, min: 10, max: 32, step: 1, group: 'sps-upgrade' },
+  spsUpgradeVisible: { index: 35, name: 'sps upgrade visible', type: 'toggle', value: true, group: 'sps-upgrade' },
+  spsUpgradeBgColor: { index: 36, name: 'sps upgrade button color', type: 'color', value: '#D9D9D9' },
+  spsLabelText: { index: 37, name: 'sps label text', type: 'text', value: 'stimulus par seconde', group: 'sps-label' },
+  spsLabelColor: { index: 38, name: 'sps label color', type: 'color', value: '#000000', group: 'sps-label' },
+  spsLabelSize: { index: 39, name: 'sps label size', type: 'slider', value: 14, min: 8, max: 24, step: 1, group: 'sps-label' },
+  spsLabelVisible: { index: 40, name: 'sps label visible', type: 'toggle', value: true, group: 'sps-label' },
+  darkUpgradeText: { index: 41, name: 'dark mode upgrade text', type: 'text', value: 'acheter mode sombre', group: 'dark-upgrade' },
+  darkUpgradeColor: { index: 42, name: 'dark mode upgrade color', type: 'color', value: '#000000', group: 'dark-upgrade' },
+  darkUpgradeSize: { index: 43, name: 'dark mode upgrade size', type: 'slider', value: 14, min: 10, max: 32, step: 1, group: 'dark-upgrade' },
+  darkUpgradeVisible: { index: 44, name: 'dark mode upgrade visible', type: 'toggle', value: true, group: 'dark-upgrade' },
+  darkUpgradeBgColor: { index: 45, name: 'dark mode upgrade button color', type: 'color', value: '#D9D9D9' },
+  clickUpgradeText: { index: 46, name: 'click upgrade text', type: 'text', value: 'clics à 5', group: 'click-upgrade' },
+  clickUpgradeColor: { index: 47, name: 'click upgrade color', type: 'color', value: '#000000', group: 'click-upgrade' },
+  clickUpgradeSize: { index: 48, name: 'click upgrade size', type: 'slider', value: 14, min: 10, max: 32, step: 1, group: 'click-upgrade' },
+  clickUpgradeVisible: { index: 49, name: 'click upgrade visible', type: 'toggle', value: true, group: 'click-upgrade' },
+  clickUpgradeBgColor: { index: 50, name: 'click upgrade button color', type: 'color', value: '#D9D9D9' },
+  casinoUpgradeText: { index: 51, name: 'plinko upgrade text', type: 'text', value: 'débloquer plinko', group: 'casino-upgrade' },
+  casinoUpgradeColor: { index: 52, name: 'plinko upgrade color', type: 'color', value: '#000000', group: 'casino-upgrade' },
+  casinoUpgradeSize: { index: 53, name: 'plinko upgrade size', type: 'slider', value: 14, min: 10, max: 32, step: 1, group: 'casino-upgrade' },
+  casinoUpgradeVisible: { index: 54, name: 'plinko upgrade visible', type: 'toggle', value: true, group: 'casino-upgrade' },
+  casinoUpgradeBgColor: { index: 55, name: 'plinko upgrade button color', type: 'color', value: '#D9D9D9' },
+  dvdLimiterUpgradeText: { index: 56, name: 'dvd limiter upgrade text', type: 'text', value: 'retirer limite dvd', group: 'dvd-limiter' },
+  dvdLimiterUpgradeColor: { index: 57, name: 'dvd limiter upgrade color', type: 'color', value: '#000000', group: 'dvd-limiter' },
+  dvdLimiterUpgradeSize: { index: 58, name: 'dvd limiter upgrade size', type: 'slider', value: 14, min: 10, max: 32, step: 1, group: 'dvd-limiter' },
+  dvdLimiterUpgradeVisible: { index: 59, name: 'dvd limiter upgrade visible', type: 'toggle', value: true, group: 'dvd-limiter' },
+  dvdCounterUpgradeText: { index: 60, name: 'dvd counter upgrade text', type: 'text', value: 'compteur dvd', group: 'dvd-counter' },
+  dvdCounterUpgradeColor: { index: 61, name: 'dvd counter upgrade color', type: 'color', value: '#000000', group: 'dvd-counter' },
+  dvdCounterUpgradeSize: { index: 62, name: 'dvd counter upgrade size', type: 'slider', value: 14, min: 10, max: 32, step: 1, group: 'dvd-counter' },
+  dvdCounterUpgradeVisible: { index: 63, name: 'dvd counter upgrade visible', type: 'toggle', value: true, group: 'dvd-counter' },
+  autoClickerUpgradeText: { index: 64, name: 'auto clicker upgrade text', type: 'text', value: 'acheter auto-cliqueur', group: 'auto-clicker' },
+  autoClickerUpgradeColor: { index: 65, name: 'auto clicker upgrade color', type: 'color', value: '#000000', group: 'auto-clicker' },
+  autoClickerUpgradeSize: { index: 66, name: 'auto clicker upgrade size', type: 'slider', value: 14, min: 10, max: 32, step: 1, group: 'auto-clicker' },
+  autoClickerUpgradeVisible: { index: 67, name: 'auto clicker upgrade visible', type: 'toggle', value: true, group: 'auto-clicker' },
+  plinkoBetUpgradeText: { index: 68, name: 'plinko bet upgrade text', type: 'text', value: 'améliorer mise plinko', group: 'plinko-bet' },
+  plinkoBetUpgradeColor: { index: 69, name: 'plinko bet upgrade color', type: 'color', value: '#000000', group: 'plinko-bet' },
+  plinkoBetUpgradeSize: { index: 70, name: 'plinko bet upgrade size', type: 'slider', value: 14, min: 10, max: 32, step: 1, group: 'plinko-bet' },
+  plinkoBetUpgradeVisible: { index: 71, name: 'plinko bet upgrade visible', type: 'toggle', value: true, group: 'plinko-bet' },
+  plinkoGreenUpgradeText: { index: 72, name: 'plinko green upgrade text', type: 'text', value: 'améliorer slots plinko', group: 'plinko-green' },
+  plinkoGreenUpgradeColor: { index: 73, name: 'plinko green upgrade color', type: 'color', value: '#000000', group: 'plinko-green' },
+  plinkoGreenUpgradeSize: { index: 74, name: 'plinko green upgrade size', type: 'slider', value: 14, min: 10, max: 32, step: 1, group: 'plinko-green' },
+  plinkoGreenUpgradeVisible: { index: 75, name: 'plinko green upgrade visible', type: 'toggle', value: true, group: 'plinko-green' },
+  debugMenuVisible: { index: 76, name: 'debug menu visible', type: 'toggle', value: false },
+});
+
+const STORAGE_KEY = 'stimulus-clicker-state-v15';
+
+type GameScreen = 'main' | 'plinko' | 'rocket';
+
+export default function Component() {
+  const backgroundColor = tweaks.backgroundColor.useState();
+  const buttonText = tweaks.buttonText.useState();
+  const buttonTextColor = tweaks.buttonTextColor.useState();
+  const buttonTextSize = tweaks.buttonTextSize.useState();
+  const buttonTextVisible = tweaks.buttonTextVisible.useState();
+  const counterLabel = tweaks.counterLabel.useState();
+  const counterColor = tweaks.counterColor.useState();
+  const counterSize = tweaks.counterSize.useState();
+  const counterVisible = tweaks.counterVisible.useState();
+  const buttonBgColor = tweaks.buttonBgColor.useState();
+  const autoSaveText = tweaks.autoSaveText.useState();
+  const autoSaveColor = tweaks.autoSaveColor.useState();
+  const autoSaveSize = tweaks.autoSaveSize.useState();
+  const autoSaveVisible = tweaks.autoSaveVisible.useState();
+  const footerText = tweaks.footerText.useState();
+  const footerColor = tweaks.footerColor.useState();
+  const footerSize = tweaks.footerSize.useState();
+  const footerVisible = tweaks.footerVisible.useState();
+  const upgradeMenuTitle = tweaks.upgradeMenuTitle.useState();
+  const upgradeMenuColor = tweaks.upgradeMenuColor.useState();
+  const upgradeMenuSize = tweaks.upgradeMenuSize.useState();
+  const upgradeMenuVisible = tweaks.upgradeMenuVisible.useState();
+  const dvdUpgradeText = tweaks.dvdUpgradeText.useState();
+  const dvdUpgradeColor = tweaks.dvdUpgradeColor.useState();
+  const dvdUpgradeSize = tweaks.dvdUpgradeSize.useState();
+  const dvdUpgradeVisible = tweaks.dvdUpgradeVisible.useState();
+  const dvdUpgradeBgColor = tweaks.dvdUpgradeBgColor.useState();
+  const animUpgradeText = tweaks.animUpgradeText.useState();
+  const animUpgradeColor = tweaks.animUpgradeColor.useState();
+  const animUpgradeSize = tweaks.animUpgradeSize.useState();
+  const animUpgradeVisible = tweaks.animUpgradeVisible.useState();
+  const animUpgradeBgColor = tweaks.animUpgradeBgColor.useState();
+  const spsUpgradeText = tweaks.spsUpgradeText.useState();
+  const spsUpgradeColor = tweaks.spsUpgradeColor.useState();
+  const spsUpgradeSize = tweaks.spsUpgradeSize.useState();
+  const spsUpgradeVisible = tweaks.spsUpgradeVisible.useState();
+  const spsUpgradeBgColor = tweaks.spsUpgradeBgColor.useState();
+  const spsLabelText = tweaks.spsLabelText.useState();
+  const spsLabelColor = tweaks.spsLabelColor.useState();
+  const spsLabelSize = tweaks.spsLabelSize.useState();
+  const spsLabelVisible = tweaks.spsLabelVisible.useState();
+  const darkUpgradeText = tweaks.darkUpgradeText.useState();
+  const darkUpgradeColor = tweaks.darkUpgradeColor.useState();
+  const darkUpgradeSize = tweaks.darkUpgradeSize.useState();
+  const darkUpgradeVisible = tweaks.darkUpgradeVisible.useState();
+  const darkUpgradeBgColor = tweaks.darkUpgradeBgColor.useState();
+  const clickUpgradeText = tweaks.clickUpgradeText.useState();
+  const clickUpgradeColor = tweaks.clickUpgradeColor.useState();
+  const clickUpgradeSize = tweaks.clickUpgradeSize.useState();
+  const clickUpgradeVisible = tweaks.clickUpgradeVisible.useState();
+  const clickUpgradeBgColor = tweaks.clickUpgradeBgColor.useState();
+  const casinoUpgradeText = tweaks.casinoUpgradeText.useState();
+  const casinoUpgradeColor = tweaks.casinoUpgradeColor.useState();
+  const casinoUpgradeSize = tweaks.casinoUpgradeSize.useState();
+  const casinoUpgradeVisible = tweaks.casinoUpgradeVisible.useState();
+  const casinoUpgradeBgColor = tweaks.casinoUpgradeBgColor.useState();
+  const dvdLimiterUpgradeText = tweaks.dvdLimiterUpgradeText.useState();
+  const dvdLimiterUpgradeColor = tweaks.dvdLimiterUpgradeColor.useState();
+  const dvdLimiterUpgradeSize = tweaks.dvdLimiterUpgradeSize.useState();
+  const dvdLimiterUpgradeVisible = tweaks.dvdLimiterUpgradeVisible.useState();
+  const dvdCounterUpgradeText = tweaks.dvdCounterUpgradeText.useState();
+  const dvdCounterUpgradeColor = tweaks.dvdCounterUpgradeColor.useState();
+  const dvdCounterUpgradeSize = tweaks.dvdCounterUpgradeSize.useState();
+  const dvdCounterUpgradeVisible = tweaks.dvdCounterUpgradeVisible.useState();
+  const autoClickerUpgradeText = tweaks.autoClickerUpgradeText.useState();
+  const autoClickerUpgradeColor = tweaks.autoClickerUpgradeColor.useState();
+  const autoClickerUpgradeSize = tweaks.autoClickerUpgradeSize.useState();
+  const autoClickerUpgradeVisible = tweaks.autoClickerUpgradeVisible.useState();
+  const plinkoBetUpgradeText = tweaks.plinkoBetUpgradeText.useState();
+  const plinkoBetUpgradeColor = tweaks.plinkoBetUpgradeColor.useState();
+  const plinkoBetUpgradeSize = tweaks.plinkoBetUpgradeSize.useState();
+  const plinkoBetUpgradeVisible = tweaks.plinkoBetUpgradeVisible.useState();
+  const plinkoGreenUpgradeText = tweaks.plinkoGreenUpgradeText.useState();
+  const plinkoGreenUpgradeColor = tweaks.plinkoGreenUpgradeColor.useState();
+  const plinkoGreenUpgradeSize = tweaks.plinkoGreenUpgradeSize.useState();
+  const plinkoGreenUpgradeVisible = tweaks.plinkoGreenUpgradeVisible.useState();
+  const debugMenuVisible = tweaks.debugMenuVisible.useState();
+
+  const loadState = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('failed to load state', e);
+    }
+    return { count: 0, hasUnlockedMenu: false, dvdCount: 0, hasAnimUpgrade: false, hasSpsUpgrade: false, hasDarkUpgrade: false, isDarkMode: false, clickValue: 1, hasCasino: false, hasDvdLimiterRemoved: false, hasDvdCounter: false, hasDebugUnlocked: false, autoClickerCount: 0, plinkoBetLevel: 1, plinkoGreenCount: 0 };
+  };
+
+  const [count, setCount] = useState(() => loadState().count);
+  const [hasUnlockedMenu, setHasUnlockedMenu] = useState(() => {
+    const state = loadState();
+    return state.hasUnlockedMenu || state.count >= 3;
+  });
+  const [dvdCount, setDvdCount] = useState(() => loadState().dvdCount || 0);
+  const [hasAnimUpgrade, setHasAnimUpgrade] = useState(() => loadState().hasAnimUpgrade || false);
+  const [hasSpsUpgrade, setHasSpsUpgrade] = useState(() => loadState().hasSpsUpgrade || false);
+  const [hasDarkUpgrade, setHasDarkUpgrade] = useState(() => loadState().hasDarkUpgrade || false);
+  const [isDarkMode, setIsDarkMode] = useState(() => loadState().isDarkMode || false);
+  const [clickValue, setClickValue] = useState(() => loadState().clickValue || 1);
+  const [hasCasino, setHasCasino] = useState(() => loadState().hasCasino || false);
+  const [hasDvdLimiterRemoved, setHasDvdLimiterRemoved] = useState(() => loadState().hasDvdLimiterRemoved || false);
+  const [hasDvdCounter, setHasDvdCounter] = useState(() => loadState().hasDvdCounter || false);
+  const [hasDebugUnlocked, setHasDebugUnlocked] = useState(() => loadState().hasDebugUnlocked || false);
+  const [autoClickerCount, setAutoClickerCount] = useState(() => loadState().autoClickerCount || 0);
+  const [plinkoBetLevel, setPlinkoBetLevel] = useState(() => loadState().plinkoBetLevel || 1);
+  const [plinkoGreenCount, setPlinkoGreenCount] = useState(() => loadState().plinkoGreenCount || 0);
+  const [hideDvds, setHideDvds] = useState(false);
+  const [hasEverHadStimulus, setHasEverHadStimulus] = useState(() => loadState().count > 0);
+  const [isDebugOpen, setIsDebugOpen] = useState(false);
+  const [isPressed, setIsPressed] = useState(false);
+  const [floatingTexts, setFloatingTexts] = useState<{ id: number, x: number, y: number, text: string }[]>([]);
+  const [sps, setSps] = useState(0);
+  const [recentEarnings, setRecentEarnings] = useState<{ amount: number, timestamp: number }[]>([]);
+  const [currentScreen, setCurrentScreen] = useState<GameScreen>('main');
+
+  // Rocket Crash State
+  const [rocketState, setRocketState] = useState<'idle' | 'flying' | 'cashed_out' | 'crashed'>('idle');
+  const [wagerInput, setWagerInput] = useState('10');
+  const [currentWager, setCurrentWager] = useState(0);
+  const [multiplier, setMultiplier] = useState(1.0);
+  const [crashMultiplier, setCrashMultiplier] = useState(0);
+  const [resultText, setResultText] = useState('Enter stimulus and launch');
+  const [lastResult, setLastResult] = useState('');
+  const [potentialMultiplier, setPotentialMultiplier] = useState(0);
+  const [rocketY, setRocketY] = useState(0);
+  const [isSuccessFlash, setIsSuccessFlash] = useState(false);
+  const [isCrashFlash, setIsCrashFlash] = useState(false);
+  const [particles, setParticles] = useState<{ id: number; x: number; y: number; size: number }[]>([]);
+  const rocketStartTimeRef = useRef(0);
+  const rocketFrameRef = useRef<number>();
+  const particleIdRef = useRef(0);
+
+  const startRocket = () => {
+    const wager = parseInt(wagerInput);
+    if (isNaN(wager) || wager <= 0) {
+      setResultText('mise invalide');
+      return;
+    }
+    if (wager > count) {
+      setResultText('pas assez de stimulus');
+      return;
+    }
+
+    // Weighted randomness for crash multiplier
+    const rand = Math.random();
+    let crash;
+    if (rand < 0.20) crash = 1.1 + Math.random() * 0.9; // 20% chance: 1.1x - 2.0x (easier)
+    else if (rand < 0.50) crash = 2.0 + Math.random() * 3.0; // 30% chance: 2.0x - 5.0x
+    else if (rand < 0.80) crash = 5.0 + Math.random() * 5.0; // 30% chance: 5.0x - 10.0x
+    else if (rand < 0.93) crash = 10.0 + Math.random() * 10.0; // 13% chance: 10.0x - 20.0x
+    else crash = 20.0 + Math.random() * 40.0; // 7% chance: 20.0x - 60.0x
+
+    setCount(prev => prev - wager);
+    setCurrentWager(wager);
+    setCrashMultiplier(crash);
+    setMultiplier(1.0);
+    setRocketState('flying');
+    setResultText('fusée en vol...');
+    setRocketY(0);
+    setParticles([]);
+    rocketStartTimeRef.current = Date.now();
+    gizmoRuntime.performHaptic('medium');
+    
+    const loop = () => {
+      const elapsed = (Date.now() - rocketStartTimeRef.current) / 1000;
+      const newMult = 1.0 + Math.pow(elapsed * 0.4, 1.4); // slightly slower growth for easier cashout
+      
+      if (newMult >= crash) {
+        setMultiplier(crash);
+        setPotentialMultiplier(0);
+        setRocketState('crashed');
+        setResultText(`crashé à ${crash.toFixed(2)}x`);
+        setLastResult(`dernier: crashé à ${crash.toFixed(2)}x`);
+        setIsCrashFlash(true);
+        gizmoRuntime.performHaptic('heavy');
+        setTimeout(() => {
+          setIsCrashFlash(false);
+          setRocketState('idle');
+          setMultiplier(1.0);
+          setRocketY(0);
+          setResultText('entrez stimulus et lancez');
+        }, 500);
+        return;
+      }
+
+      setMultiplier(newMult);
+      const newY = Math.min(150, (newMult - 1) * 20);
+      setRocketY(newY);
+
+      if (Math.random() > 0.7) {
+        const pId = particleIdRef.current++;
+        setParticles(prev => [...prev.slice(-15), { id: pId, x: (Math.random() - 0.5) * 10, y: newY - 10, size: 4 + Math.random() * 4 }]);
+      }
+
+      rocketFrameRef.current = requestAnimationFrame(loop);
+    };
+    rocketFrameRef.current = requestAnimationFrame(loop);
+  };
+
+  const cashOut = () => {
+    if (rocketState !== 'flying') return;
+    if (rocketFrameRef.current) cancelAnimationFrame(rocketFrameRef.current);
+
+    const winnings = Math.floor(currentWager * multiplier);
+    const finalCrash = crashMultiplier;
+    setCount(prev => prev + winnings);
+    setRocketState('cashed_out');
+    setPotentialMultiplier(finalCrash);
+    setResultText(`encaissé à ${multiplier.toFixed(2)}x`);
+    setLastResult(`dernier: encaissé à ${multiplier.toFixed(2)}x (serait allé à ${finalCrash.toFixed(2)}x)`);
+    setIsSuccessFlash(true);
+    gizmoRuntime.performHaptic('rigid');
+    spawnFloatingText(`+${winnings}`);
+
+    setTimeout(() => {
+      setIsSuccessFlash(false);
+      setRocketState('idle');
+      setMultiplier(1.0);
+      setPotentialMultiplier(0);
+      setRocketY(0);
+      setResultText('entrez stimulus et lancez');
+    }, 1500);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (rocketFrameRef.current) cancelAnimationFrame(rocketFrameRef.current);
+    };
+  }, []);
+
+  const RocketGame = () => {
+    const isFlying = rocketState === 'flying';
+    const pulseScale = 1 + (multiplier - 1) * 0.05;
+    const shake = isFlying ? (multiplier > 3 ? (Math.random() - 0.5) * (multiplier * 0.5) : 0) : 0;
+
+    return (
+      <div className={`flex flex-col items-center gap-4 w-full max-w-[320px] p-4 rounded-3xl transition-colors duration-300 ${isSuccessFlash ? 'bg-green-500/20' : isCrashFlash ? 'bg-red-500/20' : 'bg-black/5'}`} style={{ border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.05)' }}>
+        <button onTouchStart={(e) => { e.preventDefault(); setCurrentScreen('main'); gizmoRuntime.performHaptic('light'); }} className="underline lowercase opacity-50 text-xs" style={{ color: currentTextColor }}>quitter rocket</button>
+        <h2 className="text-xl font-bold lowercase" style={{ color: currentTextColor }}>rocket crasher</h2>
+        
+        <div className="relative w-full h-48 flex flex-col items-center justify-center overflow-hidden rounded-xl bg-black/5">
+          {/* Multiplier */}
+          <div className="z-20 font-black transition-transform" style={{ color: currentTextColor, fontSize: `${Math.min(64, 32 + multiplier * 2)}px`, transform: `scale(${pulseScale})` }}>
+            {multiplier.toFixed(2)}x
+          </div>
+
+          {/* Rocket Visual */}
+          <div className="absolute bottom-4 transition-transform duration-100" style={{ transform: `translateY(-${rocketY}px) translateX(${shake}px)` }}>
+            {rocketState !== 'crashed' ? (
+              <div className="relative">
+                <span className="text-4xl">🚀</span>
+                {/* Smoke Trail */}
+                {particles.map(p => (
+                  <div key={p.id} className="absolute rounded-full bg-gray-400/40 animate-fade-out" style={{ width: p.size, height: p.size, left: `calc(50% + ${p.x}px)`, top: `calc(100% - ${p.y + rocketY}px)`, transform: 'translateX(-50%)' }} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-5xl animate-ping">💥</div>
+            )}
+          </div>
+
+          {rocketState === 'crashed' && <div className="absolute inset-0 flex items-center justify-center bg-red-600/40 z-30 font-black text-4xl text-white animate-pulse">CRASH !</div>}
+          {rocketState === 'cashed_out' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-green-600/40 z-30 text-white">
+              <div className="font-black text-2xl">ENCAISSÉ !</div>
+              {potentialMultiplier > 0 && (
+                <div className="text-xs font-bold opacity-90 mt-1">
+                  serait allé à {potentialMultiplier.toFixed(2)}x
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="w-full flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] lowercase opacity-50 ml-1" style={{ color: currentTextColor }}>montant de la mise</label>
+            <div className="flex items-center gap-2">
+              <button 
+                onTouchStart={(e) => { 
+                  e.preventDefault(); 
+                  setWagerInput(prev => Math.max(10, (parseInt(prev) || 0) - 10).toString());
+                  gizmoRuntime.performHaptic('light');
+                }}
+                disabled={isFlying || rocketState !== 'idle'}
+                className="w-12 h-12 flex items-center justify-center rounded-xl bg-white/10 border border-black/10 font-bold text-xl active:scale-90 disabled:opacity-30"
+                style={{ color: currentTextColor }}
+              >
+                -
+              </button>
+              <div 
+                className="flex-1 p-3 rounded-xl bg-white/10 border border-black/10 text-center font-bold"
+                style={{ color: currentTextColor }}
+              >
+                {wagerInput}
+              </div>
+              <button 
+                onTouchStart={(e) => { 
+                  e.preventDefault(); 
+                  setWagerInput(prev => ((parseInt(prev) || 0) + 10).toString());
+                  gizmoRuntime.performHaptic('light');
+                }}
+                disabled={isFlying || rocketState !== 'idle'}
+                className="w-12 h-12 flex items-center justify-center rounded-xl bg-white/10 border border-black/10 font-bold text-xl active:scale-90 disabled:opacity-30"
+                style={{ color: currentTextColor }}
+              >
+                +
+              </button>
+              <button 
+                onTouchStart={(e) => { 
+                  e.preventDefault(); 
+                  setWagerInput(count.toString());
+                  gizmoRuntime.performHaptic('medium');
+                }}
+                disabled={isFlying || rocketState !== 'idle'}
+                className="px-3 h-12 flex items-center justify-center rounded-xl bg-white/10 border border-black/10 font-bold text-xs active:scale-90 disabled:opacity-30"
+                style={{ color: currentTextColor }}
+              >
+                max
+              </button>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button 
+              onTouchStart={(e) => { e.preventDefault(); startRocket(); }} 
+              disabled={isFlying || rocketState !== 'idle'}
+              className="flex-1 py-4 rounded-xl bg-blue-600 text-white font-bold lowercase active:scale-95 disabled:opacity-30 transition-all"
+            >
+              lancer
+            </button>
+            <button 
+              onTouchStart={(e) => { e.preventDefault(); cashOut(); }} 
+              disabled={!isFlying}
+              className="flex-1 py-4 rounded-xl bg-green-600 text-white font-bold lowercase active:scale-95 disabled:opacity-30 transition-all"
+            >
+              encaisser
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center gap-1 mt-2">
+          <div className="text-sm font-medium lowercase" style={{ color: currentTextColor }}>{resultText}</div>
+          {lastResult && <div className="text-[10px] opacity-50 lowercase" style={{ color: currentTextColor }}>{lastResult}</div>}
+        </div>
+      </div>
+    );
+  };
+
+  const [plinkoBalls, setPlinkoBalls] = useState<{ x: number, y: number, vx: number, vy: number, id: number, betAmount: number }[]>([]);
+  const plinkoBallsRef = useRef<{ x: number, y: number, vx: number, vy: number, id: number, betAmount: number }[]>([]);
+  const ballIdRef = useRef(0);
+  const lastPlinkoUpdateRef = useRef(Date.now());
+  const lastAutoClickRef = useRef(Date.now());
+
+  const dvdPrice = 3 + (dvdCount * 2);
+  const animPrice = 5;
+  const spsPrice = 10;
+  const darkPrice = 20;
+  const casinoPrice = 100;
+  const autoClickerPrice = 10 + (autoClickerCount * 15);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const counterRef = useRef<HTMLDivElement>(null);
+  const dvdRef = useRef<{ x: number, y: number, vx: number, vy: number, color: string }[]>([]);
+  const requestRef = useRef<number>();
+  const nextIdRef = useRef(0);
+
+  const colors = ['#E93323', '#E432B7', '#2227F5', '#53B5F9', '#75F94C', '#EFB63F', '#8762F6', '#FFDD46'];
+
+  const spawnFloatingText = (text: string) => {
+    if (!counterRef.current) return;
+    const rect = counterRef.current.getBoundingClientRect();
+    const id = nextIdRef.current++;
+    const x = rect.left + rect.width / 2 + (Math.random() * 40 - 20);
+    const y = rect.top + rect.height / 2;
+    
+    setFloatingTexts(prev => [...prev, { id, x, y, text }]);
+    setTimeout(() => {
+      setFloatingTexts(prev => prev.filter(ft => ft.id !== id));
+    }, 1000);
+  };
+
+  useEffect(() => {
+    if (count >= 3 && !hasUnlockedMenu) setHasUnlockedMenu(true);
+    if (count > 0 && !hasEverHadStimulus) setHasEverHadStimulus(true);
+  }, [count, hasUnlockedMenu, hasEverHadStimulus]);
+
+  const [showAutoSave, setShowAutoSave] = useState(false);
+
+  useEffect(() => {
+    const saveState = () => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ count, hasUnlockedMenu, dvdCount, hasAnimUpgrade, hasSpsUpgrade, hasDarkUpgrade, isDarkMode, clickValue, hasCasino, hasDvdLimiterRemoved, hasDvdCounter, hasDebugUnlocked, autoClickerCount, plinkoBetLevel, plinkoGreenCount }));
+        setShowAutoSave(true);
+        setTimeout(() => setShowAutoSave(false), 1500);
+      } catch (e) {
+        console.error('failed to save state', e);
+      }
+    };
+    const interval = setInterval(saveState, 5000);
+    return () => {
+      clearInterval(interval);
+      saveState();
+    };
+  }, [count, hasUnlockedMenu, dvdCount, hasAnimUpgrade, hasSpsUpgrade, hasDarkUpgrade, isDarkMode, clickValue, hasCasino, hasDebugUnlocked, autoClickerCount, plinkoBetLevel, plinkoGreenCount]);
+
+  useEffect(() => {
+    const currentDvds = dvdRef.current;
+    if (dvdCount > currentDvds.length) {
+      for (let i = currentDvds.length; i < dvdCount; i++) {
+        currentDvds.push({
+          x: Math.random() * 200 + 50,
+          y: Math.random() * 200 + 50,
+          vx: (Math.random() > 0.5 ? 1 : -1) * (1.5 + Math.random()),
+          vy: (Math.random() > 0.5 ? 1 : -1) * (1.5 + Math.random()),
+          color: colors[Math.floor(Math.random() * colors.length)]
+        });
+      }
+    }
+  }, [dvdCount]);
+
+  useEffect(() => {
+    if (autoClickerCount <= 0) return;
+    const interval = setInterval(() => {
+      const amount = autoClickerCount * clickValue;
+      setCount(prev => prev + amount);
+      setRecentEarnings(prev => [...prev, { amount, timestamp: Date.now() }]);
+      if (hasAnimUpgrade) spawnFloatingText(`+${amount}`);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [autoClickerCount, clickValue, hasAnimUpgrade]);
+
+  const animate = () => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const dvdWidth = 60;
+    const dvdHeight = 30;
+    const now = Date.now();
+    
+    // Update SPS calculation
+    setRecentEarnings(prev => {
+      const oneSecondAgo = now - 1000;
+      const filtered = prev.filter(e => e.timestamp > oneSecondAgo);
+      const total = filtered.reduce((sum, e) => sum + e.amount, 0);
+      setSps(total);
+      return filtered;
+    });
+
+    if (currentScreen === 'main') {
+      dvdRef.current.forEach((dvd) => {
+        dvd.x += dvd.vx;
+        dvd.y += dvd.vy;
+
+        let bounced = false;
+        if (dvd.x <= 0) { dvd.x = 0; dvd.vx *= -1; bounced = true; }
+        else if (dvd.x + dvdWidth >= rect.width) { dvd.x = rect.width - dvdWidth; dvd.vx *= -1; bounced = true; }
+
+        if (dvd.y <= 0) { dvd.y = 0; dvd.vy *= -1; bounced = true; }
+        else if (dvd.y + dvdHeight >= rect.height) { dvd.y = rect.height - dvdHeight; dvd.vy *= -1; bounced = true; }
+
+        if (bounced) {
+          dvd.color = colors[Math.floor(Math.random() * colors.length)];
+          setCount(prev => prev + 1);
+          setRecentEarnings(prev => [...prev, { amount: 1, timestamp: Date.now() }]);
+          gizmoRuntime.performHaptic('soft');
+          if (hasAnimUpgrade) spawnFloatingText('+1');
+        }
+      });
+    }
+
+    if (currentScreen === 'plinko') {
+      const nowTime = Date.now();
+      const dt = Math.min(nowTime - lastPlinkoUpdateRef.current, 32) / 16;
+      lastPlinkoUpdateRef.current = nowTime;
+
+      const baseMultipliers = [0.5, 1.2, 2.5, 6, 2.5, 1.2, 0.5];
+      const multipliers = baseMultipliers.map((m, i) => {
+        if (m === 0.5) {
+          if (i === 0 && plinkoGreenCount >= 1) return 2.0;
+          if (i === 6 && plinkoGreenCount >= 2) return 2.0;
+        }
+        return m;
+      });
+      
+      let changed = false;
+      plinkoBallsRef.current = plinkoBallsRef.current.map(b => {
+        let nx = b.x + b.vx * dt;
+        let ny = b.y + b.vy * dt;
+        b.vy += 0.05 * dt;
+        
+        const row = Math.floor(ny / 10);
+        if (row > 0 && row < 9 && Math.abs(ny % 10) < 2) {
+          const numPegs = row + 2;
+          const pegSpacing = 100 / (numPegs + 1);
+          for (let i = 1; i <= numPegs; i++) {
+            const pegX = i * pegSpacing;
+            const dist = Math.sqrt(Math.pow(nx - pegX, 2) + Math.pow((ny % 10), 2));
+            if (dist < 2.5) {
+              nx += (nx > pegX ? 1 : -1) * 2;
+              b.vx = (nx > pegX ? 1 : -1) * (0.5 + Math.random());
+              b.vy *= 0.5;
+              gizmoRuntime.performHaptic('soft');
+            }
+          }
+        }
+        changed = true;
+        return { ...b, x: Math.max(2, Math.min(98, nx)), y: ny };
+      }).filter(b => {
+        if (b.y >= 92) {
+          const slot = Math.floor((b.x / 100) * multipliers.length);
+          const mult = multipliers[Math.min(multipliers.length - 1, Math.max(0, slot))];
+          const win = Math.floor(b.betAmount * mult); 
+          setCount(curr => curr + win);
+          setRecentEarnings(prev => [...prev, { amount: win, timestamp: Date.now() }]);
+          if (win > 0) spawnFloatingText(`+${win}`);
+          gizmoRuntime.performHaptic('medium');
+          changed = true;
+          return false;
+        }
+        return true;
+      });
+      if (changed) {
+        setPlinkoBalls([...plinkoBallsRef.current]);
+      }
+    }
+
+    requestRef.current = requestAnimationFrame(animate);
+  };
+
+  useEffect(() => {
+    requestRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, [currentScreen]);
+
+  const handleClick = () => {
+    setCount((prev) => prev + clickValue);
+    setRecentEarnings(prev => [...prev, { amount: clickValue, timestamp: Date.now() }]);
+    gizmoRuntime.performHaptic('medium');
+    setIsPressed(true);
+    setTimeout(() => setIsPressed(false), 100);
+    if (hasAnimUpgrade) spawnFloatingText(`+${clickValue}`);
+  };
+
+  const buyDvd = () => { if (count >= dvdPrice && (hasDvdLimiterRemoved || dvdCount < 5)) { setCount(prev => prev - dvdPrice); setDvdCount(prev => prev + 1); gizmoRuntime.performHaptic('heavy'); } };
+  const buyAnim = () => { if (count >= animPrice && !hasAnimUpgrade) { setCount(prev => prev - animPrice); setHasAnimUpgrade(true); gizmoRuntime.performHaptic('heavy'); } };
+  const buySps = () => { if (count >= spsPrice && !hasSpsUpgrade) { setCount(prev => prev - spsPrice); setHasSpsUpgrade(true); gizmoRuntime.performHaptic('heavy'); } };
+  const buyDark = () => { if (count >= darkPrice && !hasDarkUpgrade) { setCount(prev => prev - darkPrice); setHasDarkUpgrade(true); gizmoRuntime.performHaptic('heavy'); } };
+  const buyClickUpgrade = () => { if (count >= 50 && clickValue < 5) { setCount(prev => prev - 50); setClickValue(5); gizmoRuntime.performHaptic('heavy'); } };
+  const buyCasino = () => { if (count >= casinoPrice && !hasCasino) { setCount(prev => prev - casinoPrice); setHasCasino(true); gizmoRuntime.performHaptic('heavy'); } };
+  const buyAutoClicker = () => { if (count >= autoClickerPrice && autoClickerCount < 50) { setCount(prev => prev - autoClickerPrice); setAutoClickerCount(prev => prev + 1); gizmoRuntime.performHaptic('heavy'); } };
+  const buyPlinkoBet = () => {
+    const cost = 250 * plinkoBetLevel;
+    if (count >= cost && plinkoBetLevel < 10) {
+      setCount(prev => prev - cost);
+      setPlinkoBetLevel(prev => prev + 1);
+      gizmoRuntime.performHaptic('heavy');
+    }
+  };
+  const buyPlinkoGreen = () => {
+    const cost = 500 * (plinkoGreenCount + 1);
+    if (count >= cost && plinkoGreenCount < 2) {
+      setCount(prev => prev - cost);
+      setPlinkoGreenCount(prev => prev + 1);
+      gizmoRuntime.performHaptic('heavy');
+    }
+  };
+  const buyDvdLimiter = () => { if (count >= 1000 && !hasDvdLimiterRemoved) { setCount(prev => prev - 1000); setHasDvdLimiterRemoved(true); gizmoRuntime.performHaptic('heavy'); } };
+  const buyDvdCounter = () => { if (count >= 500 && !hasDvdCounter) { setCount(prev => prev - 500); setHasDvdCounter(true); gizmoRuntime.performHaptic('heavy'); } };
+
+  const toggleDarkMode = () => { setIsDarkMode(prev => !prev); gizmoRuntime.performHaptic('light'); };
+  const debugAddStimulus = (amount: number) => { setCount(prev => prev + amount); gizmoRuntime.performHaptic('light'); };
+  const debugReset = () => {
+    setCount(0); setDvdCount(0); setHasAnimUpgrade(false); setHasSpsUpgrade(false); setHasDarkUpgrade(false);
+    setIsDarkMode(false); setHasUnlockedMenu(false); setHasEverHadStimulus(false); setClickValue(1); setHasCasino(false);
+    dvdRef.current = []; localStorage.removeItem(STORAGE_KEY); gizmoRuntime.performHaptic('heavy');
+  };
+
+  const currentBgColor = isDarkMode ? '#1A1A1A' : backgroundColor;
+  const currentTextColor = isDarkMode ? '#FFFFFF' : counterColor;
+  const currentSpsColor = isDarkMode ? '#AAAAAA' : spsLabelColor;
+  const currentButtonBg = isDarkMode ? '#333333' : buttonBgColor;
+  const currentButtonText = isDarkMode ? '#FFFFFF' : buttonTextColor;
+  const currentUpgradeTitleColor = isDarkMode ? '#FFFFFF' : upgradeMenuColor;
+  const currentUpgradeBg = isDarkMode ? '#333333' : dvdUpgradeBgColor;
+  const currentUpgradeTextCol = isDarkMode ? '#FFFFFF' : dvdUpgradeColor;
+  const currentFooterColor = isDarkMode ? '#666666' : footerColor;
+  const currentAutoSaveColor = isDarkMode ? '#888888' : autoSaveColor;
+
+  const availableUpgrades = [
+    { id: 'dvd', visible: dvdUpgradeVisible && (hasDvdLimiterRemoved || dvdCount < 5), component: <button key="dvd" onClick={buyDvd} disabled={count < dvdPrice} className="px-4 py-2 rounded-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale" style={{ backgroundColor: currentUpgradeBg, color: currentUpgradeTextCol, fontSize: `${dvdUpgradeSize}px`, border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>{dvdUpgradeText} ({dvdPrice} {counterLabel})</button> },
+    { id: 'anim', visible: animUpgradeVisible && !hasAnimUpgrade, component: <button key="anim" onClick={buyAnim} disabled={count < animPrice} className="px-4 py-2 rounded-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale" style={{ backgroundColor: currentUpgradeBg, color: currentUpgradeTextCol, fontSize: `${animUpgradeSize}px`, border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>{animUpgradeText} ({animPrice} {counterLabel})</button> },
+    { id: 'sps', visible: spsUpgradeVisible && !hasSpsUpgrade, component: <button key="sps" onClick={buySps} disabled={count < spsPrice} className="px-4 py-2 rounded-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale" style={{ backgroundColor: currentUpgradeBg, color: currentUpgradeTextCol, fontSize: `${spsUpgradeSize}px`, border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>{spsUpgradeText} ({spsPrice} {counterLabel})</button> },
+    { id: 'dark', visible: darkUpgradeVisible && !hasDarkUpgrade, component: <button key="dark" onClick={buyDark} disabled={count < darkPrice} className="px-4 py-2 rounded-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale" style={{ backgroundColor: currentUpgradeBg, color: currentUpgradeTextCol, fontSize: `${darkUpgradeSize}px`, border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>{darkUpgradeText} ({darkPrice} {counterLabel})</button> },
+    { id: 'click', visible: clickUpgradeVisible && clickValue < 5, component: <button key="click" onClick={buyClickUpgrade} disabled={count < 50} className="px-4 py-2 rounded-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale" style={{ backgroundColor: currentUpgradeBg, color: currentUpgradeTextCol, fontSize: `${clickUpgradeSize}px`, border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>{clickUpgradeText} (50 {counterLabel})</button> },
+    { id: 'casino', visible: casinoUpgradeVisible && !hasCasino, component: <button key="casino" onClick={buyCasino} disabled={count < casinoPrice} className="px-4 py-2 rounded-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale" style={{ backgroundColor: currentUpgradeBg, color: currentUpgradeTextCol, fontSize: `${casinoUpgradeSize}px`, border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>{casinoUpgradeText} ({casinoPrice} {counterLabel})</button> },
+    { id: 'plinkoBet', visible: plinkoBetUpgradeVisible && hasCasino && plinkoBetLevel < 10, component: <button key="plinkoBet" onClick={buyPlinkoBet} disabled={count < (250 * plinkoBetLevel)} className="px-4 py-2 rounded-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale" style={{ backgroundColor: currentUpgradeBg, color: currentUpgradeTextCol, fontSize: `${plinkoBetUpgradeSize}px`, border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>{plinkoBetUpgradeText} ({250 * plinkoBetLevel} {counterLabel})</button> },
+    { id: 'plinkoGreen', visible: plinkoGreenUpgradeVisible && hasCasino && plinkoGreenCount < 2, component: <button key="plinkoGreen" onClick={buyPlinkoGreen} disabled={count < (500 * (plinkoGreenCount + 1))} className="px-4 py-2 rounded-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale" style={{ backgroundColor: currentUpgradeBg, color: currentUpgradeTextCol, fontSize: `${plinkoGreenUpgradeSize}px`, border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>{plinkoGreenUpgradeText} ({500 * (plinkoGreenCount + 1)} {counterLabel})</button> },
+    { id: 'autoclicker', visible: autoClickerUpgradeVisible && autoClickerCount < 50, component: <button key="autoclicker" onClick={buyAutoClicker} disabled={count < autoClickerPrice} className="px-4 py-2 rounded-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale" style={{ backgroundColor: currentUpgradeBg, color: currentUpgradeTextCol, fontSize: `${autoClickerUpgradeSize}px`, border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>{autoClickerUpgradeText} ({autoClickerPrice} {counterLabel})</button> },
+    { id: 'dvdLimiter', visible: dvdLimiterUpgradeVisible && !hasDvdLimiterRemoved, component: <button key="dvdLimiter" onClick={buyDvdLimiter} disabled={count < 1000} className="px-4 py-2 rounded-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale" style={{ backgroundColor: currentUpgradeBg, color: currentUpgradeTextCol, fontSize: `${dvdLimiterUpgradeSize}px`, border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>{dvdLimiterUpgradeText} (1000 {counterLabel})</button> },
+    { id: 'dvdCounter', visible: dvdCounterUpgradeVisible && hasDvdLimiterRemoved && !hasDvdCounter, component: <button key="dvdCounter" onClick={buyDvdCounter} disabled={count < 500} className="px-4 py-2 rounded-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale" style={{ backgroundColor: currentUpgradeBg, color: currentUpgradeTextCol, fontSize: `${dvdCounterUpgradeSize}px`, border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>{dvdCounterUpgradeText} (500 {counterLabel})</button> },
+    { id: 'hideDvds', visible: dvdCount >= 100, component: <button key="hideDvds" onClick={() => { setHideDvds(!hideDvds); gizmoRuntime.performHaptic('light'); }} className="px-4 py-2 rounded-md transition-all active:scale-95" style={{ backgroundColor: currentUpgradeBg, color: currentUpgradeTextCol, fontSize: `${dvdUpgradeSize}px`, border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>{hideDvds ? 'montrer dvds' : 'cacher dvds'} (gratuit)</button> }
+  ].filter(u => u.visible).slice(0, 3);
+
+  const PlinkoGame = () => {
+    const baseMultipliers = [0.5, 1.2, 2.5, 6, 2.5, 1.2, 0.5];
+    const multipliers = baseMultipliers.map((m, i) => {
+      if (m === 0.5) {
+        if (i === 0 && plinkoGreenCount >= 1) return 2.0;
+        if (i === 6 && plinkoGreenCount >= 2) return 2.0;
+      }
+      return m;
+    });
+    const bet = 10 * plinkoBetLevel;
+    const dropBall = (e: React.TouchEvent | React.MouseEvent) => {
+      e.preventDefault();
+      if (count < bet) return;
+      setCount(prev => prev - bet);
+      const id = ballIdRef.current++;
+      const newBall = { x: 50, y: 0, vx: (Math.random() - 0.5) * 0.5, vy: 1.0, id, betAmount: bet };
+      plinkoBallsRef.current.push(newBall);
+      setPlinkoBalls([...plinkoBallsRef.current]);
+      gizmoRuntime.performHaptic('light');
+    };
+
+    return (
+      <div className="flex flex-col items-center gap-2 w-full max-w-[300px] mt-[-40px]">
+        <button onTouchStart={(e) => { e.preventDefault(); setCurrentScreen('main'); gizmoRuntime.performHaptic('light'); }} className="underline lowercase opacity-50 text-xs mb-2" style={{ color: currentTextColor }}>quitter plinko</button>
+        <h2 className="text-xl font-bold lowercase" style={{ color: currentTextColor }}>plinko</h2>
+        <div className="relative w-full aspect-[4/4.5] bg-black/10 rounded-2xl overflow-hidden border-2 border-black/5 shadow-inner">
+          {Array.from({ length: 8 }).map((_, row) => {
+            const numPegs = row + 2;
+            const pegSpacing = 100 / (numPegs + 1);
+            return (
+              <div key={row} className="w-full absolute" style={{ top: `${(row + 1) * 10}%` }}>
+                {Array.from({ length: numPegs }).map((_, i) => (
+                  <div key={i} className="w-1.5 h-1.5 bg-gray-400 rounded-full absolute shadow-sm" style={{ left: `${(i + 1) * pegSpacing}%`, transform: 'translateX(-50%)' }} />
+                ))}
+              </div>
+            );
+          })}
+          {plinkoBalls.map(b => (
+            <div key={b.id} className="absolute w-2.5 h-2.5 bg-yellow-400 rounded-full shadow-md border border-yellow-600" style={{ left: `${b.x}%`, top: `${b.y}%`, transform: 'translate(-50%, -50%)' }} />
+          ))}
+          <div className="absolute bottom-0 w-full flex h-7">
+            {multipliers.map((m, i) => {
+              const isGreen = m > 1 || (m === 1.5);
+              const bgColor = isGreen ? 'rgba(34, 197, 94, 0.4)' : (m === 1 ? 'rgba(239, 182, 63, 0.4)' : 'rgba(233, 51, 35, 0.4)');
+              return (
+                <div key={i} className="flex-1 flex items-center justify-center text-[8px] font-black border-r border-black/5 last:border-r-0" style={{ backgroundColor: bgColor, color: isDarkMode ? 'white' : 'black' }}>
+                  {m}x
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex flex-col items-center gap-1 w-full">
+          <button onTouchStart={dropBall} disabled={count < bet} className="w-full py-3 rounded-xl bg-green-500 text-white text-base font-bold lowercase active:scale-95 shadow-lg disabled:opacity-50">lâcher balle ({bet} stim)</button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div ref={containerRef} className="h-screen w-screen overflow-hidden relative flex flex-col items-center justify-center transition-colors duration-500" style={{ backgroundColor: currentBgColor }}>
+      {hasDarkUpgrade && (
+        <button onClick={toggleDarkMode} className="absolute top-4 left-4 z-50 p-2 rounded-full text-[10px] font-mono lowercase transition-colors" style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: isDarkMode ? '#FFFFFF' : '#000000' }}>
+          {isDarkMode ? 'mode clair' : 'mode sombre'}
+        </button>
+      )}
+
+      {hasCasino && currentScreen === 'main' && (
+        <div className="absolute top-4 left-24 z-50 flex gap-2">
+          <button onTouchStart={(e) => { e.preventDefault(); setCurrentScreen('plinko'); gizmoRuntime.performHaptic('light'); }} className="p-2 rounded-full text-[10px] font-mono lowercase transition-colors" style={{ backgroundColor: 'rgba(239, 182, 63, 0.2)', color: isDarkMode ? '#EFB63F' : '#D97706' }}>
+            plinko
+          </button>
+          <button onTouchStart={(e) => { e.preventDefault(); setCurrentScreen('rocket'); gizmoRuntime.performHaptic('light'); }} className="p-2 rounded-full text-[10px] font-mono lowercase transition-colors" style={{ backgroundColor: 'rgba(34, 39, 245, 0.2)', color: isDarkMode ? '#53B5F9' : '#2227F5' }}>
+            rocket
+          </button>
+        </div>
+      )}
+
+      {hasDebugUnlocked && (
+        <button onClick={() => setIsDebugOpen(!isDebugOpen)} className="absolute top-4 right-4 z-50 p-2 bg-black/10 rounded-full text-[10px] font-mono lowercase" style={{ color: isDarkMode ? 'white' : 'black' }}>
+          {isDebugOpen ? 'close debug' : 'debug'}
+        </button>
+      )}
+
+      {isDebugOpen && (
+        <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center gap-4 p-8 animate-in fade-in duration-200" style={{ backgroundColor: isDarkMode ? '#1A1A1A' : 'white' }}>
+          <h2 className="text-2xl font-bold lowercase mb-4" style={{ color: isDarkMode ? 'white' : 'black' }}>debug menu</h2>
+          <div className="grid grid-cols-2 gap-3 w-full max-w-xs">
+            <button onClick={() => debugAddStimulus(10)} className="p-3 rounded-xl lowercase text-sm font-bold" style={{ backgroundColor: isDarkMode ? '#333' : '#eee', color: isDarkMode ? 'white' : 'black' }}>+10 stim</button>
+            <button onClick={() => debugAddStimulus(100)} className="p-3 rounded-xl lowercase text-sm font-bold" style={{ backgroundColor: isDarkMode ? '#333' : '#eee', color: isDarkMode ? 'white' : 'black' }}>+100 stim</button>
+            <button onClick={() => debugAddStimulus(1000)} className="p-3 rounded-xl lowercase text-sm font-bold" style={{ backgroundColor: isDarkMode ? '#333' : '#eee', color: isDarkMode ? 'white' : 'black' }}>+1k stim</button>
+            <button onClick={() => debugAddStimulus(10000)} className="p-3 rounded-xl lowercase text-sm font-bold" style={{ backgroundColor: isDarkMode ? '#333' : '#eee', color: isDarkMode ? 'white' : 'black' }}>+10k stim</button>
+            <button onClick={() => debugAddStimulus(100000)} className="p-3 rounded-xl lowercase text-sm font-bold" style={{ backgroundColor: isDarkMode ? '#333' : '#eee', color: isDarkMode ? 'white' : 'black' }}>+100k stim</button>
+            <button onClick={() => { setHasUnlockedMenu(true); setHasEverHadStimulus(true); }} className="p-3 rounded-xl lowercase text-sm font-bold" style={{ backgroundColor: isDarkMode ? '#333' : '#eee', color: isDarkMode ? 'white' : 'black' }}>unlock menu</button>
+            <button onClick={() => setHasAnimUpgrade(true)} className="p-3 rounded-xl lowercase text-sm font-bold" style={{ backgroundColor: isDarkMode ? '#333' : '#eee', color: isDarkMode ? 'white' : 'black' }}>get anim</button>
+            <button onClick={() => setHasSpsUpgrade(true)} className="p-3 rounded-xl lowercase text-sm font-bold" style={{ backgroundColor: isDarkMode ? '#333' : '#eee', color: isDarkMode ? 'white' : 'black' }}>get sps</button>
+            <button onClick={() => setHasDarkUpgrade(true)} className="p-3 rounded-xl lowercase text-sm font-bold" style={{ backgroundColor: isDarkMode ? '#333' : '#eee', color: isDarkMode ? 'white' : 'black' }}>get dark</button>
+            <button onClick={() => setHasCasino(true)} className="p-3 rounded-xl lowercase text-sm font-bold" style={{ backgroundColor: isDarkMode ? '#333' : '#eee', color: isDarkMode ? 'white' : 'black' }}>get casino</button>
+            <button onClick={() => setHasDvdLimiterRemoved(true)} className="p-3 rounded-xl lowercase text-sm font-bold" style={{ backgroundColor: isDarkMode ? '#333' : '#eee', color: isDarkMode ? 'white' : 'black' }}>unlimit dvd</button>
+            <button onClick={() => setClickValue(5)} className="p-3 rounded-xl lowercase text-sm font-bold" style={{ backgroundColor: isDarkMode ? '#333' : '#eee', color: isDarkMode ? 'white' : 'black' }}>click=5</button>
+            <button onClick={() => setDvdCount(prev => prev + 10)} className="p-3 rounded-xl lowercase text-sm font-bold" style={{ backgroundColor: isDarkMode ? '#333' : '#eee', color: isDarkMode ? 'white' : 'black' }}>+10 dvd</button>
+            <button onClick={debugReset} className="bg-red-500 text-white p-3 rounded-xl lowercase text-sm font-bold col-span-2">reset all</button>
+          </div>
+          <button onClick={() => setIsDebugOpen(false)} className="mt-8 underline lowercase text-lg" style={{ color: isDarkMode ? 'white' : 'black' }}>back to game</button>
+        </div>
+      )}
+
+      {currentScreen === 'main' && !hideDvds && dvdRef.current.map((dvd, i) => (
+        <div key={i} className="absolute flex items-center justify-center font-bold text-xs rounded pointer-events-none select-none" style={{ left: dvd.x, top: dvd.y, width: '60px', height: '30px', backgroundColor: dvd.color, color: 'white', zIndex: 5, boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>dvd</div>
+      ))}
+
+      {floatingTexts.map(ft => (
+        <div key={ft.id} className="absolute pointer-events-none select-none font-bold animate-bounce-up" style={{ left: ft.x, top: ft.y, color: currentTextColor, fontSize: '24px', zIndex: 50, transform: 'translateX(-50%)' }}>{ft.text}</div>
+      ))}
+
+      <style>{`
+        @keyframes bounce-up { 0% { transform: translate(-50%, 0); opacity: 1; } 100% { transform: translate(-50%, -80px); opacity: 0; } }
+        .animate-bounce-up { animation: bounce-up 1s ease-out forwards; }
+        .animate-in { animation-duration: 0.3s; animation-fill-mode: both; }
+        .fade-in { animation-name: fadeIn; }
+        .zoom-in { animation-name: zoomIn; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes zoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes fadeOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(2); } }
+        .animate-fade-out { animation: fadeOut 0.5s ease-out forwards; }
+      `}</style>
+
+      <div className={`flex flex-col items-center justify-center gap-4 z-10 w-full px-6 flex-1 transition-opacity duration-500`}>
+        {counterVisible && hasEverHadStimulus && (
+          <div className="flex flex-col items-center mb-4">
+            <div ref={counterRef} className="font-bold text-center transition-all duration-200 lowercase" style={{ color: currentTextColor, fontSize: `${counterSize}px`, transform: isPressed ? 'scale(1.05)' : 'scale(1)' }}>
+              {count} {counterLabel}
+            </div>
+            {hasSpsUpgrade && spsLabelVisible && (
+              <div className="font-medium opacity-60 lowercase mt-1" style={{ color: currentSpsColor, fontSize: `${spsLabelSize}px` }}>
+                {sps} {spsLabelText}
+              </div>
+            )}
+            {hasDvdCounter && (
+              <div className="flex flex-col items-center">
+                <div className="font-medium opacity-60 lowercase mt-1" style={{ color: currentSpsColor, fontSize: `${spsLabelSize}px` }}>
+                  {dvdCount} dvds
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {currentScreen === 'main' && (
+          <div className="flex flex-col items-center gap-8 w-full animate-in fade-in duration-300">
+            <div className="relative">
+              {Array.from({ length: autoClickerCount }).map((_, i) => {
+                const angle = (i / autoClickerCount) * Math.PI * 2;
+                const radius = 90;
+                const x = Math.cos(angle) * radius;
+                const y = Math.sin(angle) * radius;
+                return (
+                  <img
+                    key={i}
+                    src="https://content.gizmo.party/6cceba7c-4065-49ee-b2ae-69aa258e6bc4"
+                    alt="auto clicker"
+                    className="absolute w-8 h-8 pointer-events-none select-none transition-transform duration-500"
+                    style={{
+                      left: '50%',
+                      top: '50%',
+                      transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${angle + Math.PI / 2 + Math.PI}rad)`,
+                      filter: isDarkMode ? 'invert(1)' : 'none'
+                    }}
+                  />
+                );
+              })}
+              <button onTouchStart={(e) => { e.preventDefault(); handleClick(); }} onTouchEnd={(e) => { e.preventDefault(); setIsPressed(false); }} className="active:scale-90 transition-transform duration-75 flex items-center justify-center rounded-2xl shadow-lg relative z-10" style={{ backgroundColor: currentButtonBg, width: '140px', height: '60px', border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.05)' }}>
+                {buttonTextVisible && <span className="font-bold lowercase tracking-tight text-center px-2" style={{ color: currentButtonText, fontSize: `${buttonTextSize}px` }}>{buttonText}</span>}
+              </button>
+            </div>
+            <div className="mt-4 flex flex-col items-center gap-3 w-full max-w-xs">
+                {upgradeMenuVisible && hasEverHadStimulus && <div className="font-bold lowercase mb-2 opacity-80" style={{ color: currentUpgradeTitleColor, fontSize: `${upgradeMenuSize}px` }}>{upgradeMenuTitle}</div>}
+                {hasEverHadStimulus && availableUpgrades.map(u => u.component)}
+              </div>
+          </div>
+        )}
+
+        {currentScreen === 'plinko' && <PlinkoGame />}
+        {currentScreen === 'rocket' && <RocketGame />}
+      </div>
+
+      {autoSaveVisible && showAutoSave && (
+        <div className="absolute bottom-14 opacity-50 font-mono lowercase animate-in fade-in duration-300" style={{ color: currentAutoSaveColor, fontSize: `${autoSaveSize}px` }}>{autoSaveText}</div>
+      )}
+
+      {footerVisible && (
+        <div className="absolute bottom-8 opacity-30 font-mono lowercase" style={{ color: currentFooterColor, fontSize: `${footerSize}px` }}>{footerText}</div>
+      )}
+    </div>
+  );
+}

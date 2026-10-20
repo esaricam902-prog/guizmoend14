@@ -2,235 +2,1493 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>YouTube Simulator Pro</title>
-
-  <!-- React & ReactDOM -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-
-  <!-- Babel pour interpréter le React/JS -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Modules utilisés par le code Gizmo -->
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.3.1",
+      "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+      "react-dom": "https://esm.sh/react-dom@18.3.1?external=react",
+      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client?external=react",
+      "lucide-react": "https://esm.sh/lucide-react@0.454.0?external=react",
+      "framer-motion": "https://esm.sh/framer-motion@11.11.17?external=react,react-dom",
+      "matter-js": "https://esm.sh/matter-js@0.19.0",
+      "tone": "https://esm.sh/tone@15.0.4",
+      "@gizmo/runtime": "./gizmo-runtime.js"
+    }
+  }
+  </script>
+
+  <!-- Babel pour interpréter le React/TypeScript (TSX) -->
+  <script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+  <script>
+    Babel.registerPreset('gizmo-tsx', {
+      presets: [
+        [Babel.availablePresets.typescript, { allExtensions: true, isTSX: true }],
+        Babel.availablePresets.react,
+      ],
+    });
+  </script>
+
+  <style>
+    html, body, #root { margin: 0; height: 100%; }
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
+<body>
   <div id="root"></div>
 
-  <script type="text/babel">
-    const { useState, useEffect } = React;
+  <script type="text/babel" data-type="module" data-presets="gizmo-tsx">
+// ===== CODE GIZMO ORIGINAL (non modifié) =====
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { gizmoRuntime } from '@gizmo/runtime';
+import { 
+  Play, 
+  Users, 
+  TrendingUp, 
+  DollarSign, 
+  Gamepad2, 
+  Music, 
+  Camera, 
+  Laugh, 
+  Trophy,
+  RefreshCcw,
+  Home,
+  User,
+  Zap,
+  ShieldCheck,
+  Lock,
+  ChevronLeft,
+  Edit2,
+  MessageSquare,
+  Award,
+  Flame,
+  Star,
+  Plus,
+  Settings,
+  ChevronRight,
+  Sparkles,
+  Target,
+  Rocket,
+  Send
+} from 'lucide-react';
 
-    function YoutubeSimulator() {
-      const [subscribers, setSubscribers] = useState(0);
-      const [money, setMoney] = useState(0);
-      const [views, setViews] = useState(0);
+const FRENCH_TRANSLATIONS = {
+  'YOUTUBE SIMULATOR PRO': 'SIMULATEUR YOUTUBE PRO',
+  'Next Milestone:': 'Prochain Jalon:',
+  'CREATE CONTENT': 'CRÉER DU CONTENU',
+  'SYSTEM OVERRIDE': 'ACCÈS SYSTÈME',
+  'AUTHORIZE': 'AUTORISER',
+  'GLOBAL RANKINGS': 'CLASSEMENT MONDIAL',
+  'Subscribers': 'Abonnés',
+  'Revenue': 'Revenus',
+  'NEXT MILESTONE:': 'PROCHAIN JALON:',
+  'LIVE': 'EN DIRECT',
+  'Content Strategy': 'Stratégie de Contenu',
+  'AUTO-BOT ACTIVE': 'AUTO-BOT ACTIF',
+  'MANUAL MODE': 'MODE MANUEL',
+  'REACH': 'PORTÉE',
+  'Live Feed': 'Flux en Direct',
+  'JUST NOW': 'À L\'INSTANT',
+  'Waiting for engagement...': 'En attente d\'engagement...',
+  'Creator Shop': 'Boutique Créateur',
+  'OWNED': 'POSSÉDÉ',
+  'Trending Now': 'Tendances Actuelles',
+  'Trend Score:': 'Score Tendance:',
+  'VIRAL': 'VIRAL',
+  'STABLE': 'STABLE',
+  'Momentum': 'Momentum',
+  'Engagement': 'Engagement',
+  'Deploy Strategy': 'Déployer Stratégie',
+  'Strategy Active': 'Stratégie Active',
+  'Unlock Content Strategies first!': 'Déverrouillez d\'abord les Stratégies de Contenu!',
+  'SUBS': 'ABONNÉS',
+  'System Override': 'Accès Système',
+  '+1M SUBS': '+1M ABONNÉS',
+  '+$1M CASH': '+1M $ CASH',
+  '+100M SUBS': '+100M ABONNÉS',
+  '+$100M CASH': '+100M $ CASH',
+  'MAX ALL': 'MAX TOUT',
+  'ALL UPGRADES': 'TOUS LES UPGRADES',
+  'SPEED x100': 'VITESSE x100',
+  'WIPE DATA': 'EFFACER DONNÉES',
+  'System Access': 'Accès Système',
+  'Admin Console': 'Console Admin',
+  'Terminate Session': 'Terminer Session',
+  'Total Content': 'Contenu Total',
+  'VIDEOS': 'VIDÉOS',
+  'Ad Revenue': 'Revenus Publicitaires',
+  'UID:': 'UID:',
+  'Verified': 'Vérifié',
+  'Home': 'Accueil',
+  'Shop': 'Boutique',
+  'Trends': 'Tendances',
+  'Ranks': 'Classements',
+  'Profile': 'Profil',
+  'Authorization': 'Autorisation',
+  'Enter 4-Digit Security Key': 'Entrez la Clé de Sécurité à 4 Chiffres',
+  'Gaming': 'Jeux',
+  'Music': 'Musique',
+  'Vlog': 'Vlog',
+  'Comedy': 'Comédie',
+  'Reply by Video': 'Répondre par Vidéo',
+  'Reply by Text': 'Répondre par Texte',
+  'Send Reply': 'Envoyer Réponse',
+  'Cancel': 'Annuler',
+  'Type your reply...': 'Tapez votre réponse...',
+  'Your Video Replies': 'Tes Réponses Vidéo',
+  'Video Reply': 'Réponse Vidéo',
+};
 
-      // Équipements
-      const [cameraLevel, setCameraLevel] = useState(1);
-      const [micLevel, setMicLevel] = useState(1);
-      const [editorLevel, setEditorLevel] = useState(1);
+const tweaks = gizmoRuntime.tweaks({
+  language: { index: 0, name: 'Language / Langue', type: 'toggle', value: true },
+  backgroundColor: { index: 1, name: 'Background Color', type: 'color', value: '#080808' },
+  accentColor: { index: 2, name: 'Accent Color', type: 'color', value: '#FF0000' },
+  cardColor: { index: 3, name: 'Card Color', type: 'color', value: '#121212' },
+  gameTitle: { index: 4, name: 'Game Title', type: 'text', value: 'YOUTUBE SIMULATOR PRO', group: 'title' },
+  gameTitleColor: { index: 5, name: 'Title Color', type: 'color', value: '#FFFFFF', group: 'title' },
+  gameTitleVisible: { index: 6, name: 'Show Title', type: 'toggle', value: true, group: 'title' },
+  gameTitleSize: { index: 7, name: 'Title Size', type: 'slider', value: 20, min: 12, max: 48, step: 1, group: 'title' },
+  subGoalText: { index: 8, name: 'Sub Goal Label', type: 'text', value: 'Next Milestone:', group: 'sub-goal' },
+  subGoalColor: { index: 9, name: 'Sub Goal Color', type: 'color', value: '#888888', group: 'sub-goal' },
+  subGoalVisible: { index: 10, name: 'Show Sub Goal', type: 'toggle', value: true, group: 'sub-goal' },
+  subGoalSize: { index: 11, name: 'Sub Goal Size', type: 'slider', value: 11, min: 8, max: 24, step: 1, group: 'sub-goal' },
+  uploadButtonText: { index: 12, name: 'Upload Label', type: 'text', value: 'CREATE CONTENT', group: 'upload' },
+  uploadButtonColor: { index: 13, name: 'Upload Color', type: 'color', value: '#FFFFFF', group: 'upload' },
+  uploadButtonVisible: { index: 14, name: 'Show Upload', type: 'toggle', value: true, group: 'upload' },
+  uploadButtonSize: { index: 15, name: 'Upload Size', type: 'slider', value: 16, min: 10, max: 32, step: 1, group: 'upload' },
+  adminTitle: { index: 16, name: 'Admin Title', type: 'text', value: 'SYSTEM OVERRIDE', group: 'admin' },
+  adminTitleColor: { index: 17, name: 'Admin Title Color', type: 'color', value: '#FFDD46', group: 'admin' },
+  adminTitleVisible: { index: 18, name: 'Show Admin Title', type: 'toggle', value: true, group: 'admin' },
+  adminTitleSize: { index: 19, name: 'Admin Title Size', type: 'slider', value: 24, min: 12, max: 48, step: 1, group: 'admin' },
+  adminLoginBtn: { index: 20, name: 'Admin Login Button', type: 'text', value: 'AUTHORIZE', group: 'admin-btn' },
+  adminLoginBtnColor: { index: 21, name: 'Admin Login Button Color', type: 'color', value: '#FFFFFF', group: 'admin-btn' },
+  adminLoginBtnVisible: { index: 22, name: 'Show Admin Login Button', type: 'toggle', value: true, group: 'admin-btn' },
+  adminLoginBtnSize: { index: 23, name: 'Admin Login Button Size', type: 'slider', value: 16, min: 10, max: 32, step: 1, group: 'admin-btn' },
+  leaderboardTitle: { index: 24, name: 'Leaderboard Title', type: 'text', value: 'GLOBAL RANKINGS', group: 'leaderboard' },
+  leaderboardTitleColor: { index: 25, name: 'Leaderboard Title Color', type: 'color', value: '#FFFFFF', group: 'leaderboard' },
+  leaderboardTitleVisible: { index: 26, name: 'Show Leaderboard Title', type: 'toggle', value: true, group: 'leaderboard' },
+  leaderboardTitleSize: { index: 27, name: 'Leaderboard Title Size', type: 'slider', value: 24, min: 12, max: 48, step: 1, group: 'leaderboard' },
+});
 
-      // Statistiques de la vidéo
-      const [isRecording, setIsRecording] = useState(false);
-      const [progress, setProgress] = useState(0);
+const STORAGE_KEY = 'yt-sim-save-v5';
+const MAX_LIMIT = 999999999999999999;
 
-      // Prix de base
-      const cameraCost = Math.floor(50 * Math.pow(1.5, cameraLevel));
-      const micCost = Math.floor(30 * Math.pow(1.4, micLevel));
-      const editorCost = Math.floor(100 * Math.pow(1.6, editorLevel));
+const clamp = (val) => {
+  if (val === Infinity) return MAX_LIMIT;
+  return Math.min(val, MAX_LIMIT);
+};
 
-      // Créer une vidéo
-      const makeVideo = () => {
-        if (isRecording) return;
-        setIsRecording(true);
-        setProgress(0);
+const CONTENT_TYPES = [
+  { id: 'gaming', label: 'Gaming', icon: <Gamepad2 size={20} />, emoji: '🎮', multiplier: 2.0, color: '#75F94C', trend: 1.2 },
+  { id: 'music', label: 'Music', icon: <Music size={20} />, emoji: '🎵', multiplier: 1.5, color: '#8762F6', trend: 0.9 },
+  { id: 'vlog', label: 'Vlog', icon: <Camera size={20} />, emoji: '🎬', multiplier: 0.8, color: '#53B5F9', trend: 1.5 },
+  { id: 'comedy', label: 'Comedy', icon: <Laugh size={20} />, emoji: '😂', multiplier: 1.1, color: '#EFB63F', trend: 1.1 },
+];
 
-        const interval = setInterval(() => {
-          setProgress((prev) => {
-            if (prev >= 100) {
-              clearInterval(interval);
-              setIsRecording(false);
+const MILESTONES = [100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 10000000000];
 
-              // Calcul des gains
-              const newViews = Math.floor((Math.random() * 50 + 10) * cameraLevel * micLevel);
-              const newSubs = Math.floor(newViews * 0.1 * editorLevel);
-              const newMoney = Math.floor(newViews * 0.05 * editorLevel);
+const UPGRADES = [
+  { id: 'camera', name: '📹 4K Camera', cost: 10, description: '+25% Views', effect: 'views_multiplier', value: 1.25, emoji: '📹', color: '#53B5F9' },
+  { id: 'mic', name: '🎤 Studio Mic', cost: 25, description: '+35% Subs', effect: 'subs_multiplier', value: 1.35, emoji: '🎤', color: '#75F94C' },
+  { id: 'lighting', name: '💡 Pro Lighting', cost: 50, description: '+20% Views', effect: 'views_multiplier', value: 1.2, emoji: '💡', color: '#FFDD46' },
+  { id: 'internet', name: '🌐 Fiber Optic', cost: 100, description: '+15% All Stats', effect: 'all_multiplier', value: 1.15, emoji: '🌐', color: '#53B5F9' },
+  { id: 'editor', name: '✂️ AI Editor', cost: 250, description: '+40% Views', effect: 'views_multiplier', value: 1.4, emoji: '✂️', color: '#EFB63F' },
+  { id: 'thumbnails', name: '🖼️ Clickbait AI', cost: 500, description: '+60% Views', effect: 'views_multiplier', value: 1.6, emoji: '🖼️', color: '#E93323' },
+  { id: 'script', name: '📝 Viral Scripts', cost: 1200, description: '+30% Subs', effect: 'subs_multiplier', value: 1.3, emoji: '📝', color: '#FFFFFF' },
+  { id: 'studio', name: '🏢 Penthouse Studio', cost: 5000, description: '+75% All Stats', effect: 'all_multiplier', value: 1.75, emoji: '🏢', color: '#E432B7' },
+  { id: 'algorithm', name: '📊 Algorithm Hack', cost: 15000, description: '+150% Passive Income', effect: 'passive_multiplier', value: 2.5, emoji: '📊', color: '#8762F6' },
+  { id: 'collab', name: '🤝 Celebrity Collab', cost: 50000, description: '+100% Subs', effect: 'subs_multiplier', value: 2.0, emoji: '🤝', color: '#75F94C' },
+  { id: 'merch', name: '👕 Global Merch', cost: 250000, description: '+200% Passive Income', effect: 'passive_multiplier', value: 3.0, emoji: '👕', color: '#E432B7' },
+  { id: 'mrbeast', name: '🦁 Beast Shoutout', cost: 5000000, description: '+1000% Subs', effect: 'subs_multiplier', value: 11.0, emoji: '🦁', color: '#EFB63F' },
+  { id: 'youtube_hq', name: '🏢 Buy YouTube', cost: 500000000, description: '+5000% All Stats', effect: 'all_multiplier', value: 51.0, emoji: '🏢', color: '#E93323' },
+  { id: 'autoclicker_1', name: '⚡ Auto-Bot v1', cost: 5000, description: '+50% Auto Speed', effect: 'autoclicker_speed', value: 1.5, emoji: '⚡', color: '#FFDD46' },
+  { id: 'autoclicker_2', name: '⚡ Auto-Bot v2', cost: 50000, description: '+150% Auto Speed', effect: 'autoclicker_speed', value: 2.5, emoji: '⚡', color: '#FFDD46' },
+  { id: 'autoclicker_3', name: '⚡ Auto-Bot v3', cost: 500000, description: '+300% Auto Speed', effect: 'autoclicker_speed', value: 4.0, emoji: '⚡', color: '#FFDD46' },
+  { id: 'autoclicker_max', name: '🌟 GOD MODE BOT', cost: 1000000000, description: '+10000% Auto Speed', effect: 'autoclicker_speed', value: 101.0, emoji: '🌟', color: '#FFDD46' },
+  { id: 'strategy_unlock', name: '🎯 Content Strategies', cost: 100000, description: '+50% Trending Boost', effect: 'strategy_multiplier', value: 1.5, emoji: '🎯', color: '#75F94C' },
+  { id: 'strat_seo', name: '🔍 SEO Optimization', cost: 250000, description: '+20% Strategy Power', effect: 'strategy_power', value: 1.2, emoji: '🔍', color: '#53B5F9' },
+  { id: 'strat_clickbait', name: '🎣 Clickbait Mastery', cost: 750000, description: '+35% Strategy Power', effect: 'strategy_power', value: 1.35, emoji: '🎣', color: '#E93323' },
+  { id: 'strat_retention', name: '🧠 Retention Hacking', cost: 2000000, description: '+50% Strategy Power', effect: 'strategy_power', value: 1.5, emoji: '🧠', color: '#8762F6' },
+  { id: 'strat_community', name: '👥 Community Tab', cost: 5000000, description: '+75% Strategy Power', effect: 'strategy_power', value: 1.75, emoji: '👥', color: '#75F94C' },
+  { id: 'strat_shorts', name: '📱 Shorts Integration', cost: 15000000, description: '+100% Strategy Power', effect: 'strategy_power', value: 2.0, emoji: '📱', color: '#E432B7' },
+  { id: 'strat_global', name: '🌍 Global Dubbing', cost: 50000000, description: '+150% Strategy Power', effect: 'strategy_power', value: 2.5, emoji: '🌍', color: '#53B5F9' },
+  { id: 'strat_ai_gen', name: '🤖 AI Content Gen', cost: 200000000, description: '+300% Strategy Power', effect: 'strategy_power', value: 4.0, emoji: '🤖', color: '#FFFFFF' },
+  { id: 'strat_monopoly', name: '🏰 Media Monopoly', cost: 1000000000, description: '+1000% Strategy Power', effect: 'strategy_power', value: 11.0, emoji: '🏰', color: '#EFB63F' },
+];
 
-              setViews((v) => v + newViews);
-              setSubscribers((s) => s + newSubs);
-              setMoney((m) => m + newMoney);
+const COMMENTS = [
+  { user: "SkibidiFan2024", text: "Premier! 🔥", avatar: "🚽" },
+  { user: "NoobMaster69", text: "J'adore ce contenu!", avatar: "🎮" },
+  { user: "GamerGirl_UwU", text: "Je me suis abonné immédiatement!", avatar: "🐱" },
+  { user: "MrBeast_Fan_1", text: "Tu peux faire un concours?", avatar: "🦁" },
+  { user: "SigmaGrindset", text: "C'est trop réaliste lol", avatar: "🗿" },
+  { user: "OnlyW_Creator", text: "Meilleure chaîne de la plateforme!", avatar: "🏆" },
+  { user: "EarlyBird_99", text: "Je suis tôt!", avatar: "🐦" },
+  { user: "W_Content_Enjoyer", text: "Vidéo W", avatar: "🔥" },
+  { user: "Hater_Official", text: "Contenu nul, fais mieux", avatar: "🤡" },
+  { user: "RatioKing", text: "Ratio + je m'en fous", avatar: "👑" },
+  { user: "PositiveVibesOnly", text: "Continue comme ça!", avatar: "✨" },
+  { user: "Legendary_Fan", text: "Upload légendaire!", avatar: "🌟" },
+  { user: "TimeTraveler_2025", text: "Qui regarde en 2024?", avatar: "⏳" },
+  { user: "LifeChanger_TV", text: "Cette vidéo a changé ma vie.", avatar: "🌈" },
+  { user: "Underrated_Gem", text: "Créateur sous-estimé.", avatar: "💎" },
+  { user: "Brainrot_Maxxing", text: "Skibidi Ohio Rizz!", avatar: "💀" },
+  { user: "Default_Skin", text: "Je peux être dans la prochaine vidéo?", avatar: "👤" },
+  { user: "Mom_Is_Watching", text: "Nettoie ta chambre d'abord!", avatar: "🧹" },
+  { user: "Bot_Account_404", text: "Clique sur mon profil pour des robux gratuits!", avatar: "🤖" },
+  { user: "KeyboardWarrior", text: "En fait, à 2:45 tu as fait une erreur.", avatar: "⌨️" },
+  { user: "FanumTaxCollector", text: "Je prends 20% de tes vues.", avatar: "🍪" },
+  { user: "KaiCenat_Clone", text: "GYATT! Cette vidéo est dingue!", avatar: "🔥" },
+  { user: "SpeedyGonzales", text: "IShowSpeed adorerait ça.", avatar: "🐕" },
+  { user: "MinecraftKid_07", text: "Joue à Minecraft s'il te plaît!", avatar: "🧱" },
+  { user: "RobloxTycoon", text: "Mieux que les simulateurs Roblox.", avatar: "🟥" },
+  { user: "FortnitePro", text: "1v1 mec, tu es nul.", avatar: "🔫" },
+  { user: "CookingWithLove", text: "J'ai regardé ça en mangeant.", avatar: "🍕" },
+  { user: "SleepyHead", text: "Je me suis endormi en regardant (c'est bon).", avatar: "😴" },
+  { user: "ASMR_Lover", text: "La qualité audio est nette!", avatar: "🎤" },
+  { user: "TechGuru", text: "Quelle caméra utilises-tu?", avatar: "📸" },
+  { user: "MovieBuff", text: "Meilleure cinématographie que Marvel.", avatar: "🍿" },
+  { user: "GymRat_99", text: "Je regarde ça pendant ma pause.", avatar: "💪" },
+  { user: "CatLover_Meow", text: "Besoin de plus de chats.", avatar: "🐈" },
+  { user: "DoggoDad", text: "Mon chien a aimé cette vidéo.", avatar: "🐕" },
+  { user: "ConspiracyNut", text: "C'est scénarisé? Ça semble faux.", avatar: "🛸" },
+  { user: "FactChecker", text: "En fait, ce n'est pas vrai.", avatar: "🧐" },
+  { user: "MemeLord", text: "Nouveau template de mème qui vient de sortir.", avatar: "🐸" },
+  { user: "TrollFace", text: "Problème? ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░", avatar: "🌚" },
+  { user: "SpamBot_9000", text: "CARTES CADEAUX GRATUITES DANS LA BIO!!!", avatar: "🎁" },
+  { user: "Grandma_Uses_YT", text: "Comment j'éteins le son?", avatar: "👵" },
+  { user: "DadJokes_Inc", text: "Je suis fatigué. Salut Fatigué, je suis Papa.", avatar: "👨" },
+  { user: "Philosopher_King", text: "Qu'est-ce que le contenu, vraiment?", avatar: "📜" },
+  { user: "Speedrunner_X", text: "J'ai regardé ça en 0.5x vitesse.", avatar: "🏃" },
+  { user: "Lofi_Girl", text: "Parfait pour étudier.", avatar: "📚" },
+  { user: "NightOwl", text: "Gang 3 AM où êtes-vous?", avatar: "🌙" },
+  { user: "EarlyAdopter", text: "J'aimais avant que ce soit cool.", avatar: "🕶️" },
+  { user: "MainCharacter", text: "Je suis le personnage principal de cette section.", avatar: "🎭" },
+  { user: "NPC_Energy", text: "Je suis d'accord avec le commentaire précédent.", avatar: "🚶" },
+  { user: "MainstreamHater", text: "Tes anciennes vidéos étaient meilleures.", avatar: "📻" },
+  { user: "LoyalSub", text: "Je suis là depuis 0 abonnés!", avatar: "❤️" },
+  { user: "ClickbaitVictim", text: "La miniature m'a menti.", avatar: "🎣" },
+  { user: "ShortsEnjoyer", text: "Fais-en un Short!", avatar: "📱" },
+  { user: "LongFormFan", text: "Enfin, une longue vidéo!", avatar: "🎥" },
+  { user: "ReactionChannel", text: "Je réagis à ça demain!", avatar: "😲" },
+  { user: "VlogSquad_Fan", text: "Ça me donne des vibes 2016.", avatar: "🛹" },
+  { user: "TutorialSeeker", text: "Instructions peu claires, chat coincé dans le grille-pain.", avatar: "🛠️" },
+  { user: "MotivationDaily", text: "N'abandonne pas tes rêves!", avatar: "🌈" },
+  { user: "CryptoBro", text: "Achète ma pièce, elle va à la lune!", avatar: "🚀" },
+  { user: "Artist_Soul", text: "Les couleurs ici sont incroyables.", avatar: "🎨" },
+  { user: "MusicProducer", text: "Qui a fait le beat?", avatar: "🎹" },
+  { user: "TravelJunkie", text: "Où ça a été filmé?", avatar: "✈️" },
+  { user: "HistoryBuff", text: "En 1924 ce serait de la magie.", avatar: "🏛️" },
+  { user: "ScienceGuy", text: "La physique ici est discutable.", avatar: "🧪" },
+  { user: "MathWhiz", text: "1 + 1 = cette vidéo est géniale.", avatar: "🧮" },
+  { user: "LanguageLearner", text: "J'apprends le français avec toi!", avatar: "🌎" },
+  { user: "SilentWatcher", text: "...", avatar: "😶" },
+  { user: "EmojiSpammer", text: "🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥", avatar: "🔥" },
+  { user: "QuestionMark", text: "Attends, qu'est-ce qui vient de se passer?", avatar: "❓" },
+  { user: "ExclamationPoint", text: "WOW!!!", avatar: "❗" },
+  { user: "TheCritic", text: "6/10, trop d'eau.", avatar: "📝" },
+  { user: "TheFanboy", text: "11/10 MEILLEURE VIDÉO JAMAIS!", avatar: "🤩" },
+  { user: "TheGhost", text: "Je hante cette chaîne.", avatar: "👻" },
+  { user: "TheAlien", text: "Salutations de Mars.", avatar: "👽" },
+  { user: "TheRobot", text: "BIP BOUP SUPER CONTENU.", avatar: "🤖" },
+  { user: "TheZombie", text: "Cerveeeaux... et abonnés.", avatar: "🧟" },
+  { user: "ThePirate", text: "Arrr, super butin (vues)!", avatar: "🏴‍☠️" },
+  { user: "TheNinja", text: "Tu ne m'as pas vu m'abonner.", avatar: "🥷" },
+  { user: "TheWizard", text: "Je jette un sort de viralité!", avatar: "🧙" },
+  { user: "TheKnight", text: "Je vais défendre cette chaîne!", avatar: "🛡️" },
+  { user: "TheDragon", text: "J'accumule ces vidéos.", avatar: "🐉" },
+  { user: "TheUnicorn", text: "Cette vidéo est magique.", avatar: "🦄" },
+  { user: "TheDinosaur", text: "RAWR (je suis vieux).", avatar: "🦖" },
+  { user: "TheAstronaut", text: "Je regarde depuis l'ISS.", avatar: "👨‍🚀" },
+  { user: "TheDetective", text: "J'ai trouvé l'œuf de Pâques caché.", avatar: "🕵️" },
+  { user: "TheSpy", text: "Mission accomplie: Abonné.", avatar: "🕵️‍♂️" },
+  { user: "TheChef", text: "Contenu délicieux! 👌", avatar: "👨‍🍳" },
+  { user: "TheDoctor", text: "Cette vidéo a guéri mon ennui.", avatar: "👨‍⚕️" },
+  { user: "TheFarmer", text: "Je cultive ces abonnés comme du maïs.", avatar: "👨‍🌾" },
+  { user: "ThePilot", text: "Cette chaîne décolle!", avatar: "👨‍✈️" },
+  { user: "TheFirefighter", text: "Cette vidéo est du feu! 🚒", avatar: "👨‍🚒" },
+  { user: "ThePolice", text: "Arrête! Tu es trop bon.", avatar: "👮" },
+  { user: "TheConstructionWorker", text: "Construire une communauté!", avatar: "👷" },
+  { user: "TheJudge", text: "Je te condamne à 1M d'abonnés.", avatar: "👨‍⚖️" },
+  { user: "TheSanta", text: "Ho ho ho! Joyeux Noël!", avatar: "🎅" },
+  { user: "TheElf", text: "Je travaille dur sur le prochain commentaire.", avatar: "🧝" },
+  { user: "TheVampire", text: "Je ne regarde que la nuit.", avatar: "🧛" },
+  { user: "TheWerewolf", text: "AHOUUUU! Super vidéo.", avatar: "🐺" },
+  { user: "TheMermaid", text: "Je plonge dans les abonnés.", avatar: "🧜‍♀️" },
+  { user: "TheFairytale", text: "Il était une fois, je me suis abonné.", avatar: "🧚" },
+  { user: "TheSuperhero", text: "Sauver la journée avec un like!", avatar: "🦸" }
+];
 
-              return 0;
-            }
-            return prev + 20;
-          });
-        }, 200);
+export default function Component() {
+  const isFrench = tweaks.language.useState();
+  const bgColor = tweaks.backgroundColor.useState();
+  const accentColor = tweaks.accentColor.useState();
+  const cardColor = tweaks.cardColor.useState();
+  const titleText = tweaks.gameTitle.useState();
+  const titleColor = tweaks.gameTitleColor.useState();
+  const titleVisible = tweaks.gameTitleVisible.useState();
+  const titleSize = tweaks.gameTitleSize.useState();
+  const subGoalText = tweaks.subGoalText.useState();
+  const subGoalColor = tweaks.subGoalColor.useState();
+  const subGoalVisible = tweaks.subGoalVisible.useState();
+  const subGoalSize = tweaks.subGoalSize.useState();
+  const uploadText = tweaks.uploadButtonText.useState();
+  const uploadBtnColor = tweaks.uploadButtonColor.useState();
+  const uploadVisible = tweaks.uploadButtonVisible.useState();
+  const uploadSize = tweaks.uploadButtonSize.useState();
+  const adminTitle = tweaks.adminTitle.useState();
+  const adminTitleColor = tweaks.adminTitleColor.useState();
+  const adminTitleVisible = tweaks.adminTitleVisible.useState();
+  const adminTitleSize = tweaks.adminTitleSize.useState();
+  const adminLoginBtn = tweaks.adminLoginBtn.useState();
+  const adminLoginBtnColor = tweaks.adminLoginBtnColor.useState();
+  const adminLoginBtnVisible = tweaks.adminLoginBtnVisible.useState();
+  const adminLoginBtnSize = tweaks.adminLoginBtnSize.useState();
+  const leaderboardTitle = tweaks.leaderboardTitle.useState();
+  const leaderboardTitleColor = tweaks.leaderboardTitleColor.useState();
+  const leaderboardTitleVisible = tweaks.leaderboardTitleVisible.useState();
+  const leaderboardTitleSize = tweaks.leaderboardTitleSize.useState();
+
+  const translate = (key) => {
+    return isFrench && FRENCH_TRANSLATIONS[key] ? FRENCH_TRANSLATIONS[key] : key;
+  };
+
+  const [subs, setSubs] = useState(0);
+  const [views, setViews] = useState(0);
+  const [money, setMoney] = useState(0);
+  const [videos, setVideos] = useState(0);
+  const [activeVideo, setActiveVideo] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [activeTab, setActiveTab] = useState('home');
+  const [upgrades, setUpgrades] = useState({});
+  const [autoClickType, setAutoClickType] = useState(null);
+  const [autoClickSpeed, setAutoClickSpeed] = useState(1);
+  const [channelName, setChannelName] = useState('My Channel');
+  const [channelPhoto, setChannelPhoto] = useState(null);
+  const [playerId, setPlayerId] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [loginPass, setLoginPass] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [recentComments, setRecentComments] = useState([]);
+  const [trendingType, setTrendingType] = useState('gaming');
+  const [contentStrategies, setContentStrategies] = useState({});
+  const [trendingData, setTrendingData] = useState({});
+  const [selectedCommentIndex, setSelectedCommentIndex] = useState(null);
+  const [replyMode, setReplyMode] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [commentReplies, setCommentReplies] = useState({});
+  const [playerVideos, setPlayerVideos] = useState([]);
+  const [competitorStats, setCompetitorStats] = useState([
+    { name: 'MrBeast', subs: 310000000, emoji: '🦁', color: '#53B5F9', baseGrowth: 50000 },
+    { name: 'T-Series', subs: 270000000, emoji: '🎵', color: '#E93323', baseGrowth: 45000 },
+    { name: 'PewDiePie', subs: 111000000, emoji: '👊', color: '#E432B7', baseGrowth: 10000 },
+    { name: 'Kids Diana Show', subs: 124000000, emoji: '👸', color: '#FFDD46', baseGrowth: 25000 },
+    { name: 'Like Nastya', subs: 118000000, emoji: '⭐', color: '#8762F6', baseGrowth: 22000 },
+    { name: 'Dude Perfect', subs: 60000000, emoji: '🏀', color: '#75F94C', baseGrowth: 15000 },
+  ]);
+
+  const lastSaveRef = useRef(Date.now());
+  const notificationIdRef = useRef(0);
+  const uploadIntervalRef = useRef(null);
+  const autoClickIntervalRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const longPressTimerRef = useRef(null);
+
+  const handleCommentLongPress = (index) => {
+    gizmoRuntime.performHaptic('heavy');
+    setSelectedCommentIndex(index);
+    setReplyMode(null);
+  };
+
+  const handleReplySubmit = () => {
+    if (!replyText.trim() && replyMode === 'text') return;
+    
+    gizmoRuntime.performHaptic('medium');
+    const comment = recentComments[selectedCommentIndex];
+    const replyId = `${selectedCommentIndex}-${Date.now()}`;
+    
+    let userReply;
+    if (replyMode === 'video') {
+      const videoContent = replyText.trim() || 'Réponse vidéo';
+      userReply = {
+        user: channelName,
+        text: `🎥 [Réponse Vidéo]: "${videoContent}"`,
+        avatar: channelPhoto || '😎',
+        isPlayer: true,
+        isVideo: true
       };
-
-      // Améliorations
-      const buyCamera = () => {
-        if (money >= cameraCost) {
-          setMoney(money - cameraCost);
-          setCameraLevel(cameraLevel + 1);
-        }
+      setPlayerVideos(prev => [...prev, {
+        id: replyId,
+        content: videoContent,
+        timestamp: new Date().toLocaleTimeString()
+      }]);
+    } else {
+      userReply = {
+        user: channelName,
+        text: replyText,
+        avatar: channelPhoto || '😎',
+        isPlayer: true
       };
-
-      const buyMic = () => {
-        if (money >= micCost) {
-          setMoney(money - micCost);
-          setMicLevel(micLevel + 1);
-        }
-      };
-
-      const buyEditor = () => {
-        if (money >= editorCost) {
-          setMoney(money - editorCost);
-          setEditorLevel(editorLevel + 1);
-        }
-      };
-
-      useEffect(() => {
-        if (window.lucide) {
-          window.lucide.createIcons();
-        }
-      });
-
-      return (
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
-          {/* Header */}
-          <header className="flex justify-between items-center bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl">
-            <div>
-              <h1 className="text-3xl font-extrabold text-red-500 flex items-center gap-2">
-                <i data-lucide="youtube"></i> YouTube Simulator Pro
-              </h1>
-              <p className="text-slate-400 text-sm mt-1">Deviens le plus grand créateur de contenu !</p>
-            </div>
-            <div className="flex gap-6 text-right">
-              <div>
-                <div className="text-xs text-slate-400 uppercase font-bold">Abonnés</div>
-                <div className="text-2xl font-bold text-red-400">{subscribers.toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-400 uppercase font-bold">Vues</div>
-                <div className="text-2xl font-bold text-blue-400">{views.toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-400 uppercase font-bold">Argent</div>
-                <div className="text-2xl font-bold text-green-400">{money.toLocaleString()} €</div>
-              </div>
-            </div>
-          </header>
-
-          {/* Section Studio & Enregistrement */}
-          <main className="grid md:grid-cols-2 gap-6">
-            <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 flex flex-col justify-between items-center text-center">
-              <h2 className="text-xl font-bold text-slate-200 flex items-center gap-2">
-                <i data-lucide="video"></i> Studio d'enregistrement
-              </h2>
-
-              <div className="my-8 w-full">
-                {isRecording ? (
-                  <div className="space-y-3">
-                    <div className="text-sm font-semibold text-red-400 animate-pulse">
-                      🎬 Tournage & Montage en cours... {progress}%
-                    </div>
-                    <div className="w-full bg-slate-800 h-4 rounded-full overflow-hidden">
-                      <div
-                        className="bg-red-600 h-full transition-all duration-200"
-                        style={{ width: `${progress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={makeVideo}
-                    className="w-full py-8 bg-red-600 hover:bg-red-700 text-white text-xl font-bold rounded-2xl shadow-lg transition active:scale-95 flex flex-col items-center justify-center gap-2"
-                  >
-                    <i data-lucide="play-circle" className="w-12 h-12"></i>
-                    Créer une vidéo
-                  </button>
-                )}
-              </div>
-
-              <div className="text-xs text-slate-500">
-                Plus ton matériel est bon, plus tu gagnes de vues et d'abonnés par vidéo !
-              </div>
-            </div>
-
-            {/* Boutique / Upgrades */}
-            <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
-              <h2 className="text-xl font-bold text-slate-200 flex items-center gap-2">
-                <i data-lucide="shopping-bag"></i> Améliorations Matériel
-              </h2>
-
-              {/* Caméra */}
-              <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
-                <div>
-                  <div className="font-semibold text-slate-200">📷 Caméra (Niv. {cameraLevel})</div>
-                  <div className="text-xs text-slate-400">Boost les vues potentielles</div>
-                </div>
-                <button
-                  onClick={buyCamera}
-                  disabled={money < cameraCost}
-                  className={`px-4 py-2 rounded-xl font-bold text-sm ${
-                    money >= cameraCost
-                      ? 'bg-green-600 hover:bg-green-500 text-white'
-                      : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                  }`}
-                >
-                  {cameraCost} €
-                </button>
-              </div>
-
-              {/* Micro */}
-              <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
-                <div>
-                  <div className="font-semibold text-slate-200">🎙️ Micro (Niv. {micLevel})</div>
-                  <div className="text-xs text-slate-400">Qualité du son accrue</div>
-                </div>
-                <button
-                  onClick={buyMic}
-                  disabled={money < micCost}
-                  className={`px-4 py-2 rounded-xl font-bold text-sm ${
-                    money >= micCost
-                      ? 'bg-green-600 hover:bg-green-500 text-white'
-                      : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                  }`}
-                >
-                  {micCost} €
-                </button>
-              </div>
-
-              {/* Logiciel de Montage */}
-              <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
-                <div>
-                  <div className="font-semibold text-slate-200">💻 Logiciel Montage (Niv. {editorLevel})</div>
-                  <div className="text-xs text-slate-400">Multiplie les abonnés et le cash</div>
-                </div>
-                <button
-                  onClick={buyEditor}
-                  disabled={money < editorCost}
-                  className={`px-4 py-2 rounded-xl font-bold text-sm ${
-                    money >= editorCost
-                      ? 'bg-green-600 hover:bg-green-500 text-white'
-                      : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                  }`}
-                >
-                  {editorCost} €
-                </button>
-              </div>
-            </div>
-          </main>
-        </div>
-      );
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<YoutubeSimulator />);
+    setCommentReplies(prev => ({
+      ...prev,
+      [selectedCommentIndex]: [...(prev[selectedCommentIndex] || []), userReply]
+    }));
+
+    setReplyText('');
+    setReplyMode(null);
+
+    // NPC Response after a short delay
+    setTimeout(() => {
+      const lowerReply = replyText.toLowerCase();
+      const initialCommentText = comment.text.toLowerCase();
+      
+      let npcResponses = [
+        "OMG tu as répondu! 😱",
+        "Merci pour la réponse! 🔥",
+        "Vrai créateur W",
+        "Je ne m'attendais pas à une réponse lol",
+        "Ratio + tu es le meilleur",
+        "J'ai hâte à la prochaine vidéo!",
+        "C'est pour ça que tu es mon préféré",
+        "Point de vue intéressant...",
+        "Réponse Skibidi! 🚽",
+        "J'adore l'interaction ❤️"
+      ];
+
+      // Contextual responses based on the INITIAL COMMENT'S content
+      if (initialCommentText.includes('son') || initialCommentText.includes('audio')) {
+        npcResponses = [
+          "Ah merci, j'ai enfin réussi à couper le son! 😂",
+          "C'était si simple? Je me sens bête lol",
+          "Merci, mes oreilles te remercient!",
+          "Super tuto pour le son, merci chef!"
+        ];
+      } else if (initialCommentText.includes('skibidi') || initialCommentText.includes('rizz') || initialCommentText.includes('brainrot')) {
+        npcResponses = [
+          "Le brainrot est réel! 💀",
+          "Skibidi Ohio moment certifié!",
+          "On est ensemble dans le délire! 🔥",
+          "Fanum Tax sur ton explication!"
+        ];
+      } else if (initialCommentText.includes('nul') || initialCommentText.includes('hater') || initialCommentText.includes('ratio')) {
+        npcResponses = [
+          "Ok ok, je retire ce que j'ai dit, t'es cool en fait.",
+          "Même les haters ont une réponse? W créateur.",
+          "Je t'aime quand même au fond ❤️",
+          "Bon, j'arrête de troller, merci pour la réponse!"
+        ];
+      } else if (initialCommentText.includes('premier') || initialCommentText.includes('tôt')) {
+        npcResponses = [
+          "Je serai encore là pour la prochaine! 🏃‍♂️",
+          "La cloche est activée t'inquiète!",
+          "Toujours là pour le contenu de qualité.",
+          "First et fier de l'être!"
+        ];
+      } else if (initialCommentText.includes('argent') || initialCommentText.includes('concours') || initialCommentText.includes('robux')) {
+        npcResponses = [
+          "J'espère gagner le prochain giveaway! 🤑",
+          "Merci pour les infos sur l'argent!",
+          "On veut devenir riche comme toi!",
+          "Le grind ne s'arrête jamais 📈"
+        ];
+      } else if (replyMode === 'video') {
+        npcResponses = [
+          "Wow, une réponse en vidéo juste pour mon commentaire? Je suis célèbre!",
+          "Ta tête dans la vidéo est trop drôle 😂",
+          "Super montage pour me répondre!",
+          "Je vais montrer ça à tous mes amis!"
+        ];
+      }
+
+      const npcReply = {
+        user: comment.user,
+        text: npcResponses[Math.floor(Math.random() * npcResponses.length)],
+        avatar: comment.avatar,
+        isNPC: true
+      };
+      setCommentReplies(prev => ({
+        ...prev,
+        [selectedCommentIndex]: [...(prev[selectedCommentIndex] || []), npcReply]
+      }));
+      gizmoRuntime.performHaptic('light');
+    }, 1500);
+  };
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const data = JSON.parse(saved);
+        setSubs(data.subs || 0);
+        setViews(data.views || 0);
+        setMoney(data.money || 0);
+        setVideos(data.videos || 0);
+        setUpgrades(data.upgrades || {});
+        setChannelName(data.channelName || 'My Channel');
+        setChannelPhoto(data.channelPhoto || null);
+        setPlayerId(data.playerId || Math.floor(100000 + Math.random() * 900000).toString());
+      } else {
+        setPlayerId(Math.floor(100000 + Math.random() * 900000).toString());
+      }
+    } catch (e) {
+      setPlayerId(Math.floor(100000 + Math.random() * 900000).toString());
+    }
+  }, []);
+
+  const saveGame = useCallback(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ 
+        subs, views, money, videos, upgrades, 
+        channelName, channelPhoto, playerId 
+      }));
+    } catch (e) {}
+  }, [subs, views, money, videos, upgrades, channelName, channelPhoto, playerId]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (Date.now() - lastSaveRef.current > 5000) {
+        saveGame();
+        lastSaveRef.current = Date.now();
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [saveGame]);
+
+  useEffect(() => {
+    const newTrendingData = {};
+    CONTENT_TYPES.forEach(type => {
+      newTrendingData[type.id] = {
+        trend: type.trend + (Math.random() - 0.5) * 0.3,
+        momentum: Math.random() * 100,
+        engagement: Math.random() * 100,
+      };
+    });
+    setTrendingData(newTrendingData);
+
+    const interval = setInterval(() => {
+      const types = CONTENT_TYPES.map(c => c.id);
+      const newType = types[Math.floor(Math.random() * types.length)];
+      setTrendingType(newType);
+      addNotification(`🔥 ${translate('Trending Now')}: ${newType.toUpperCase()}`);
+      
+      const updated = {};
+      CONTENT_TYPES.forEach(type => {
+        updated[type.id] = {
+          trend: (trendingData[type.id]?.trend || 1) + (Math.random() - 0.5) * 0.4,
+          momentum: Math.random() * 100,
+          engagement: Math.random() * 100,
+        };
+      });
+      setTrendingData(updated);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCompetitorStats(prev => prev.map(comp => {
+        // Random fluctuation: sometimes they gain a lot, sometimes they lose a bit (drama/unsubscribes)
+        const isLosing = Math.random() < 0.15; // 15% chance to lose subs
+        const fluctuation = (Math.random() - (isLosing ? 0.8 : 0.2)) * comp.baseGrowth;
+        const newSubs = Math.max(0, Math.floor(comp.subs + fluctuation));
+        return { ...comp, subs: newSubs };
+      }));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (subs > 0) {
+        const passiveMult = getUpgradeMultiplier('passive_multiplier');
+        const allMult = getUpgradeMultiplier('all_multiplier');
+        const passiveViews = Math.floor(subs * 0.005 * allMult) + 1;
+        const passiveMoney = (passiveViews * 0.0005 * passiveMult * allMult);
+        setViews(v => clamp(v + passiveViews));
+        setMoney(m => clamp(m + passiveMoney));
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [subs, upgrades]);
+
+  const addNotification = (text) => {
+    const id = notificationIdRef.current++;
+    setNotifications(prev => [...prev, { id, text }].slice(-3));
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 3000);
+  };
+
+  const getUpgradeMultiplier = (effectType) => {
+    let multiplier = 1;
+    UPGRADES.forEach(upgrade => {
+      if (upgrades[upgrade.id] && upgrade.effect === effectType) {
+        multiplier *= upgrade.value;
+      }
+    });
+    return multiplier;
+  };
+
+  const handleUpload = (type) => {
+    if (activeVideo) return;
+    gizmoRuntime.performHaptic('medium');
+    setActiveVideo({ type: type.id, progress: 0 });
+
+    let progress = 0;
+    if (uploadIntervalRef.current) clearInterval(uploadIntervalRef.current);
+
+    uploadIntervalRef.current = setInterval(() => {
+      progress += 10;
+      setActiveVideo(prev => prev ? { ...prev, progress } : null);
+      if (progress >= 100) {
+        if (uploadIntervalRef.current) clearInterval(uploadIntervalRef.current);
+        completeUpload(type);
+      }
+    }, 40);
+  };
+
+  const completeUpload = (type) => {
+    setSubs(currentSubs => {
+      const allMult = getUpgradeMultiplier('all_multiplier');
+      const viewsMult = getUpgradeMultiplier('views_multiplier');
+      const subsMult = getUpgradeMultiplier('subs_multiplier');
+      const strategyPower = getUpgradeMultiplier('strategy_power');
+      const strategyBonus = contentStrategies[type.id] ? (1.5 * strategyPower) : 1.0;
+      const trendBonus = type.id === trendingType ? 2.5 : 1.0;
+      
+      const newViews = Math.floor((Math.random() * 30 + 10) * type.multiplier * trendBonus * strategyBonus * (1 + currentSubs * 0.003) * allMult * viewsMult);
+      const newSubs = Math.floor(newViews * (0.005 + Math.random() * 0.01) * subsMult * allMult);
+      const newMoney = newViews * 0.0015 * allMult;
+      
+      setViews(v => clamp(v + newViews));
+      setMoney(m => clamp(m + newMoney));
+      setVideos(v => clamp(v + 1));
+      
+      const nextSubs = clamp(currentSubs + newSubs);
+      const newComment = COMMENTS[Math.floor(Math.random() * COMMENTS.length)];
+      setRecentComments(prev => [newComment, ...prev].slice(0, 5));
+      
+      return nextSubs;
+    });
+    
+    setActiveVideo(null);
+    gizmoRuntime.performHaptic('light');
+  };
+
+  useEffect(() => {
+    if (!autoClickType) return;
+    const speedMultiplier = getUpgradeMultiplier('autoclicker_speed') || 1;
+    const interval = 1500 / (autoClickSpeed * speedMultiplier);
+    if (autoClickIntervalRef.current) clearInterval(autoClickIntervalRef.current);
+    autoClickIntervalRef.current = setInterval(() => {
+      const type = CONTENT_TYPES.find(c => c.id === autoClickType);
+      if (type && !activeVideo) handleUpload(type);
+    }, interval);
+    return () => { if (autoClickIntervalRef.current) clearInterval(autoClickIntervalRef.current); };
+  }, [autoClickType, autoClickSpeed, upgrades, activeVideo]);
+
+  const purchaseUpgrade = (upgrade) => {
+    if (money >= upgrade.cost && !upgrades[upgrade.id]) {
+      gizmoRuntime.performHaptic('medium');
+      setMoney(m => clamp(m - upgrade.cost));
+      setUpgrades(prev => ({ ...prev, [upgrade.id]: true }));
+      addNotification(`✨ ${translate('Unlocked')}: ${upgrade.name}`);
+      saveGame();
+    } else if (upgrades[upgrade.id]) {
+      addNotification(translate('Already owned'));
+    } else {
+      gizmoRuntime.performHaptic('light');
+      addNotification(`${translate('Need')} $${(upgrade.cost - money).toLocaleString()}`);
+    }
+  };
+
+  const handleLogin = () => {
+    if (loginPass === '2524') {
+      setIsAdmin(true);
+      setShowAdminLogin(false);
+      setActiveTab('admin');
+      setLoginError('');
+      setLoginPass('');
+      gizmoRuntime.performHaptic('heavy');
+      addNotification('🔓 Admin Access Granted');
+    } else {
+      setLoginError('Invalid credentials');
+      gizmoRuntime.performHaptic('rigid');
+    }
+  };
+
+  const nextMilestone = MILESTONES.find(m => m > subs) || MILESTONES[MILESTONES.length - 1];
+  const progressToMilestone = Math.min(100, (subs / nextMilestone) * 100);
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'home':
+        return (
+          <div className="space-y-6 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Real-time Stats */}
+            <div className="grid grid-cols-2 gap-4">
+              <div style={{ backgroundColor: cardColor }} className="p-5 rounded-[2rem] flex flex-col items-start justify-center shadow-2xl border border-white/5 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <Users size={40} className="text-blue-400" />
+                </div>
+                <span className="text-gray-500 text-[10px] uppercase font-black tracking-widest mb-1">{translate('Subscribers')}</span>
+                <span className="text-white text-2xl font-black tracking-tighter">{subs.toLocaleString()}</span>
+                <div className="mt-2 flex items-center gap-1 text-[9px] font-bold text-green-400">
+                  <TrendingUp size={10} /> +{(subs * 0.0025).toFixed(0)}/s
+                </div>
+              </div>
+              <div style={{ backgroundColor: cardColor }} className="p-5 rounded-[2rem] flex flex-col items-start justify-center shadow-2xl border border-white/5 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <DollarSign size={40} className="text-green-400" />
+                </div>
+                <span className="text-gray-500 text-[10px] uppercase font-black tracking-widest mb-1">{translate('Revenue')}</span>
+                <span className="text-white text-2xl font-black tracking-tighter">${money.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                <div className="mt-2 flex items-center gap-1 text-[9px] font-bold text-green-400">
+                  <TrendingUp size={10} /> +{(money * 0.01).toFixed(2)}/s
+                </div>
+              </div>
+            </div>
+
+            {/* Milestone Progress */}
+            {subGoalVisible && (
+              <div style={{ backgroundColor: cardColor }} className="p-6 rounded-[2rem] shadow-2xl border border-white/5 relative overflow-hidden">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-yellow-500/10 p-2 rounded-xl">
+                      <Award size={16} className="text-yellow-500" />
+                    </div>
+                    <span style={{ color: subGoalColor, fontSize: subGoalSize }} className="font-black uppercase tracking-widest">
+                      {translate(subGoalText)}
+                    </span>
+                  </div>
+                  <span className="text-white font-black text-xs tracking-tighter">{nextMilestone.toLocaleString()}</span>
+                </div>
+                <div className="h-3 bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/5">
+                  <div 
+                    className="h-full rounded-full transition-all duration-1000 ease-out relative"
+                    style={{ width: `${progressToMilestone}%`, backgroundColor: accentColor }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Video Preview / Recording */}
+            <div 
+              style={{ backgroundColor: cardColor }} 
+              className="aspect-video rounded-[2.5rem] relative overflow-hidden flex items-center justify-center border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] group"
+            >
+              {activeVideo ? (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-black/40 backdrop-blur-xl">
+                  <div className="relative">
+                    <div className="text-7xl mb-6 animate-bounce">
+                      {CONTENT_TYPES.find(c => c.id === activeVideo.type)?.emoji}
+                    </div>
+                    <div className="absolute -top-2 -right-2">
+                      <Sparkles className="text-yellow-400 animate-pulse" size={24} />
+                    </div>
+                  </div>
+                  <div className="w-1/2 h-2 bg-white/10 rounded-full overflow-hidden border border-white/5">
+                    <div 
+                      className="h-full bg-red-600 transition-all duration-100 shadow-[0_0_15px_rgba(220,38,38,0.8)]"
+                      style={{ width: `${activeVideo.progress}%` }}
+                    />
+                  </div>
+                  <span className="text-white mt-4 font-black text-[10px] tracking-[0.4em] animate-pulse">RENDERING...</span>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <div className="relative group-active:scale-90 transition-transform duration-200">
+                    <div className="w-20 h-20 bg-red-600/10 rounded-full flex items-center justify-center border border-red-600/20">
+                      <Play size={40} className="text-red-600 fill-red-600 opacity-40" />
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-24 h-24 bg-red-600/5 rounded-full animate-ping" />
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-600 mt-4">{translate('LIVE')}</span>
+                </div>
+              )}
+              {/* Overlay UI */}
+              <div className="absolute top-6 left-6 flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+                <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse shadow-[0_0_8px_rgba(220,38,38,1)]" />
+                <span className="text-[10px] font-black text-white tracking-widest">{translate('LIVE')}</span>
+              </div>
+              <div className="absolute bottom-6 right-6 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+                <span className="text-[10px] font-mono text-white/60 tracking-widest">00:00:0{Math.floor(Math.random()*9)}</span>
+              </div>
+            </div>
+
+            {/* Content Selection & Auto-Click */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between px-2">
+                <div className="flex items-center gap-2">
+                  <div className="bg-orange-500/10 p-1.5 rounded-lg">
+                    <Flame size={14} className="text-orange-500" />
+                  </div>
+                  <h3 className="font-black uppercase tracking-widest text-white text-[10px]">{translate('Content Strategy')}</h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setAutoClickType(autoClickType ? null : 'gaming');
+                    gizmoRuntime.performHaptic('light');
+                  }}
+                  className={`text-[9px] font-black px-5 py-2 rounded-full transition-all border ${
+                    autoClickType
+                      ? 'bg-red-600 text-white border-red-500 shadow-[0_0_20px_rgba(220,38,38,0.4)]'
+                      : 'bg-white/5 text-gray-500 border-white/10'
+                  }`}
+                >
+                  {autoClickType ? translate('AUTO-BOT ACTIVE') : translate('MANUAL MODE')}
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                {CONTENT_TYPES.map((type) => (
+                  <button
+                    key={type.id}
+                    onClick={() => {
+                      if (autoClickType) setAutoClickType(type.id);
+                      else handleUpload(type);
+                      gizmoRuntime.performHaptic('medium');
+                    }}
+                    style={{ backgroundColor: cardColor }}
+                    className={`p-5 rounded-[2rem] flex items-center gap-4 border transition-all active:scale-95 relative overflow-hidden ${
+                      autoClickType === type.id ? 'border-red-600 shadow-[0_0_25px_rgba(220,38,38,0.2)]' : 'border-white/5'
+                    } ${type.id === trendingType ? 'ring-2 ring-orange-500/30' : ''}`}
+                  >
+                    <div className="p-3 rounded-2xl shadow-inner" style={{ backgroundColor: type.color + '15' }}>
+                      <span className="text-2xl">{type.emoji}</span>
+                    </div>
+                    <div className="flex flex-col items-start">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-white font-black text-xs uppercase tracking-tight">{translate(type.label)}</span>
+                        {type.id === trendingType && <Flame size={10} className="text-orange-500 animate-pulse" />}
+                      </div>
+                      <span className="text-gray-500 text-[9px] font-black tracking-widest mt-0.5">x{type.multiplier} {translate('REACH')}</span>
+                    </div>
+                    {type.id === trendingType && (
+                      <div className="absolute -top-1 -right-1 bg-orange-500 text-[8px] font-black px-2 py-0.5 rounded-bl-lg text-white">HOT</div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Recent Comments Feed */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 px-2">
+                <div className="bg-blue-500/10 p-1.5 rounded-lg">
+                  <MessageSquare size={14} className="text-blue-400" />
+                </div>
+                <h3 className="font-black uppercase tracking-widest text-white text-[10px]">{translate('Live Feed')}</h3>
+              </div>
+              <div className="space-y-3">
+                {recentComments.length > 0 ? recentComments.map((comment, i) => (
+                  <div key={i} className="space-y-2">
+                    <button
+                      onTouchStart={() => {
+                        longPressTimerRef.current = setTimeout(() => handleCommentLongPress(i), 600);
+                      }}
+                      onTouchEnd={() => {
+                        if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+                      }}
+                      onClick={() => {
+                        if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+                      }}
+                      className="bg-white/5 p-4 rounded-[1.5rem] border border-white/5 flex items-start gap-4 animate-in slide-in-from-left-4 duration-300 text-left w-full active:scale-95 transition-all"
+                    >
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-gray-800 to-black flex-shrink-0 flex items-center justify-center text-lg border border-white/10 shadow-lg">
+                        {comment.avatar}
+                      </div>
+                      <div className="flex flex-col flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-white font-black text-[10px] uppercase tracking-tight">{comment.user}</span>
+                          <span className="text-[8px] text-gray-600 font-bold">{translate('JUST NOW')}</span>
+                        </div>
+                        <p className="text-gray-400 text-[12px] font-medium leading-relaxed">{comment.text}</p>
+                      </div>
+                    </button>
+                    
+                    {/* Replies Thread */}
+                    {commentReplies[i] && commentReplies[i].map((reply, ri) => (
+                      <div key={ri} className="ml-8 bg-white/5 p-3 rounded-[1.25rem] border-l-2 border-red-600/30 flex items-start gap-3 animate-in slide-in-from-top-2 duration-300">
+                        <div className="w-7 h-7 rounded-xl bg-black/40 flex-shrink-0 flex items-center justify-center text-sm border border-white/5">
+                          {reply.avatar && typeof reply.avatar === 'string' && reply.avatar.startsWith('data:') ? (
+                            <img src={reply.avatar} className="w-full h-full object-cover rounded-xl" alt="" />
+                          ) : reply.avatar}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className={`font-black text-[9px] uppercase tracking-tight ${reply.isPlayer ? 'text-red-500' : 'text-white'}`}>
+                            {reply.user}
+                          </span>
+                          <p className="text-gray-400 text-[11px] font-medium">{reply.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )) : (
+                  <div className="text-center py-8 bg-white/5 rounded-[2rem] border border-dashed border-white/10">
+                    <span className="text-gray-600 text-[10px] font-black uppercase tracking-[0.3em]">{translate('Waiting for engagement...')}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      case 'upgrades':
+        return (
+          <div className="space-y-6 pb-24 animate-in slide-in-from-right-4 duration-500">
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-3">
+                <div className="bg-yellow-400/10 p-2 rounded-xl">
+                  <Zap size={24} className="text-yellow-400" />
+                </div>
+                <h2 className="text-2xl font-black text-white tracking-tighter uppercase">{translate('Creator Shop')}</h2>
+              </div>
+              <div className="bg-green-500/10 px-4 py-2 rounded-2xl border border-green-500/20">
+                <span className="text-green-400 font-black text-sm tracking-tighter">${money.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+              </div>
+            </div>
+            <div className="grid gap-4">
+              {UPGRADES.map(upgrade => (
+                <button 
+                  key={upgrade.id}
+                  onClick={() => purchaseUpgrade(upgrade)}
+                  disabled={upgrades[upgrade.id]}
+                  style={{ backgroundColor: cardColor }}
+                  className={`p-5 rounded-[2rem] flex items-center justify-between border transition-all text-left relative overflow-hidden group ${
+                    upgrades[upgrade.id] ? 'border-green-500/20 opacity-60' : 'border-white/5 active:scale-98 hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex gap-5 items-center">
+                    <div className="text-4xl bg-white/5 w-16 h-16 rounded-[1.5rem] flex items-center justify-center border border-white/5 shadow-inner group-hover:scale-110 transition-transform">
+                      {upgrade.emoji}
+                    </div>
+                    <div>
+                      <h3 className="font-black text-sm text-white uppercase tracking-tight mb-1">
+                        {upgrade.name}
+                      </h3>
+                      <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">{upgrade.description}</p>
+                    </div>
+                  </div>
+                  <div className={`px-5 py-2.5 rounded-2xl font-black text-[11px] tracking-tighter transition-colors ${
+                    upgrades[upgrade.id] 
+                      ? 'bg-green-500/10 text-green-500' 
+                      : money >= upgrade.cost 
+                      ? 'bg-white text-black shadow-[0_10px_20px_rgba(255,255,255,0.1)]' 
+                      : 'bg-white/5 text-gray-600'
+                  }`}>
+                    {upgrades[upgrade.id] ? translate('OWNED') : `$${upgrade.cost.toLocaleString()}`}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      case 'trends':
+        return (
+          <div className="space-y-6 pb-24 animate-in slide-in-from-left-4 duration-500">
+            <div className="flex items-center gap-3 px-2">
+              <div className="bg-orange-500/10 p-2 rounded-xl">
+                <Flame size={24} className="text-orange-500" />
+              </div>
+              <h2 className="text-2xl font-black text-white uppercase tracking-tighter">{translate('Trending Now')}</h2>
+            </div>
+
+            <div className="space-y-4">
+              {CONTENT_TYPES.map((type) => {
+                const data = trendingData[type.id] || { trend: 1, momentum: 50, engagement: 50 };
+                const isTrending = type.id === trendingType;
+                return (
+                  <div
+                    key={type.id}
+                    style={{ backgroundColor: cardColor }}
+                    className={`p-6 rounded-[2.5rem] border transition-all relative overflow-hidden ${
+                      isTrending ? 'border-orange-500/40 shadow-[0_20px_50px_rgba(249,115,22,0.15)]' : 'border-white/5'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-6">
+                      <div className="flex items-center gap-4">
+                        <div className="text-4xl bg-white/5 w-16 h-16 rounded-[1.5rem] flex items-center justify-center border border-white/5">
+                          {type.emoji}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-black text-white text-lg uppercase tracking-tight">{translate(type.label)}</h3>
+                            {isTrending && <div className="bg-orange-500 text-[8px] font-black px-2 py-0.5 rounded-full text-white animate-pulse">HOT</div>}
+                          </div>
+                          <p className="text-gray-500 text-[10px] font-black tracking-widest uppercase">{translate('Trend Score:')} {(data.trend * 100).toFixed(0)}%</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-[10px] font-black px-3 py-1 rounded-full ${isTrending ? 'bg-orange-500/20 text-orange-400' : 'bg-white/5 text-gray-600'}`}>
+                          {isTrending ? translate('VIRAL') : translate('STABLE')}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{translate('Momentum')}</span>
+                          <span className="text-[10px] font-black text-white tracking-tighter">{data.momentum.toFixed(0)}%</span>
+                        </div>
+                        <div className="h-2 bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/5">
+                          <div
+                            className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full transition-all duration-1000"
+                            style={{ width: `${data.momentum}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{translate('Engagement')}</span>
+                          <span className="text-[10px] font-black text-white tracking-tighter">{data.engagement.toFixed(0)}%</span>
+                        </div>
+                        <div className="h-2 bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/5">
+                          <div
+                            className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full transition-all duration-1000"
+                            style={{ width: `${data.engagement}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        if (upgrades['strategy_unlock']) {
+                          setContentStrategies(prev => ({
+                            ...prev,
+                            [type.id]: !prev[type.id]
+                          }));
+                          gizmoRuntime.performHaptic('medium');
+                          addNotification(`${contentStrategies[type.id] ? '❌' : '✅'} ${type.label} ${translate('Strategy Active')}`);
+                        } else {
+                          addNotification(translate('Unlock Content Strategies first!'));
+                        }
+                      }}
+                      className={`w-full mt-6 py-4 rounded-2xl font-black text-[11px] tracking-widest transition-all active:scale-95 uppercase ${
+                        contentStrategies[type.id]
+                          ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                          : upgrades['strategy_unlock']
+                          ? 'bg-white text-black'
+                          : 'bg-white/5 text-gray-600 border border-white/10 opacity-50'
+                      }`}
+                    >
+                      {contentStrategies[type.id] ? translate('Strategy Active') : translate('Deploy Strategy')}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      case 'leaderboard':
+        const allChannels = [
+          ...competitorStats.map(c => subs > c.subs ? {...c, subs: subs - 1} : c),
+          { name: channelName, subs: subs, emoji: '😎', color: '#FFDD46', isPlayer: true, photo: channelPhoto }
+        ].sort((a, b) => b.subs - a.subs);
+
+        return (
+          <div className="space-y-6 pb-24 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center gap-3 px-2">
+              <div className="bg-yellow-400/10 p-2 rounded-xl">
+                <Trophy size={24} className="text-yellow-400" />
+              </div>
+              {leaderboardTitleVisible && (
+                <h2 style={{ color: leaderboardTitleColor, fontSize: leaderboardTitleSize }} className="font-black uppercase tracking-tighter">
+                  {translate(leaderboardTitle)}
+                </h2>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              {allChannels.map((channel, index) => (
+                <div 
+                  key={channel.isPlayer ? 'player' : channel.name}
+                  style={{ backgroundColor: cardColor }}
+                  className={`p-5 rounded-[2rem] flex items-center justify-between border transition-all relative overflow-hidden ${
+                    channel.isPlayer ? 'border-yellow-500/40 bg-yellow-500/5 shadow-[0_15px_40px_rgba(234,179,8,0.1)]' : 'border-white/5'
+                  }`}
+                >
+                  <div className="flex items-center gap-5">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs ${index < 3 ? 'bg-white text-black' : 'bg-white/5 text-gray-600'}`}>
+                      {index + 1}
+                    </div>
+                    <div className="w-14 h-14 rounded-[1.25rem] overflow-hidden bg-white/5 flex items-center justify-center text-2xl border border-white/10 shadow-lg">
+                      {channel.isPlayer && channel.photo ? (
+                        <img src={channel.photo} className="w-full h-full object-cover" alt="" />
+                      ) : (
+                        <span>{channel.emoji}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className={`font-black text-sm uppercase tracking-tight ${channel.isPlayer ? 'text-yellow-400' : 'text-white'}`}>
+                        {channel.name}
+                      </span>
+                      <span className="text-gray-500 text-[10px] font-black tracking-widest mt-0.5">
+                        {channel.subs.toLocaleString()} {translate('SUBS')}
+                      </span>
+                    </div>
+                  </div>
+                  {index < 3 && (
+                    <div className="text-2xl drop-shadow-lg">
+                      {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      case 'admin':
+        if (!isAdmin) return null;
+        return (
+          <div className="space-y-6 pb-24 animate-in zoom-in duration-300">
+            <div className="flex items-center gap-3 px-2">
+              <div className="bg-yellow-400/10 p-2 rounded-xl">
+                <ShieldCheck size={24} className="text-yellow-400" />
+              </div>
+              <h2 className="text-2xl font-black text-white uppercase tracking-tighter">{translate('System Override')}</h2>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { label: '+1M SUBS', icon: <Users size={18} />, action: () => setSubs(s => clamp(s + 1000000)), color: 'bg-blue-600' },
+                { label: '+$1M CASH', icon: <DollarSign size={18} />, action: () => setMoney(m => clamp(m + 1000000)), color: 'bg-green-600' },
+                { label: '+100M SUBS', icon: <Users size={18} />, action: () => setSubs(s => clamp(s + 100000000)), color: 'bg-indigo-600' },
+                { label: '+$100M CASH', icon: <DollarSign size={18} />, action: () => setMoney(m => clamp(m + 100000000)), color: 'bg-emerald-600' },
+                { label: 'MAX ALL', icon: <Rocket size={18} />, action: () => { setSubs(MAX_LIMIT); setMoney(MAX_LIMIT); setViews(MAX_LIMIT); }, color: 'bg-red-600' },
+                { label: 'ALL UPGRADES', icon: <Star size={18} />, action: () => { const a = {}; UPGRADES.forEach(u => a[u.id] = true); setUpgrades(a); }, color: 'bg-purple-600' },
+                { label: 'SPEED x100', icon: <Zap size={18} />, action: () => setAutoClickSpeed(s => s * 100), color: 'bg-yellow-600' },
+                { label: 'WIPE DATA', icon: <RefreshCcw size={18} />, action: () => { localStorage.removeItem(STORAGE_KEY); window.location.reload(); }, color: 'bg-gray-800' },
+              ].map((btn, i) => (
+                <button key={i} onClick={() => { btn.action(); gizmoRuntime.performHaptic('heavy'); addNotification(translate(btn.label)); }} className={`${btn.color} p-6 rounded-[2rem] text-white font-black flex flex-col items-center justify-center active:scale-95 transition-all text-[11px] gap-2 border border-white/10 shadow-xl`}>
+                  {btn.icon}
+                  <span className="tracking-widest">{translate(btn.label)}</span>
+                </button>
+              ))}
+            </div>
+
+            <button onClick={() => { setIsAdmin(false); setActiveTab('you'); }} className="w-full bg-white/5 text-white py-5 rounded-[2rem] font-black text-xs active:scale-95 transition-all border border-white/10 tracking-[0.3em] uppercase">{translate('Terminate Session')}</button>
+          </div>
+        );
+      case 'you':
+        return (
+          <div className="flex flex-col items-center h-full p-6 space-y-10 overflow-y-auto pb-24 animate-in fade-in duration-500">
+            {/* Player Videos Section */}
+            {playerVideos.length > 0 && (
+              <div className="w-full space-y-4">
+                <div className="flex items-center gap-2 px-2">
+                  <div className="bg-red-500/10 p-1.5 rounded-lg">
+                    <Play size={14} className="text-red-500" />
+                  </div>
+                  <h3 className="font-black uppercase tracking-widest text-white text-[10px]">{translate('Your Video Replies')}</h3>
+                </div>
+                <div className="space-y-3">
+                  {playerVideos.map((video, idx) => (
+                    <div key={idx} style={{ backgroundColor: cardColor }} className="p-4 rounded-[1.5rem] border border-white/5 flex items-start gap-4">
+                      <div className="w-16 h-16 rounded-xl bg-red-600/10 flex items-center justify-center flex-shrink-0 border border-red-600/20">
+                        <Play className="text-red-600 fill-red-600" size={24} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white text-[11px] font-black mb-1">{translate('Video Reply')}</p>
+                        <p className="text-gray-400 text-[10px] mb-2 italic">{`"${video.content}"`}</p>
+                        <span className="text-gray-600 text-[9px] font-bold">{video.timestamp}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="relative group">
+              <div onClick={() => fileInputRef.current?.click()} className="w-36 h-36 rounded-[3rem] border-4 border-white/5 overflow-hidden bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-5xl shadow-[0_30px_60px_rgba(220,38,38,0.3)] cursor-pointer active:scale-95 transition-all hover:rotate-3">
+                {channelPhoto ? <img src={channelPhoto} className="w-full h-full object-cover" alt="Channel" /> : "😎"}
+              </div>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = (ev) => setChannelPhoto(ev.target?.result);
+                  reader.readAsDataURL(file);
+                }
+              }} />
+              <div className="absolute -bottom-2 -right-2 bg-white p-3 rounded-2xl shadow-2xl text-black group-hover:scale-110 transition-transform"><Camera size={18} /></div>
+            </div>
+
+            <div className="w-full space-y-8">
+              <div className="text-center space-y-2">
+                {isEditingName ? (
+                  <input autoFocus value={tempName} onChange={(e) => setTempName(e.target.value)} onBlur={() => { setChannelName(tempName || channelName); setIsEditingName(false); }} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white font-black text-center focus:outline-none text-xl" />
+                ) : (
+                  <h2 onClick={() => { setTempName(channelName); setIsEditingName(true); }} className="text-3xl font-black text-white tracking-tighter flex items-center justify-center gap-3 uppercase group cursor-pointer">
+                    {channelName}
+                    <Edit2 size={18} className="text-gray-600 group-hover:text-white transition-colors" />
+                  </h2>
+                )}
+                <div className="flex items-center justify-center gap-2">
+                  <span className="bg-white/5 px-3 py-1 rounded-full text-gray-500 font-mono text-[10px] tracking-widest uppercase">{translate('UID:')} {playerId}</span>
+                  <span className="bg-red-600/10 px-3 py-1 rounded-full text-red-500 font-black text-[10px] tracking-widest uppercase">{translate('Verified')}</span>
+                </div>
+              </div>
+
+              <div style={{ backgroundColor: cardColor }} className="w-full rounded-[2.5rem] p-8 space-y-6 shadow-2xl border border-white/5 relative overflow-hidden">
+                <div className="flex justify-between items-center">
+                  <div className="flex flex-col">
+                    <span className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-1">{translate('Total Content')}</span>
+                    <span className="text-white text-2xl font-black tracking-tighter">{videos.toLocaleString()} {translate('VIDEOS')}</span>
+                  </div>
+                  <div className="bg-red-600/10 p-4 rounded-2xl border border-red-600/20"><Play size={24} className="text-red-600 fill-red-600" /></div>
+                </div>
+                <div className="h-px bg-white/5 w-full" />
+                <div className="flex justify-between items-center">
+                  <div className="flex flex-col">
+                    <span className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-1">{translate('Ad Revenue')}</span>
+                    <span className="text-green-400 text-2xl font-black tracking-tighter">${money.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                  </div>
+                  <div className="bg-green-500/10 p-4 rounded-2xl border border-green-500/20"><DollarSign size={24} className="text-green-500" /></div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                {!isAdmin ? (
+                  <button onClick={() => setShowAdminLogin(true)} className="w-full bg-white/5 text-gray-500 py-5 rounded-[2rem] font-black text-[10px] active:scale-95 transition-all flex items-center justify-center gap-3 border border-white/5 uppercase tracking-[0.3em]"><Lock size={16} />{translate('System Access')}</button>
+                ) : (
+                  <button onClick={() => setActiveTab('admin')} className="w-full bg-yellow-400/10 text-yellow-400 py-5 rounded-[2rem] font-black text-[10px] active:scale-95 transition-all flex items-center justify-center gap-3 border border-yellow-400/20 uppercase tracking-[0.3em]"><ShieldCheck size={16} />{translate('Admin Console')}</button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="h-screen w-screen overflow-hidden flex flex-col select-none" style={{ backgroundColor: bgColor }}>
+      {/* Header */}
+      <div className="px-6 py-5 flex items-center justify-between border-b border-white/5 bg-[#080808]/90 backdrop-blur-2xl z-20">
+        <div className="flex items-center gap-3">
+          <div className="bg-red-600 p-2 rounded-xl shadow-[0_0_20px_rgba(220,38,38,0.4)]">
+            <Play fill="white" color="white" size={20} />
+          </div>
+          {titleVisible && (
+            <h1 style={{ color: titleColor, fontSize: titleSize }} className="font-black tracking-tighter uppercase leading-none">
+              {translate(titleText)}
+            </h1>
+          )}
+        </div>
+        <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 shadow-inner">
+          <DollarSign size={14} className="text-green-400" />
+          <span className="text-white font-black text-sm tracking-tighter">${money.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 bg-gradient-to-b from-transparent via-black/5 to-black/20">
+        {renderContent()}
+      </div>
+
+      {/* Notifications */}
+      <div className="fixed top-24 left-0 right-0 pointer-events-none flex flex-col items-center gap-3 z-[60]">
+        {notifications.map(n => (
+          <div key={n.id} className="bg-white text-black px-6 py-3 rounded-2xl font-black text-[11px] shadow-[0_20px_40px_rgba(0,0,0,0.4)] animate-in slide-in-from-top-4 fade-in duration-300 uppercase tracking-widest border border-white/20">
+            {n.text}
+          </div>
+        ))}
+      </div>
+
+      {/* Admin Login Modal */}
+      {showAdminLogin && (
+        <div className="fixed inset-0 bg-black/95 z-[150] flex flex-col p-6 animate-in fade-in duration-500 backdrop-blur-xl">
+          <button onClick={() => { setShowAdminLogin(false); setLoginPass(''); setLoginError(''); }} className="self-start p-3 text-gray-500 mb-6 bg-white/5 rounded-2xl border border-white/10 active:scale-95 transition-all">
+            <ChevronLeft size={32} />
+          </button>
+          <div className="flex-1 flex flex-col justify-center items-center space-y-8 px-4">
+            <div className="text-center space-y-4 w-full">
+              <div className="bg-white/5 w-24 h-24 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 border border-white/10 shadow-2xl">
+                <Lock size={40} className="text-white" />
+              </div>
+              <h2 className="text-3xl font-black text-white tracking-tighter uppercase">{translate('Authorization')}</h2>
+              <p className="text-gray-600 text-[9px] font-black tracking-[0.3em] uppercase">{translate('Enter 4-Digit Security Key')}</p>
+            </div>
+            <div className="space-y-6 w-full max-w-xs">
+              <div className="flex justify-center gap-3">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="w-14 h-14 bg-white/5 border-2 border-white/10 rounded-2xl flex items-center justify-center text-2xl font-black text-white">
+                    {loginPass[i] ? '●' : ''}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => {
+                      if (loginPass.length < 4) {
+                        const newPass = loginPass + num;
+                        setLoginPass(newPass);
+                        gizmoRuntime.performHaptic('light');
+                        if (newPass === '2524') {
+                          setIsAdmin(true);
+                          setShowAdminLogin(false);
+                          setActiveTab('admin');
+                          setLoginError('');
+                          setLoginPass('');
+                          gizmoRuntime.performHaptic('heavy');
+                          addNotification('🔓 Admin Access Granted');
+                        } else if (newPass.length === 4) {
+                          setLoginError('Invalid credentials');
+                          gizmoRuntime.performHaptic('rigid');
+                        }
+                      }
+                    }}
+                    className="bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl py-4 font-black text-lg text-white active:scale-95 transition-all"
+                  >
+                    {num}
+                  </button>
+                ))}
+                <button
+                  onClick={() => {
+                    if (loginPass.length > 0) {
+                      setLoginPass(loginPass.slice(0, -1));
+                      gizmoRuntime.performHaptic('light');
+                    }
+                  }}
+                  className="col-span-3 bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl py-4 font-black text-sm text-white active:scale-95 transition-all uppercase tracking-widest"
+                >
+                  Backspace
+                </button>
+              </div>
+              {loginError && <p className="text-red-500 text-[11px] font-black text-center uppercase tracking-widest animate-bounce">{loginError}</p>}
+              <button 
+                onClick={handleLogin} 
+                className="w-full bg-red-600 hover:bg-red-700 py-5 rounded-[2rem] font-black text-sm active:scale-95 transition-all uppercase tracking-[0.3em] shadow-[0_20px_40px_rgba(220,38,38,0.3)] disabled:opacity-50 disabled:cursor-not-allowed border border-red-500/50" 
+                disabled={loginPass.length !== 4}
+              >
+                {translate(adminLoginBtn)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reply Modal */}
+      {selectedCommentIndex !== null && (
+        <div className="fixed inset-0 bg-black/80 z-[200] flex items-end justify-center p-6 animate-in fade-in duration-300 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-[#121212] rounded-[2.5rem] p-8 border border-white/10 shadow-2xl animate-in slide-in-from-bottom-10 duration-500">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-white font-black uppercase tracking-widest text-xs">{translate('Reply to')} {recentComments[selectedCommentIndex]?.user}</h3>
+              <button onClick={() => setSelectedCommentIndex(null)} className="text-gray-500"><Plus className="rotate-45" /></button>
+            </div>
+
+            {!replyMode ? (
+              <div className="grid grid-cols-2 gap-4">
+                <button 
+                  onClick={() => { setReplyMode('video'); gizmoRuntime.performHaptic('medium'); }}
+                  className="bg-red-600 p-6 rounded-[2rem] flex flex-col items-center gap-3 active:scale-95 transition-all"
+                >
+                  <Camera className="text-white" size={24} />
+                  <span className="text-white font-black text-[10px] uppercase tracking-widest">{translate('Reply by Video')}</span>
+                </button>
+                <button 
+                  onClick={() => { setReplyMode('text'); gizmoRuntime.performHaptic('medium'); }}
+                  className="bg-white/5 p-6 rounded-[2rem] border border-white/10 flex flex-col items-center gap-3 active:scale-95 transition-all"
+                >
+                  <MessageSquare className="text-white" size={24} />
+                  <span className="text-white font-black text-[10px] uppercase tracking-widest">{translate('Reply by Text')}</span>
+                </button>
+              </div>
+            ) : replyMode === 'video' ? (
+              <div className="space-y-6 text-center">
+                <div className="aspect-video bg-black rounded-3xl flex items-center justify-center border border-white/5 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-red-600/10 animate-pulse" />
+                  <Play className="text-red-600 fill-red-600" size={48} />
+                </div>
+                <textarea 
+                  autoFocus
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="Ce que tu dis dans la vidéo..."
+                  className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-sm focus:outline-none h-24 resize-none"
+                />
+                <div className="flex gap-4">
+                  <button onClick={() => setReplyMode(null)} className="flex-1 bg-white/5 py-4 rounded-2xl text-gray-400 font-black text-[10px] uppercase tracking-widest">{translate('Cancel')}</button>
+                  <button onClick={handleReplySubmit} className="flex-1 bg-red-600 py-4 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest">{translate('Send Reply')}</button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <textarea 
+                  autoFocus
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder={translate('Type your reply...')}
+                  className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-sm focus:outline-none h-32 resize-none"
+                />
+                <div className="flex gap-4">
+                  <button onClick={() => setReplyMode(null)} className="flex-1 bg-white/5 py-4 rounded-2xl text-gray-400 font-black text-[10px] uppercase tracking-widest">{translate('Cancel')}</button>
+                  <button onClick={handleReplySubmit} className="flex-1 bg-red-600 py-4 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest">{translate('Send Reply')}</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 h-24 bg-[#080808]/95 backdrop-blur-3xl border-t border-white/5 flex items-center justify-around px-4 z-50 pb-6">
+        {[
+          { id: 'home', icon: <Home size={22} />, label: 'Home' },
+          { id: 'upgrades', icon: <Zap size={22} />, label: 'Shop' },
+          { id: 'trends', icon: <Flame size={22} />, label: 'Trends' },
+          { id: 'leaderboard', icon: <Trophy size={22} />, label: 'Ranks' },
+          { id: 'you', icon: <User size={22} />, label: 'Profile' }
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => { setActiveTab(tab.id); gizmoRuntime.performHaptic('light'); }}
+            className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all relative ${
+              activeTab === tab.id ? 'text-white' : 'text-gray-600'
+            }`}
+          >
+            {activeTab === tab.id && (
+              <div className="absolute inset-0 bg-white/5 rounded-2xl animate-in zoom-in duration-200" />
+            )}
+            <div className={`transition-transform duration-300 ${activeTab === tab.id ? 'scale-110 -translate-y-1' : ''}`}>
+              {tab.icon}
+            </div>
+            <span className={`text-[8px] mt-1.5 font-black uppercase tracking-widest transition-opacity ${activeTab === tab.id ? 'opacity-100' : 'opacity-60'}`}>
+              {translate(tab.label)}
+            </span>
+            {activeTab === tab.id && (
+              <div className="absolute -bottom-1 w-1 h-1 bg-red-600 rounded-full shadow-[0_0_8px_rgba(220,38,38,1)]" />
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+// ===== FIN DU CODE GIZMO =====
+
+import { createRoot as __gizmoCreateRoot } from 'react-dom/client';
+__gizmoCreateRoot(document.getElementById('root')).render(<Component />);
   </script>
 </body>
 </html>

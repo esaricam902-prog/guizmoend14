@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Simulateur de Peste</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Modules utilisés par le code Gizmo -->
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.3.1",
+      "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+      "react-dom": "https://esm.sh/react-dom@18.3.1?external=react",
+      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client?external=react",
+      "lucide-react": "https://esm.sh/lucide-react@0.454.0?external=react",
+      "framer-motion": "https://esm.sh/framer-motion@11.11.17?external=react,react-dom",
+      "matter-js": "https://esm.sh/matter-js@0.19.0",
+      "tone": "https://esm.sh/tone@15.0.4",
+      "@gizmo/runtime": "./gizmo-runtime.js"
+    }
+  }
+  </script>
+
+  <!-- Babel pour interpréter le React/TypeScript (TSX) -->
+  <script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+  <script>
+    Babel.registerPreset('gizmo-tsx', {
+      presets: [
+        [Babel.availablePresets.typescript, { allExtensions: true, isTSX: true }],
+        Babel.availablePresets.react,
+      ],
+    });
+  </script>
+
+  <style>
+    html, body, #root { margin: 0; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-type="module" data-presets="gizmo-tsx">
+// ===== CODE GIZMO ORIGINAL (non modifié) =====
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { gizmoRuntime } from '@gizmo/runtime';
+import { 
+  Dna, 
+  Globe, 
+  Activity, 
+  ShieldAlert, 
+  Wind, 
+  ThermometerSnowflake, 
+  ThermometerSun, 
+  FlaskConical,
+  AlertTriangle,
+  Skull,
+  Newspaper,
+  Save,
+  RotateCcw
+} from 'lucide-react';
+
+// --- TWEAKS ---
+const tweaks = gizmoRuntime.tweaks({
+  gameTitle: { index: 0, name: 'Titre du Jeu', type: 'text', value: 'Simulateur de Peste', group: 'title' },
+  gameTitleColor: { index: 1, name: 'Couleur du Titre', type: 'color', value: '#E93323', group: 'title' },
+  gameTitleVisible: { index: 2, name: 'Afficher le Titre', type: 'toggle', value: true, group: 'title' },
+  gameTitleSize: { index: 3, name: 'Taille du Titre', type: 'slider', value: 24, min: 12, max: 48, step: 1, group: 'title' },
+  
+  pathogenName: { index: 4, name: 'Nom du Pathogène', type: 'text', value: 'Bactérie-X', group: 'pathogen' },
+  pathogenType: { index: 4.5, name: 'Type de Pathogène', type: 'text', value: 'Bactérie', group: 'pathogen' },
+  pathogenColor: { index: 5, name: 'Couleur du Pathogène', type: 'color', value: '#75F94C', group: 'pathogen' },
+  pathogenVisible: { index: 6, name: 'Afficher le Nom', type: 'toggle', value: true, group: 'pathogen' },
+  pathogenSize: { index: 7, name: 'Taille du Nom', type: 'slider', value: 18, min: 12, max: 32, step: 1, group: 'pathogen' },
+
+  difficulty: { index: 8, name: 'Vitesse du Remède', type: 'slider', value: 1, min: 0.5, max: 5, step: 0.1 },
+  startingDNA: { index: 9, name: 'ADN de Départ', type: 'slider', value: 10, min: 0, max: 100, step: 5 },
+  mutationRate: { index: 10, name: 'Taux de Mutation', type: 'slider', value: 0.05, min: 0, max: 0.5, step: 0.01 },
+});
+
+// --- ASSETS ---
+const ASSETS = {
+  worldMap: 'https://content.gizmo.party/4ef16b0c-30f7-4c0d-9716-a981d480217d',
+  bacteria: 'https://content.gizmo.party/80f7f026-30b8-482c-b300-6c89fd6d0915',
+  dnaIcon: 'https://content.gizmo.party/51556ccd-8f25-4f9c-b919-941fabae2183',
+  muga: 'https://content.gizmo.party/c66a9242-f65e-4fd7-b179-090be7ba4cd5',
+};
+
+// --- DATA ---
+const REGIONS = [
+  { id: 'na', name: 'Amérique du Nord', x: 20, y: 30, pop: 590000000, climate: 'tempéré' },
+  { id: 'sa', name: 'Amérique du Sud', x: 30, y: 70, pop: 430000000, climate: 'chaud' },
+  { id: 'eu', name: 'Europe', x: 50, y: 25, pop: 740000000, climate: 'froid' },
+  { id: 'af', name: 'Afrique', x: 52, y: 55, pop: 1300000000, climate: 'chaud' },
+  { id: 'as', name: 'Asie', x: 75, y: 35, pop: 4600000000, climate: 'tempéré' },
+  { id: 'oc', name: 'Océanie', x: 85, y: 75, pop: 43000000, climate: 'chaud' },
+];
+
+const UPGRADES = {
+  transmission: [
+    { id: 'air1', name: 'Aérien I', cost: 10, effect: { infectivity: 2 }, icon: Wind, description: 'Le pathogène voyage par les courants d\'air, augmentant la propagation urbaine.' },
+    { id: 'air2', name: 'Aérien II', cost: 25, effect: { infectivity: 4 }, icon: Wind, description: 'Propriétés aérodynamiques améliorées pour une propagation atmosphérique accrue.', requires: 'air1' },
+    { id: 'water1', name: 'Aquatique I', cost: 15, effect: { infectivity: 3 }, icon: Activity, description: 'Survit dans les réserves d\'eau, boostant l\'infection en zones humides.', requires: 'air1' },
+    { id: 'water2', name: 'Aquatique II', cost: 30, effect: { infectivity: 5 }, icon: Activity, description: 'Le pathogène survit aux traitements chimiques extrêmes des systèmes d\'eau.', requires: 'water1' },
+    { id: 'bird1', name: 'Grippe Aviaire', cost: 25, effect: { infectivity: 5 }, icon: Activity, description: 'Mute pour infecter les oiseaux, permettant une propagation transcontinentale.', requires: 'water1' },
+    { id: 'spore1', name: 'Éclatement de Spores I', cost: 20, effect: { infectivity: 8 }, icon: Wind, description: 'Le champignon libère des nuages de spores massifs. Se propage comme un feu de forêt.', typeSpecific: 'Champignon' },
+    { id: 'spore2', name: 'Éclatement de Spores II', cost: 40, effect: { infectivity: 15 }, icon: Wind, description: 'Mécanismes de dispersion de spores avancés. Les taux d\'infection mondiaux explosent.', requires: 'spore1', typeSpecific: 'Champignon' },
+  ],
+  symptoms: [
+    { id: 'cough', name: 'Toux', cost: 8, effect: { infectivity: 1, lethality: 0, severity: 5 }, icon: Activity, description: 'Augmente les chances d\'infection par gouttelettes respiratoires. Non létal.' },
+    { id: 'sneezing', name: 'Éternuements', cost: 15, effect: { infectivity: 3, lethality: 0, severity: 10 }, icon: Activity, description: 'Des crises d\'éternuements projettent le pathogène plus loin dans l\'air. Non létal.', requires: 'cough' },
+    { id: 'fever', name: 'Fièvre', cost: 15, effect: { infectivity: 2, lethality: 0, severity: 15 }, icon: Activity, description: 'La température corporelle élevée augmente la propagation et la visibilité. Non létal.', requires: 'sneezing' },
+    { id: 'nausea', name: 'Nausée', cost: 12, effect: { infectivity: 1, severity: 8 }, icon: Activity, description: 'Détresse stomacale affaiblissant l\'hôte et se propageant par contact.', requires: 'cough' },
+    { id: 'vomiting', name: 'Vomissements', cost: 20, effect: { infectivity: 4, severity: 15 }, icon: Activity, description: 'Les vomissements en jet augmentent significativement les taux d\'infection locaux.', requires: 'nausea' },
+    { id: 'anemia', name: 'Anémie', cost: 25, effect: { lethality: 0.5, severity: 20 }, icon: Activity, description: 'La baisse des globules rouges fatigue l\'hôte et le rend vulnérable.', requires: 'fever' },
+    { id: 'organ', name: 'Défaillance d\'Organes', cost: 50, effect: { lethality: 5, severity: 40 }, icon: Skull, description: 'Effondrement systémique des organes vitaux. Extrêmement létal.', requires: 'anemia' },
+    { id: 'necrosis', name: 'Nécrose', cost: 80, effect: { lethality: 15, infectivity: 2, severity: 60 }, icon: Skull, description: 'Mort tissulaire massive. Hautement létal et augmente l\'infectivité.', requires: 'organ' },
+    { id: 'hemorrhage', name: 'Hémorragie Interne', cost: 100, effect: { lethality: 25, severity: 80 }, icon: Skull, description: 'Saignements internes incontrôlés. Rapidement fatal.', requires: 'necrosis' },
+  ],
+  resistance: [
+    { id: 'cold1', name: 'Résistance Froid I', cost: 12, effect: { coldResist: 1 }, icon: ThermometerSnowflake, description: 'Renforce les parois cellulaires pour survivre aux climats glaciaux.' },
+    { id: 'cold2', name: 'Résistance Froid II', cost: 25, effect: { coldResist: 2 }, icon: ThermometerSnowflake, description: 'Antigel cellulaire avancé permettant la survie en conditions arctiques.', requires: 'cold1' },
+    { id: 'heat1', name: 'Résistance Chaleur I', cost: 12, effect: { heatResist: 1 }, icon: ThermometerSun, description: 'Protège les protéines de la dénaturation dans les environnements à haute température.', requires: 'cold1' },
+    { id: 'heat2', name: 'Résistance Chaleur II', cost: 25, effect: { heatResist: 2 }, icon: ThermometerSun, description: 'Le pathogène prospère dans la chaleur extrême, parfait pour les tropiques.', requires: 'heat1' },
+    { id: 'drug1', name: 'Résistance Médicaments I', cost: 20, effect: { cureSlow: 0.2 }, icon: ShieldAlert, description: 'Développe une immunité aux antibiotiques courants, ralentissant la recherche.', requires: 'heat1' },
+    { id: 'drug2', name: 'Résistance Médicaments II', cost: 45, effect: { cureSlow: 0.4 }, icon: ShieldAlert, description: 'Résistant aux traitements médicaux avancés et aux médicaments expérimentaux.', requires: 'drug1' },
+  ]
+};
+
+const STORAGE_KEY = 'plague-sim-save-v1';
+
+export default function Component() {
+  // Tweak values
+  const gameTitle = tweaks.gameTitle.useState();
+  const gameTitleColor = tweaks.gameTitleColor.useState();
+  const gameTitleVisible = tweaks.gameTitleVisible.useState();
+  const gameTitleSize = tweaks.gameTitleSize.useState();
+  const pathogenName = tweaks.pathogenName.useState();
+  const pathogenColor = tweaks.pathogenColor.useState();
+  const pathogenVisible = tweaks.pathogenVisible.useState();
+  const pathogenSize = tweaks.pathogenSize.useState();
+  const difficulty = tweaks.difficulty.useState();
+  const startingDNA = tweaks.startingDNA.useState();
+
+  // Game State
+  const [dna, setDna] = useState(startingDNA);
+  const [totalInfected, setTotalInfected] = useState(0);
+  const [totalDead, setTotalDead] = useState(0);
+  const [isDiscovered, setIsDiscovered] = useState(false);
+  const [cureProgress, setCureProgress] = useState(0);
+  const [activeTab, setActiveTab] = useState<'map' | 'evolve'>('map');
+  const [ownedUpgrades, setOwnedUpgrades] = useState<string[]>([]);
+  const [regionStats, setRegionStats] = useState(() => 
+    REGIONS.reduce((acc, r) => ({ ...acc, [r.id]: { infected: 0, dead: 0, pop: r.pop } }), {})
+  );
+  const [isGameOver, setIsGameOver] = useState<'win' | 'loss' | null>(null);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [showNamingModal, setShowNamingModal] = useState(true);
+  const [customPathogenName, setCustomPathogenName] = useState('');
+  const [pathogenType, setPathogenType] = useState<'Bactérie' | 'Virus' | 'Champignon'>('Bactérie');
+  const [startingRegion, setStartingRegion] = useState<string | null>(null);
+  const [bubbles, setBubbles] = useState<{ id: string; regionId: string; x: number; y: number; type: 'infection' | 'dna' }[]>([]);
+  const [showInfo, setShowInfo] = useState(false);
+  const [news, setNews] = useState<{ id: string; text: string; type: 'neutral' | 'bad' | 'good' }[]>([]);
+  const [newsIndex, setNewsIndex] = useState(0);
+  const [activeEvent, setActiveEvent] = useState<{ type: string; multiplier: number } | null>(null);
+  const [showMugaMessage, setShowMugaMessage] = useState(false);
+  const [isNewsOpen, setIsNewsOpen] = useState(true);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  // Refs for simulation
+  const statsRef = useRef(regionStats);
+  const dnaRef = useRef(dna);
+  const lastUpdateRef = useRef(Date.now());
+  const bubblesRef = useRef<{ id: string; regionId: string; x: number; y: number; type: 'infection' | 'dna' }[]>([]);
+  const newsRef = useRef<{ id: string; text: string; type: 'neutral' | 'bad' | 'good' }[]>([]);
+  const flagsRef = useRef({ 
+    discovered: false, 
+    firstKill: false, 
+    anarchyRegions: new Set<string>(), 
+    whoWatchlist: false,
+    reportedNews: new Set<string>(),
+    panicMode: false
+  });
+
+  // --- PERSISTENCE LOGIC ---
+  const saveGame = () => {
+    try {
+      setSaveStatus('saving');
+      const gameState = {
+        dna,
+        totalInfected,
+        totalDead,
+        isDiscovered,
+        cureProgress,
+        ownedUpgrades,
+        regionStats,
+        gameStarted,
+        showNamingModal,
+        customPathogenName,
+        pathogenType,
+        startingRegion,
+        news: newsRef.current,
+        flags: {
+          ...flagsRef.current,
+          anarchyRegions: Array.from(flagsRef.current.anarchyRegions),
+          reportedNews: Array.from(flagsRef.current.reportedNews)
+        }
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (e) {
+      console.error("Failed to save game", e);
+      setSaveStatus('idle');
+    }
+  };
+
+  const loadGame = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const state = JSON.parse(saved);
+        setDna(state.dna);
+        dnaRef.current = state.dna;
+        setTotalInfected(state.totalInfected);
+        setTotalDead(state.totalDead);
+        setIsDiscovered(state.isDiscovered);
+        setCureProgress(state.cureProgress);
+        setOwnedUpgrades(state.ownedUpgrades);
+        setRegionStats(state.regionStats);
+        statsRef.current = state.regionStats;
+        setGameStarted(state.gameStarted);
+        setShowNamingModal(state.showNamingModal);
+        setCustomPathogenName(state.customPathogenName);
+        setPathogenType(state.pathogenType);
+        setStartingRegion(state.startingRegion);
+        setNews(state.news || []);
+        newsRef.current = state.news || [];
+        
+        if (state.flags) {
+          flagsRef.current = {
+            ...state.flags,
+            anarchyRegions: new Set(state.flags.anarchyRegions),
+            reportedNews: new Set(state.flags.reportedNews)
+          };
+        }
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to load game", e);
+    }
+    return false;
+  };
+
+  const resetGame = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    window.location.reload();
+  };
+
+  // Initial Load
+  useEffect(() => {
+    loadGame();
+  }, []);
+
+  // Periodic Auto-save
+  useEffect(() => {
+    if (!gameStarted || isGameOver) return;
+    const interval = setInterval(saveGame, 10000); // Auto-save every 10s
+    return () => clearInterval(interval);
+  }, [gameStarted, isGameOver, dna, totalInfected, totalDead, cureProgress, ownedUpgrades, regionStats]);
+
+  const addNews = (text: string, type: 'neutral' | 'bad' | 'good' = 'neutral', important: boolean = false, uniqueKey?: string) => {
+    if (uniqueKey) {
+      if (flagsRef.current.reportedNews.has(uniqueKey)) return;
+      flagsRef.current.reportedNews.add(uniqueKey);
+    }
+    const id = Math.random().toString(36).substr(2, 9);
+    const newEntry = { id, text, type };
+    newsRef.current = [newEntry, ...newsRef.current].slice(0, 10);
+    setNews([...newsRef.current]);
+    setNewsIndex(0);
+    
+    if (important) {
+      gizmoRuntime.performHaptic('medium');
+    }
+  };
+
+  useEffect(() => {
+    if (!gameStarted || isGameOver) return;
+    const interval = setInterval(() => {
+      setNewsIndex(prev => (newsRef.current.length > 0 ? (prev + 1) % newsRef.current.length : 0));
+    }, flagsRef.current.panicMode ? 2000 : 6000);
+    return () => clearInterval(interval);
+  }, [gameStarted, isGameOver]);
+
+  const globalInfectivity = useMemo(() => {
+    let val = 1;
+    ownedUpgrades.forEach(id => {
+      const up = [...UPGRADES.transmission, ...UPGRADES.symptoms, ...UPGRADES.resistance].find(u => u.id === id);
+      if (up?.effect.infectivity) val += up.effect.infectivity;
+    });
+    return val;
+  }, [ownedUpgrades]);
+
+  const globalLethality = useMemo(() => {
+    let val = 0;
+    ownedUpgrades.forEach(id => {
+      const up = [...UPGRADES.transmission, ...UPGRADES.symptoms, ...UPGRADES.resistance].find(u => u.id === id);
+      if (up?.effect.lethality) val += up.effect.lethality;
+    });
+    return val;
+  }, [ownedUpgrades]);
+
+  const globalSeverity = useMemo(() => {
+    let val = 0;
+    ownedUpgrades.forEach(id => {
+      const up = [...UPGRADES.transmission, ...UPGRADES.symptoms, ...UPGRADES.resistance].find(u => u.id === id);
+      if (up?.effect.severity) val += up.effect.severity;
+    });
+    return val;
+  }, [ownedUpgrades]);
+
+  const discoveryChance = useMemo(() => {
+    if (globalSeverity <= 0) return 0;
+    return (globalSeverity / 100) * 0.05;
+  }, [globalSeverity]);
+
+  const cureSlowing = useMemo(() => {
+    let val = 1;
+    ownedUpgrades.forEach(id => {
+      const up = [...UPGRADES.transmission, ...UPGRADES.symptoms, ...UPGRADES.resistance].find(u => u.id === id);
+      if (up?.effect.cureSlow) val -= up.effect.cureSlow;
+    });
+    return Math.max(0.1, val);
+  }, [ownedUpgrades]);
+
+  useEffect(() => {
+    if (isGameOver || !gameStarted) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const dt = (now - lastUpdateRef.current) / 1000;
+      lastUpdateRef.current = now;
+
+      const newStats = { ...statsRef.current };
+      let newTotalInfected = 0;
+      let newTotalDead = 0;
+      let totalPop = 0;
+
+      REGIONS.forEach(r => {
+        const s = newStats[r.id];
+        totalPop += r.pop;
+
+        if (s.infected > 0 && s.infected < s.pop - s.dead) {
+          const eventMultiplier = activeEvent?.multiplier || 1;
+          const spread = s.infected * (globalInfectivity * 0.05 * eventMultiplier) * dt;
+          const remaining = s.pop - s.dead - s.infected;
+          s.infected += Math.min(remaining, spread);
+        }
+
+        if (s.infected > 0) {
+          const isLethal = ownedUpgrades.includes('organ') || ownedUpgrades.includes('necrosis') || ownedUpgrades.includes('hemorrhage');
+          const regionInfectionRatio = s.infected / r.pop;
+          const lethalityRamp = Math.min(1, regionInfectionRatio * 5);
+          const deaths = isLethal ? s.infected * (globalLethality * 0.01 * lethalityRamp) * dt : 0;
+          const actualDeaths = Math.min(s.infected, deaths);
+          s.dead += actualDeaths;
+          s.infected -= actualDeaths;
+
+          if (actualDeaths > 0 && !flagsRef.current.firstKill) {
+            flagsRef.current.firstKill = true;
+            addNews(`${customPathogenName || pathogenName} enregistre son premier décès confirmé.`, 'bad', true, 'first-kill');
+          }
+
+          if (s.dead >= r.pop * 0.99 && !flagsRef.current.anarchyRegions.has(r.id)) {
+            flagsRef.current.anarchyRegions.add(r.id);
+            addNews(`${r.name} est en plein chaos à cause de ${customPathogenName || pathogenName}`, 'bad', true, `anarchy-${r.id}`);
+          }
+        }
+
+        if (s.infected > s.pop * 0.01) {
+          const target = REGIONS[Math.floor(Math.random() * REGIONS.length)];
+          if (newStats[target.id].infected === 0) {
+            const bubbleExists = bubblesRef.current.some(b => b.regionId === target.id);
+            if (!bubbleExists) {
+              const newBubble = {
+                id: Math.random().toString(36).substr(2, 9),
+                regionId: target.id,
+                x: target.x,
+                y: target.y,
+                type: 'infection' as const
+              };
+              bubblesRef.current = [...bubblesRef.current, newBubble];
+              setBubbles([...bubblesRef.current]);
+              gizmoRuntime.performHaptic('light');
+            }
+          }
+        }
+
+        newTotalInfected += s.infected;
+        newTotalDead += s.dead;
+      });
+
+      const deathRate = (newTotalDead - totalDead) / dt;
+      if (deathRate > 100000 && !flagsRef.current.panicMode) {
+        flagsRef.current.panicMode = true;
+        addNews("PANIQUE MONDIALE : LE NOMBRE DE MORTS EXPLOSE !", 'bad', true, 'global-panic');
+      }
+
+      const dnaChance = 0.05 * dt * (Math.log10(newTotalInfected + 10) * 2);
+      if (Math.random() < dnaChance) {
+        setDna(prev => prev + 1);
+        dnaRef.current += 1;
+      }
+
+      if (Math.random() < (flagsRef.current.panicMode ? 0.05 : 0.008)) {
+        const randomHeadlines = [
+          "Un Genevois dessine un lingot d'or et le vend à Elon Musk.",
+          "Un type essaie de checker un pigeon, il se loupe royalement.",
+          "Les scientifiques découvrent que l'eau est en fait 'assez mouillée'.",
+          "Nouvelle mode : porter ses chaussettes sur ses chaussures pour 'économiser les semelles'.",
+          "Une Valaisanne trouve une patate qui ressemble exactement à une patate.",
+          "Pénurie mondiale de tournevis pour gauchers signalée.",
+          "Un chat de Lausanne lance par erreur un podcast à succès sur les siestes.",
+          "Un homme découvre qu'il porte sa casquette à l'envers depuis 12 ans.",
+          "Une étude montre que 100% des gens qui respirent finissent par mourir.",
+          "Le plus petit violon du monde a été trouvé ; encore trop grand pour les problèmes de certains.",
+        ];
+
+        const panicHeadlines = [
+          "HÔPITAUX DÉBORDÉS, LE NOMBRE DE MORTS GRIMPE !",
+          "FOSSES COMMUNES SIGNALÉES DANS LES GRANDES VILLES !",
+          "LES GOUVERNEMENTS S'EFFONDRENT SOUS LE POIDS DE LA PESTE !",
+          "EST-CE LA FIN ? LES SCIENTIFIQUES N'ONT PLUS DE RÉPONSES !",
+          "RESTEZ CHEZ VOUS : LES RUES NE SONT PLUS SÛRES !",
+          "ÉCONOMIE MONDIALE EN CHUTE LIBRE, LA MAIN-D'ŒUVRE DÉCÉDÉE !",
+          "LES LEADERS RELIGIEUX APPELLENT À LA PRIÈRE MONDIALE !",
+          "LOI MARTIALE DÉCLARÉE DANS PLUSIEURS NATIONS !",
+          "CHAÎNES D'APPROVISIONNEMENT BRISÉES : PÉNURIE ALIMENTAIRE IMMINENTE !",
+          "LES MORTS SONT PLUS NOMBREUX QUE LES VIVANTS !",
+        ];
+
+        const gameEvents = [
+          { text: "Le 'Festival de l'Amour' commence ! Infectivité doublée.", type: 'festival', multiplier: 2, newsType: 'good' as const },
+          { text: "Nouvelle campagne d'hygiène lancée. Propagation ralentie.", type: 'hygiene', multiplier: 0.5, newsType: 'bad' as const },
+          { text: "Saison de migration des oiseaux. Propagation transfrontalière accrue.", type: 'migration', multiplier: 1.5, newsType: 'good' as const },
+          { text: "Grève des transports publics ! Les taux d'infection locaux chutent.", type: 'strike', multiplier: 0.7, newsType: 'bad' as const },
+          { text: "Événement sportif international ! Les voyages mondiaux augmentent.", type: 'sports', multiplier: 1.8, newsType: 'good' as const },
+          { text: "Nouvelle percée médicale ! Recherche du remède accélérée.", type: 'breakthrough', multiplier: 1.2, newsType: 'bad' as const },
+        ];
+
+        const hasImportantContext = flagsRef.current.discovered || flagsRef.current.firstKill || flagsRef.current.anarchyRegions.size > 0;
+        
+        if (hasImportantContext && Math.random() < 0.4) {
+          const event = gameEvents[Math.floor(Math.random() * gameEvents.length)];
+          setActiveEvent({ type: event.type, multiplier: event.multiplier });
+          setTimeout(() => setActiveEvent(null), 15000);
+          addNews(event.text, event.newsType, true, `event-${event.type}-${Date.now()}`);
+        } else if (flagsRef.current.panicMode) {
+          const headline = panicHeadlines[Math.floor(Math.random() * panicHeadlines.length)];
+          addNews(headline, 'bad', true);
+        } else {
+          const headline = randomHeadlines[Math.floor(Math.random() * randomHeadlines.length)];
+          addNews(headline, 'neutral', false);
+        }
+      }
+
+      if (isDiscovered) {
+        if (!flagsRef.current.discovered) {
+          flagsRef.current.discovered = true;
+          addNews(`${customPathogenName || pathogenName} a été découvert ! Il est considéré comme inoffensif pour l'instant.`, 'neutral', true, 'discovery');
+        }
+
+        if (globalSeverity >= 20 && !flagsRef.current.whoWatchlist) {
+          flagsRef.current.whoWatchlist = true;
+          addNews(`${customPathogenName || pathogenName} a été placé sur la liste de surveillance de l'OMS.`, 'bad', true, 'who-watchlist');
+        }
+
+        setCureProgress(prev => {
+          const next = prev + (0.1 * difficulty * cureSlowing * dt);
+          if (next >= 100) setIsGameOver('loss');
+          return next;
+        });
+      } else if (newTotalInfected > 0 && discoveryChance > 0) {
+        const popRatio = newTotalInfected / totalPop;
+        if (Math.random() < (discoveryChance * (1 + popRatio * 10)) * dt) {
+          setIsDiscovered(true);
+          gizmoRuntime.performHaptic('heavy');
+        }
+      }
+
+      if (newTotalDead >= totalPop * 0.99) {
+        setIsGameOver('win');
+      }
+
+      statsRef.current = newStats;
+      setRegionStats({ ...newStats });
+      setTotalInfected(Math.floor(newTotalInfected));
+      setTotalDead(Math.floor(newTotalDead));
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [gameStarted, isGameOver, globalInfectivity, globalLethality, difficulty, cureSlowing, activeEvent]);
+
+  const startInfection = (regionId: string) => {
+    if (gameStarted) return;
+    setRegionStats(prev => ({
+      ...prev,
+      [regionId]: { ...prev[regionId], infected: 1 }
+    }));
+    statsRef.current[regionId].infected = 1;
+    setStartingRegion(regionId);
+    setGameStarted(true);
+    gizmoRuntime.performHaptic('medium');
+    saveGame();
+  };
+
+  const popBubble = (bubbleId: string, regionId: string) => {
+    setRegionStats(prev => ({
+      ...prev,
+      [regionId]: { ...prev[regionId], infected: Math.max(prev[regionId].infected, 1) }
+    }));
+    statsRef.current[regionId].infected = Math.max(statsRef.current[regionId].infected, 1);
+    bubblesRef.current = bubblesRef.current.filter(b => b.id !== bubbleId);
+    setBubbles([...bubblesRef.current]);
+    setDna(prev => prev + 2);
+    dnaRef.current += 2;
+    gizmoRuntime.performHaptic('medium');
+  };
+
+  const buyUpgrade = (up: any) => {
+    const isLocked = up.requires && !ownedUpgrades.includes(up.requires);
+    if (dna >= up.cost && !ownedUpgrades.includes(up.id) && !isLocked) {
+      setDna(prev => prev - up.cost);
+      setOwnedUpgrades(prev => [...prev, up.id]);
+      gizmoRuntime.performHaptic('heavy');
+      saveGame();
+    }
+  };
+
+  const devolveUpgrade = (up: any) => {
+    if (ownedUpgrades.includes(up.id)) {
+      const isRequiredByOthers = [...UPGRADES.transmission, ...UPGRADES.symptoms, ...UPGRADES.resistance].some(
+        other => ownedUpgrades.includes(other.id) && other.requires === up.id
+      );
+
+      if (isRequiredByOthers) {
+        addNews(`Impossible de désévoluer ${up.name} : d'autres traits en dépendent.`, 'neutral', false);
+        gizmoRuntime.performHaptic('soft');
+        return;
+      }
+
+      const refund = Math.floor(up.cost * 0.5);
+      setDna(prev => prev + refund);
+      setOwnedUpgrades(prev => prev.filter(id => id !== up.id));
+      gizmoRuntime.performHaptic('medium');
+      addNews(`${up.name} a été désévolué. ADN récupéré.`, 'neutral');
+      saveGame();
+    }
+  };
+
+  const formatNum = (n: number) => {
+    if (n >= 1000000000) return (n / 1000000000).toFixed(1) + 'Md';
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+    return Math.floor(n).toString();
+  };
+
+  return (
+    <div className="h-screen w-screen bg-black text-white overflow-hidden flex flex-col font-sans select-none">
+      {/* Header */}
+      <div className="p-4 bg-zinc-900/80 backdrop-blur border-b border-zinc-800 flex justify-between items-center">
+        <div>
+          {gameTitleVisible && (
+            <h1 style={{ color: gameTitleColor, fontSize: gameTitleSize }} className="font-black uppercase tracking-tighter leading-none">
+              {gameTitle}
+            </h1>
+          )}
+          {pathogenVisible && (
+            <p style={{ color: pathogenColor, fontSize: pathogenSize }} className="font-mono opacity-80">
+              {customPathogenName || pathogenName} ({pathogenType})
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-zinc-800 px-3 py-1 rounded-full border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+            <img src={ASSETS.dnaIcon} className="w-5 h-5" alt="ADN" />
+            <span className="font-bold text-cyan-400">{dna}</span>
+          </div>
+          <button 
+            onClick={() => { saveGame(); gizmoRuntime.performHaptic('medium'); }}
+            className={`p-2 rounded-full transition-all ${saveStatus === 'saved' ? 'bg-green-600 text-white' : 'bg-zinc-800 text-zinc-400'}`}
+          >
+            <Save size={18} className={saveStatus === 'saving' ? 'animate-pulse' : ''} />
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 relative overflow-hidden">
+        {activeTab === 'map' ? (
+          <div className="h-full w-full relative">
+            {/* News Ticker */}
+            <div className="absolute top-4 left-4 right-4 z-30">
+              {isNewsOpen ? (
+                <div key={news[newsIndex]?.id} className="bg-zinc-900/95 border border-zinc-700 rounded-lg p-3 shadow-[0_0_20px_rgba(0,0,0,0.5)] animate-in fade-in slide-in-from-top-4 duration-500 relative">
+                  <button 
+                    onClick={() => { setIsNewsOpen(false); gizmoRuntime.performHaptic('light'); }}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-zinc-800 border border-zinc-600 rounded-full flex items-center justify-center text-zinc-400 hover:text-white pointer-events-auto"
+                  >
+                    ×
+                  </button>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Service Mondial de Nouvelles</span>
+                    </div>
+                    <div className="flex gap-1">
+                      {news.map((_, i) => (
+                        <div key={i} className={`w-1.5 h-1 rounded-full transition-colors ${i === newsIndex ? 'bg-red-500' : 'bg-zinc-800'}`} />
+                      ))}
+                    </div>
+                  </div>
+                  <div className={`text-sm font-bold leading-tight ${
+                    news[newsIndex]?.type === 'good' ? 'text-green-400' : 
+                    news[newsIndex]?.type === 'bad' ? 'text-red-400' : 'text-white'
+                  }`}>
+                    {news[newsIndex]?.text || "En attente de mises à jour mondiales..."}
+                  </div>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => { setIsNewsOpen(true); gizmoRuntime.performHaptic('light'); }}
+                  className="bg-zinc-900/90 border border-zinc-700 rounded-full px-4 py-2 flex items-center gap-2 shadow-lg pointer-events-auto active:scale-95 transition-transform"
+                >
+                  <Newspaper size={14} className="text-red-500" />
+                  <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest">Ouvrir les News</span>
+                  {news.length > 0 && <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse" />}
+                </button>
+              )}
+            </div>
+
+            <img 
+              src={ASSETS.worldMap} 
+              className="absolute inset-0 w-full h-full object-cover opacity-60" 
+              alt="Carte du Monde"
+            />
+
+            {/* Tiny MUGA Easter Egg */}
+            <div 
+              className="absolute bottom-2 left-2 w-4 h-2 z-40 opacity-40 active:opacity-100 transition-opacity cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMugaMessage(true);
+                gizmoRuntime.performHaptic('soft');
+                setTimeout(() => setShowMugaMessage(false), 3000);
+              }}
+            >
+              <img src={ASSETS.muga} alt="MUGA" className="w-full h-full object-contain" />
+            </div>
+
+            {showMugaMessage && (
+              <div className="absolute bottom-10 left-4 z-50 bg-zinc-900/90 border border-zinc-700 px-3 py-2 rounded-lg text-[10px] font-bold text-white animate-bounce shadow-xl">
+                T'as trouvé le MUGA. Bien joué !
+              </div>
+            )}
+
+            {REGIONS.map(r => {
+              const stats = regionStats[r.id];
+              const infectionRatio = stats.infected / r.pop;
+              const deathRatio = stats.dead / r.pop;
+              const totalImpact = Math.min(1, infectionRatio + deathRatio);
+              
+              return (
+                <React.Fragment key={r.id}>
+                  <div 
+                    className="absolute pointer-events-none transition-opacity duration-1000"
+                    style={{ 
+                      left: `${r.x}%`, 
+                      top: `${r.y}%`,
+                      width: '40%',
+                      height: '30%',
+                      transform: 'translate(-50%, -50%)',
+                      background: `radial-gradient(circle, rgba(233, 51, 35, ${totalImpact * 0.8}) 0%, rgba(233, 51, 35, 0) 70%)`,
+                      opacity: totalImpact > 0 ? 1 : 0,
+                      zIndex: 5
+                    }}
+                  />
+
+                  <div 
+                    className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10"
+                    style={{ left: `${r.x}%`, top: `${r.y}%` }}
+                    onClick={() => startInfection(r.id)}
+                  >
+                    <div className="relative">
+                      {stats.infected > 0 && (
+                        <div className="absolute inset-0 animate-ping rounded-full bg-red-600 opacity-40" />
+                      )}
+                      <div 
+                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-500 ${
+                          stats.infected > 0 ? 'bg-red-600/40 border-red-500' : 'bg-zinc-800/50 border-zinc-600'
+                        }`}
+                      >
+                        {stats.dead > r.pop * 0.5 ? '💀' : stats.infected > 0 ? '☣️' : '📍'}
+                      </div>
+                    </div>
+                    <div className="mt-1 bg-black/60 px-2 py-0.5 rounded text-[10px] whitespace-nowrap border border-white/10">
+                      <div className="font-bold">{r.name}</div>
+                      <div className="text-red-400">Inf: {formatNum(stats.infected)}</div>
+                    </div>
+                  </div>
+                </React.Fragment>
+              );
+            })}
+
+            {bubbles.map(bubble => (
+              <div
+                key={bubble.id}
+                className="absolute transform -translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer"
+                style={{ left: `${bubble.x}%`, top: `${bubble.y}%` }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  popBubble(bubble.id, bubble.regionId);
+                }}
+              >
+                <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center border-4 border-white animate-bounce shadow-lg">
+                  <Activity className="text-white w-6 h-6" />
+                </div>
+                <div className="absolute -top-2 -right-2 bg-white text-red-600 text-[10px] font-bold px-1 rounded border border-red-600">
+                  NOUVEAU
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="h-full w-full overflow-y-auto p-4 bg-zinc-950">
+            <div className="space-y-6 pb-20">
+              <section>
+                <h3 className="text-cyan-400 font-bold flex items-center gap-2 mb-3">
+                  <Wind size={18} /> Transmission
+                </h3>
+                <div className="grid grid-cols-1 gap-3">
+                  {UPGRADES.transmission
+                    .filter(up => !up.typeSpecific || up.typeSpecific === pathogenType)
+                    .map(up => (
+                    <UpgradeCard 
+                      key={up.id} 
+                      up={up} 
+                      owned={ownedUpgrades.includes(up.id)} 
+                      canAfford={dna >= up.cost}
+                      isLocked={up.requires && !ownedUpgrades.includes(up.requires)}
+                      onBuy={() => buyUpgrade(up)}
+                      onDevolve={() => devolveUpgrade(up)}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="text-red-500 font-bold flex items-center gap-2 mb-3">
+                  <Activity size={18} /> Symptômes
+                </h3>
+                <div className="grid grid-cols-1 gap-3">
+                  {UPGRADES.symptoms.map(up => (
+                    <UpgradeCard 
+                      key={up.id} 
+                      up={up} 
+                      owned={ownedUpgrades.includes(up.id)} 
+                      canAfford={dna >= up.cost}
+                      isLocked={up.requires && !ownedUpgrades.includes(up.requires)}
+                      onBuy={() => buyUpgrade(up)}
+                      onDevolve={() => devolveUpgrade(up)}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="text-amber-500 font-bold flex items-center gap-2 mb-3">
+                  <ShieldAlert size={18} /> Résistance
+                </h3>
+                <div className="grid grid-cols-1 gap-3">
+                  {UPGRADES.resistance.map(up => (
+                    <UpgradeCard 
+                      key={up.id} 
+                      up={up} 
+                      owned={ownedUpgrades.includes(up.id)} 
+                      canAfford={dna >= up.cost}
+                      isLocked={up.requires && !ownedUpgrades.includes(up.requires)}
+                      onBuy={() => buyUpgrade(up)}
+                      onDevolve={() => devolveUpgrade(up)}
+                    />
+                  ))}
+                </div>
+              </section>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Stats Bar */}
+      <div className="bg-zinc-900 border-t border-zinc-800 p-3 grid grid-cols-3 gap-2 text-center text-[11px]">
+        <div className="flex flex-col">
+          <span className="text-zinc-500 uppercase font-bold">Infectés</span>
+          <span className="text-red-500 font-mono text-sm">{formatNum(totalInfected)}</span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-zinc-500 uppercase font-bold">Morts</span>
+          <span className="text-zinc-300 font-mono text-sm">{formatNum(totalDead)}</span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-zinc-500 uppercase font-bold">Remède</span>
+          {!isDiscovered ? (
+            <div className="flex flex-col items-center">
+              <span className="text-zinc-400 text-[10px] italic">Non découvert</span>
+              <div className="text-[9px] text-zinc-600">Sévérité : {globalSeverity}</div>
+            </div>
+          ) : (
+            <>
+              <div className="w-full bg-zinc-800 h-2 rounded-full mt-1 overflow-hidden">
+                <div 
+                  className="h-full bg-blue-500 transition-all duration-500" 
+                  style={{ width: `${cureProgress}%` }}
+                />
+              </div>
+              <span className="text-blue-400 font-mono mt-0.5">{cureProgress.toFixed(1)}%</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="flex bg-zinc-900 border-t border-zinc-800 h-16">
+        <button 
+          onClick={() => setActiveTab('map')}
+          className={`flex-1 flex flex-col items-center justify-center gap-1 ${activeTab === 'map' ? 'text-red-500' : 'text-zinc-500'}`}
+        >
+          <Globe size={20} />
+          <span className="text-[10px] font-bold uppercase">Carte</span>
+        </button>
+        <button 
+          onClick={() => setShowInfo(true)}
+          className="flex-1 flex flex-col items-center justify-center gap-1 text-zinc-500"
+        >
+          <Activity size={20} />
+          <span className="text-[10px] font-bold uppercase">Infos</span>
+        </button>
+        <button 
+          onClick={() => setActiveTab('evolve')}
+          className={`flex-1 flex flex-col items-center justify-center gap-1 ${activeTab === 'evolve' ? 'text-cyan-400' : 'text-zinc-500'}`}
+        >
+          <Dna size={20} />
+          <span className="text-[10px] font-bold uppercase">Évoluer</span>
+        </button>
+      </div>
+
+      {/* Info Modal */}
+      {showInfo && (
+        <div className="absolute inset-0 z-[60] bg-black/95 backdrop-blur-lg flex flex-col p-6 overflow-y-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Infos Pathogène</h2>
+            <button onClick={() => setShowInfo(false)} className="p-2 bg-zinc-800 rounded-full">
+              <Activity className="w-6 h-6 text-zinc-400" />
+            </button>
+          </div>
+
+          <div className="space-y-8">
+            <section>
+              <h3 className="text-cyan-400 font-bold uppercase text-xs mb-3 tracking-widest">Sauvegarde</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={() => { saveGame(); gizmoRuntime.performHaptic('heavy'); }}
+                  className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex flex-col items-center gap-2 active:scale-95 transition-transform"
+                >
+                  <Save className="text-cyan-400" />
+                  <span className="text-xs font-bold">Sauvegarder</span>
+                </button>
+                <button 
+                  onClick={() => { if(confirm("Réinitialiser toute la progression ?")) resetGame(); }}
+                  className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex flex-col items-center gap-2 active:scale-95 transition-transform"
+                >
+                  <RotateCcw className="text-red-500" />
+                  <span className="text-xs font-bold">Réinitialiser</span>
+                </button>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-cyan-400 font-bold uppercase text-xs mb-3 tracking-widest">Point d'Origine</h3>
+              <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl">
+                {startingRegion ? (
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-red-600/20 rounded-full flex items-center justify-center border border-red-500/50">
+                      <Globe className="text-red-500" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-lg">{REGIONS.find(r => r.id === startingRegion)?.name}</div>
+                      <div className="text-xs text-zinc-500">Le Patient Zéro est apparu ici.</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-zinc-500 italic text-sm">Aucun point d'origine sélectionné. Tape une région sur la carte pour commencer.</div>
+                )}
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-red-500 font-bold uppercase text-xs mb-3 tracking-widest">Analyse des Symptômes</h3>
+              <div className="space-y-3">
+                {UPGRADES.symptoms.map(up => {
+                  const isOwned = ownedUpgrades.includes(up.id);
+                  return (
+                    <div key={up.id} className={`bg-zinc-900/50 border p-3 rounded-xl transition-all ${isOwned ? 'border-red-500/50' : 'border-zinc-800 opacity-60'}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <span className={`font-bold text-sm ${isOwned ? 'text-white' : 'text-zinc-500'}`}>{up.name}</span>
+                        {isOwned ? (
+                          <span className="text-[10px] bg-red-900/30 text-red-400 px-2 py-0.5 rounded-full border border-red-800/50">ACTIF</span>
+                        ) : (
+                          <span className="text-[10px] bg-zinc-800 text-zinc-600 px-2 py-0.5 rounded-full border border-zinc-700/50">VERROUILLÉ</span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <div className="text-[9px] text-zinc-500 uppercase font-bold">Avantages</div>
+                          <ul className="text-[10px] text-green-400 space-y-0.5">
+                            {up.effect.infectivity && <li>+ Augmente la propagation</li>}
+                            {up.effect.lethality && <li>+ Augmente la mortalité</li>}
+                            {!up.effect.infectivity && !up.effect.lethality && <li>+ Évolution stratégique</li>}
+                          </ul>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-[9px] text-zinc-500 uppercase font-bold">Inconvénients</div>
+                          <ul className="text-[10px] text-amber-500 space-y-0.5">
+                            {up.effect.severity && <li>- Augmente la visibilité</li>}
+                            {up.effect.lethality && <li>- Tue les hôtes trop vite</li>}
+                            {!up.effect.severity && !up.effect.lethality && <li>- Consomme de l'ADN</li>}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="pb-10">
+              <h3 className="text-amber-500 font-bold uppercase text-xs mb-3 tracking-widest">Statut Global</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-zinc-900/50 border border-zinc-800 p-3 rounded-xl">
+                  <div className="text-[9px] text-zinc-500 uppercase font-bold mb-1">Sévérité</div>
+                  <div className="text-xl font-black text-amber-500">{globalSeverity}</div>
+                  <div className="text-[9px] text-zinc-400 mt-1">Une sévérité élevée accélère la découverte.</div>
+                </div>
+                <div className="bg-zinc-900/50 border border-zinc-800 p-3 rounded-xl">
+                  <div className="text-[9px] text-zinc-500 uppercase font-bold mb-1">Létalité</div>
+                  <div className="text-xl font-black text-red-600">{globalLethality.toFixed(1)}</div>
+                  <div className="text-[9px] text-zinc-400 mt-1">Vitesse à laquelle les hôtes meurent.</div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <button 
+            onClick={() => setShowInfo(false)}
+            className="mt-auto w-full bg-white text-black font-black py-4 rounded-2xl uppercase tracking-tighter active:scale-95 transition-transform"
+          >
+            Retour au Commandement
+          </button>
+        </div>
+      )}
+
+      {/* Naming Modal */}
+      {showNamingModal && (
+        <div className="absolute inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center overflow-y-auto">
+          <div className="w-20 h-20 bg-red-600 rounded-3xl flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(233,51,35,0.4)] shrink-0">
+            <Activity className="w-10 h-10 text-white" />
+          </div>
+          <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Nomme ta Peste</h2>
+          <p className="text-zinc-400 text-sm mb-6">L'humanité ne saura pas ce qui lui arrive.</p>
+          
+          <input 
+            type="text"
+            value={customPathogenName}
+            onChange={(e) => setCustomPathogenName(e.target.value.slice(0, 20))}
+            placeholder={pathogenName}
+            className="w-full bg-zinc-900 border-2 border-zinc-800 rounded-2xl px-6 py-4 text-xl font-bold text-white focus:border-red-600 outline-none transition-colors mb-6 text-center"
+            autoFocus
+          />
+
+          <div className="w-full mb-8">
+            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-3">Choisis le Type de Pathogène</p>
+            <div className="grid grid-cols-3 gap-2">
+              {(['Bactérie', 'Virus', 'Champignon'] as const).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => {
+                    setPathogenType(type);
+                    gizmoRuntime.performHaptic('light');
+                  }}
+                  className={`py-3 rounded-xl border-2 font-bold text-xs transition-all ${
+                    pathogenType === type 
+                      ? 'bg-red-600 border-red-500 text-white shadow-[0_0_15px_rgba(233,51,35,0.3)]' 
+                      : 'bg-zinc-900 border-zinc-800 text-zinc-500'
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-zinc-500 mt-3 italic">
+              {pathogenType === 'Bactérie' && 'Propagation standard, résiliente dans la plupart des climats.'}
+              {pathogenType === 'Virus' && 'Mutation rapide, plus difficile à suivre mais instable.'}
+              {pathogenType === 'Champignon' && 'Départ lent, mais extrêmement difficile à éradiquer.'}
+            </p>
+          </div>
+          
+          <button 
+            onClick={() => {
+              if (!customPathogenName.trim()) setCustomPathogenName(pathogenName);
+              setShowNamingModal(false);
+              gizmoRuntime.performHaptic('heavy');
+              saveGame();
+            }}
+            className="w-full bg-red-600 text-white font-black py-6 rounded-2xl uppercase tracking-tighter active:scale-95 transition-all shadow-[0_0_20px_rgba(233,51,35,0.4)] text-2xl border-b-4 border-red-800 shrink-0"
+          >
+            Commencer l'Évolution
+          </button>
+        </div>
+      )}
+
+      {/* Game Over Overlay */}
+      {isGameOver && (
+        <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center">
+          {isGameOver === 'win' ? (
+            <>
+              <Skull className="w-24 h-24 text-red-600 mb-6 animate-bounce" />
+              <h2 className="text-4xl font-black text-red-600 mb-2">VICTOIRE</h2>
+              <p className="text-zinc-300 mb-8">Bravo ! {customPathogenName || pathogenName} a éradiqué l'humanité.</p>
+            </>
+          ) : (
+            <>
+              <FlaskConical className="w-24 h-24 text-blue-500 mb-6 animate-pulse" />
+              <h2 className="text-4xl font-black text-blue-500 mb-2">DÉFAITE</h2>
+              <p className="text-zinc-300 mb-8">Un remède a été trouvé. {customPathogenName || pathogenName} a été contenu avec succès.</p>
+            </>
+          )}
+          <button 
+            onClick={() => resetGame()}
+            className="bg-white text-black font-bold px-8 py-3 rounded-full text-lg active:scale-95 transition-transform"
+          >
+            REDÉMARRER LA SIMULATION
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UpgradeCard({ up, owned, canAfford, isLocked, onBuy, onDevolve }: { up: any, owned: boolean, canAfford: boolean, isLocked?: boolean, onBuy: () => void, onDevolve: () => void }) {
+  const Icon = up.icon;
+  
+  return (
+    <div 
+      onClick={!owned && !isLocked && canAfford ? onBuy : undefined}
+      className={`p-3 rounded-xl border transition-all flex items-center gap-4 ${
+        owned 
+          ? 'bg-zinc-800/50 border-zinc-700' 
+          : isLocked
+            ? 'bg-zinc-950 border-zinc-900 opacity-30 grayscale'
+            : canAfford 
+              ? 'bg-zinc-900 border-zinc-700 active:border-cyan-500' 
+              : 'bg-zinc-900/30 border-zinc-800 opacity-40'
+      }`}
+    >
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${owned ? 'bg-zinc-700' : 'bg-zinc-800'}`}>
+        <Icon size={20} className={owned ? 'text-zinc-400' : 'text-white'} />
+      </div>
+      <div className="flex-1">
+        <div className="font-bold text-sm flex items-center gap-2">
+          {up.name}
+          {isLocked && <span className="text-[8px] bg-zinc-800 px-1 rounded text-zinc-500">VERROUILLÉ</span>}
+        </div>
+        <div className="text-[10px] text-zinc-400 leading-tight mb-1">
+          {isLocked ? `Nécessite ${up.requires}` : up.description}
+        </div>
+        {!isLocked && (
+          <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider">
+            {up.effect.infectivity && `+${up.effect.infectivity} Infectivité `}
+            {up.effect.lethality && `+${up.effect.lethality} Létalité `}
+            {up.effect.severity && `+${up.effect.severity} Sévérité `}
+            {up.effect.cureSlow && `Remède plus lent `}
+          </div>
+        )}
+      </div>
+      <div className="text-right">
+        {owned ? (
+          <button 
+            onClick={(e) => { e.stopPropagation(); onDevolve(); }}
+            className="text-[10px] font-bold text-red-500 uppercase bg-red-500/10 border border-red-500/30 px-2 py-1 rounded-lg active:scale-90 transition-transform"
+          >
+            Désévoluer
+          </button>
+        ) : isLocked ? (
+          <ShieldAlert size={14} className="text-zinc-700" />
+        ) : (
+          <div className="flex items-center gap-1 text-cyan-400 font-bold">
+            <span className="text-xs">{up.cost}</span>
+            <Dna size={12} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+// ===== FIN DU CODE GIZMO =====
+
+import { createRoot as __gizmoCreateRoot } from 'react-dom/client';
+__gizmoCreateRoot(document.getElementById('root')).render(<Component />);
+  </script>
+</body>
+</html>

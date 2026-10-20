@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Rainy 75 Keyboard</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Modules utilisés par le code Gizmo -->
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.3.1",
+      "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+      "react-dom": "https://esm.sh/react-dom@18.3.1?external=react",
+      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client?external=react",
+      "lucide-react": "https://esm.sh/lucide-react@0.454.0?external=react",
+      "framer-motion": "https://esm.sh/framer-motion@11.11.17?external=react,react-dom",
+      "matter-js": "https://esm.sh/matter-js@0.19.0",
+      "tone": "https://esm.sh/tone@15.0.4",
+      "@gizmo/runtime": "./gizmo-runtime.js"
+    }
+  }
+  </script>
+
+  <!-- Babel pour interpréter le React/TypeScript (TSX) -->
+  <script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+  <script>
+    Babel.registerPreset('gizmo-tsx', {
+      presets: [
+        [Babel.availablePresets.typescript, { allExtensions: true, isTSX: true }],
+        Babel.availablePresets.react,
+      ],
+    });
+  </script>
+
+  <style>
+    html, body, #root { margin: 0; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-type="module" data-presets="gizmo-tsx">
+// ===== CODE GIZMO ORIGINAL (non modifié) =====
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import * as Tone from 'tone';
+import { gizmoRuntime } from '@gizmo/runtime';
+
+const tweaks = gizmoRuntime.tweaks({
+  backgroundColor: { index: 0, name: 'Desk Color', type: 'color', value: '#1a1a1a' },
+  keyboardColor: { index: 1, name: 'Keyboard Case', type: 'color', value: '#2a2a2a' },
+  keyColor: { index: 2, name: 'Keycap Color', type: 'color', value: '#ffffff' },
+  specialKeyColor: { index: 3, name: 'Special Key Color', type: 'color', value: '#111111' },
+  rgbIntensity: { index: 4, name: 'RGB Glow', type: 'slider', value: 0.6, min: 0, max: 1, step: 0.1 },
+  reverbWet: { index: 5, name: 'Sound Reverb', type: 'slider', value: 0.1, min: 0, max: 1, step: 0.05 },
+  titleText: { index: 6, name: 'Title', type: 'text', value: "Rainy 75 keyboard song", group: 'title' },
+  titleColor: { index: 7, name: 'Title', type: 'color', value: '#FFFFFF', group: 'title' },
+  titleVisible: { index: 8, name: 'Show Title', type: 'toggle', value: true, group: 'title' },
+  titleSize: { index: 9, name: 'Title Size', type: 'slider', value: 28, min: 12, max: 48, step: 1, group: 'title' },
+  hintText: { index: 10, name: 'Hint', type: 'text', value: "Silver Standard", group: 'hint' },
+  hintColor: { index: 11, name: 'Hint', type: 'color', value: '#666666', group: 'hint' },
+  hintVisible: { index: 12, name: 'Show Hint', type: 'toggle', value: true, group: 'hint' },
+  hintSize: { index: 13, name: 'Hint Size', type: 'slider', value: 14, min: 8, max: 24, step: 1, group: 'hint' },
+});
+
+const SOUND_URLS = [
+  'https://content.gizmo.party/a5e51cda-9915-48a9-99e7-346d6782dd02',
+  'https://content.gizmo.party/13f012ed-0fa5-41c3-85d9-8c031386e953',
+  'https://content.gizmo.party/91966871-b068-44c4-93d8-6d0c53f47d23',
+  'https://content.gizmo.party/f2cfc38f-8b20-40b8-be2d-04775e14f667'
+];
+
+const KEYBOARD_LAYOUT = [
+  ['Esc', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'Del', 'Home'],
+  ['~', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'Backspace', 'End'],
+  ['Tab', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '[', ']', '\\', 'PgUp'],
+  ['Caps', 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ';', "'", 'Enter', 'PgDn'],
+  ['Shift', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', '/', 'Shift', '↑', '☁️'],
+  ['Ctrl', 'Win', 'Alt', 'Space', 'Alt', 'Fn', 'Ctrl', '←', '↓', '→']
+];
+
+const RGB_COLORS = [
+  '#E93323', '#E432B7', '#2227F5', '#53B5F9', '#75F94C', '#EFB63F', '#8762F6', '#FFDD46'
+];
+
+export default function Component() {
+  const backgroundColor = tweaks.backgroundColor.useState();
+  const keyboardColor = tweaks.keyboardColor.useState();
+  const keyColor = tweaks.keyColor.useState();
+  const specialKeyColor = tweaks.specialKeyColor.useState();
+  const rgbIntensity = tweaks.rgbIntensity.useState();
+  const reverbWet = tweaks.reverbWet.useState();
+  const titleText = tweaks.titleText.useState();
+  const titleColor = tweaks.titleColor.useState();
+  const titleVisible = tweaks.titleVisible.useState();
+  const titleSize = tweaks.titleSize.useState();
+  const hintText = tweaks.hintText.useState();
+  const hintColor = tweaks.hintColor.useState();
+  const hintVisible = tweaks.hintVisible.useState();
+  const hintSize = tweaks.hintSize.useState();
+
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [isAudioReady, setIsAudioReady] = useState(false);
+  
+  const players = useRef<Tone.Players | null>(null);
+  const reverb = useRef<Tone.Reverb | null>(null);
+
+  useEffect(() => {
+    reverb.current = new Tone.Reverb({
+      decay: 1.5,
+      preDelay: 0.01,
+      wet: reverbWet
+    }).toDestination();
+
+    players.current = new Tone.Players({
+      click1: SOUND_URLS[0],
+      click2: SOUND_URLS[1],
+      click3: SOUND_URLS[2],
+      click4: SOUND_URLS[3],
+    }).connect(reverb.current);
+
+    return () => {
+      players.current?.dispose();
+      reverb.current?.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (reverb.current) {
+      reverb.current.wet.value = reverbWet;
+    }
+  }, [reverbWet]);
+
+  const playSound = useCallback(async () => {
+    if (!isAudioReady) {
+      await Tone.start();
+      setIsAudioReady(true);
+    }
+
+    if (players.current) {
+      const clickNames = ['click1', 'click2', 'click3', 'click4'];
+      const randomClick = clickNames[Math.floor(Math.random() * clickNames.length)];
+      const player = players.current.player(randomClick);
+      player.start();
+    }
+    
+    gizmoRuntime.performHaptic('light');
+  }, [isAudioReady]);
+
+  const handleKeyPress = (keyId: string) => {
+    setActiveKey(keyId);
+    playSound();
+    setTimeout(() => setActiveKey(null), 150);
+  };
+
+  const getRGBColor = (rowIndex: number, colIndex: number) => {
+    const index = (rowIndex + colIndex) % RGB_COLORS.length;
+    return RGB_COLORS[index];
+  };
+
+  const isSpecialKey = (key: string) => {
+    return ['Esc', 'Enter', 'Space', 'Backspace', 'Shift', 'Caps', 'Tab', 'Ctrl', 'Win', 'Alt', 'Fn', 'Del', 'Home', 'End', 'PgUp', 'PgDn'].includes(key);
+  };
+
+  const getKeyWidth = (key: string) => {
+    if (key === 'Space') return 'flex-[6]';
+    if (key === 'Enter') return 'flex-[2.5]';
+    if (key === 'Shift') return 'flex-[2.2]';
+    if (key === 'Backspace') return 'flex-[2]';
+    if (key === 'Tab' || key === 'Caps' || key === 'Ctrl' || key === 'Win' || key === 'Alt') return 'flex-[1.5]';
+    return 'flex-1';
+  };
+
+  return (
+    <div className="h-screen w-screen overflow-hidden flex flex-col items-center justify-center relative" style={{ backgroundColor }}>
+      {/* Desk Texture Overlay */}
+      <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:20px_20px]" />
+      
+      {titleVisible && (
+        <h1 
+          className="mb-10 font-black tracking-tighter text-center drop-shadow-lg" 
+          style={{ color: titleColor, fontSize: `${titleSize}px` }}
+        >
+          {titleText}
+        </h1>
+      )}
+
+      {/* Keyboard Case */}
+      <div 
+        className="w-full max-w-[96vw] p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-t border-white/10 relative"
+        style={{ 
+          backgroundColor: keyboardColor,
+          boxShadow: `0 10px 0 #000, 0 20px 40px rgba(0,0,0,0.6)`
+        }}
+      >
+        {/* Inner Plate Shadow */}
+        <div className="absolute inset-2 rounded-xl bg-black/20 pointer-events-none" />
+        
+        <div className="flex flex-col gap-2 relative z-10">
+          {KEYBOARD_LAYOUT.map((row, rowIndex) => (
+            <div key={rowIndex} className="flex gap-1.5 w-full">
+              {row.map((key, colIndex) => {
+                const keyId = `${rowIndex}-${colIndex}`;
+                const rgb = getRGBColor(rowIndex, colIndex);
+                const special = isSpecialKey(key);
+                const active = activeKey === keyId;
+                
+                return (
+                  <div
+                    key={keyId}
+                    onTouchStart={() => handleKeyPress(keyId)}
+                    className={`
+                      ${getKeyWidth(key)}
+                      h-12 sm:h-16 rounded-md flex flex-col items-center justify-center
+                      text-[10px] sm:text-[12px] font-bold transition-all duration-75
+                      relative select-none active:scale-95
+                    `}
+                    style={{
+                      backgroundColor: special ? specialKeyColor : keyColor,
+                      color: special ? '#FFFFFF' : '#333333',
+                      boxShadow: active 
+                        ? `0 1px 0 rgba(0,0,0,0.8), inset 0 2px 4px rgba(0,0,0,0.4)` 
+                        : `0 5px 0 rgba(0,0,0,0.6), 0 8px 15px rgba(0,0,0,0.3)`,
+                      transform: active ? 'translateY(4px)' : 'translateY(0)',
+                    }}
+                  >
+                    {/* Keycap Top Surface */}
+                    <div 
+                      className="absolute inset-[2px] rounded-sm pointer-events-none flex items-start justify-start p-1"
+                      style={{ 
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                        borderTop: '1px solid rgba(255,255,255,0.2)',
+                      }}
+                    >
+                      <span className="opacity-80">{key}</span>
+                    </div>
+
+                    {/* RGB Underglow effect - more subtle and realistic */}
+                    <div 
+                      className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4/5 h-1 blur-md opacity-40 pointer-events-none"
+                      style={{ 
+                        backgroundColor: rgb,
+                        display: rgbIntensity > 0 ? 'block' : 'none',
+                        opacity: rgbIntensity 
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {hintVisible && (
+        <div 
+          className="mt-16 font-medium animate-bounce opacity-60"
+          style={{ color: hintColor, fontSize: `${hintSize}px` }}
+        >
+          {hintText}
+        </div>
+      )}
+
+      {/* Ambient Light Effect */}
+      <div className="fixed bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white/5 to-transparent pointer-events-none" />
+    </div>
+  );
+}
+// ===== FIN DU CODE GIZMO =====
+
+import { createRoot as __gizmoCreateRoot } from 'react-dom/client';
+__gizmoCreateRoot(document.getElementById('root')).render(<Component />);
+  </script>
+</body>
+</html>
