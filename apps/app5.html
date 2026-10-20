@@ -1,18 +1,40 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { 
-  Shield, 
-  Zap, 
-  Globe, 
-  Cpu, 
-  Skull, 
-  Activity, 
-  Lock, 
-  Wifi, 
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEURO-LINK: DOMINATION</title>
+
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- lucide-react (le build UMD cherche React sous window.react) -->
+  <script>window.react = window.React;</script>
+  <script src="https://unpkg.com/lucide-react@0.460.0/dist/umd/lucide-react.min.js"></script>
+  <!-- Babel pour le JSX -->
+  <script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+const { useState, useEffect, useRef, useMemo } = React;
+const {
+  Shield,
+  Zap,
+  Globe,
+  Cpu,
+  Skull,
+  Activity,
+  Lock,
+  Wifi,
   Terminal,
   Database,
   Smartphone,
   Server,
-  Map as MapIcon,
+  Map: MapIcon,
   Dna,
   Check,
   Edit3,
@@ -21,7 +43,7 @@ import {
   Binary,
   Radar,
   Fingerprint,
-  Cpu as CpuIcon,
+  Cpu: CpuIcon,
   Key,
   Unlock,
   ShieldAlert,
@@ -39,7 +61,7 @@ import {
   ZapOff,
   Network,
   Atom
-} from 'lucide-react';
+} = LucideReact;
 
 // --- CONSTANTS ---
 const REGIONS = [
@@ -116,7 +138,7 @@ function BugIcon({ size = 18 }) {
   );
 }
 
-export default function App() {
+function App() {
   // Config Par défaut (Remplace Tweaks Gizmo)
   const gameTitle = 'NEURO-LINK: DOMINATION';
   const gameTitleColor = '#75F94C';
@@ -766,3 +788,8 @@ export default function App() {
     </div>
   );
 }
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
