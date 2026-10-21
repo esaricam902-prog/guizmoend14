@@ -54,7 +54,8 @@
     .no-scrollbar { scrollbar-width: none; }
     /* Sur téléphone, laisser la place aux contrôles du jeu ouvert */
     @media (max-width: 639px) {
-      body.app-open #brand-text { display: none; }
+      body.app-open #brand-text,
+      body.app-open #version-badge { display: none; }
     }
   </style>
 </head>
@@ -77,6 +78,7 @@
           <p id="header-subtitle" class="text-xs text-slate-400 hidden sm:block truncate">14 mini-jeux jouables dans le navigateur</p>
         </div>
       </a>
+      <button id="version-badge" onclick="openChangelogModal()" class="shrink-0 px-2 py-0.5 text-[10px] font-semibold font-mono bg-brand-500/10 text-brand-300 rounded-full border border-brand-500/30 hover:bg-brand-500/20 transition-colors" title="Voir les nouveautés"></button>
     </div>
 
     <!-- Active App Controls -->
@@ -158,7 +160,9 @@
 
       <!-- Sidebar Footer -->
       <div class="p-3 border-t border-slate-800 bg-slate-950/40 text-center text-xs text-slate-500">
-        Prêt pour GitHub Pages 🚀
+        <button onclick="openChangelogModal()" class="hover:text-slate-300 transition-colors" title="Voir les nouveautés">
+          <span id="sidebar-version"></span> · Nouveautés
+        </button>
       </div>
     </aside>
 
@@ -253,6 +257,27 @@
       </div>
 
     </main>
+  </div>
+
+  <!-- Changelog Modal -->
+  <div id="changelog-modal" onclick="if (event.target === this) closeChangelogModal()" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+        <div class="flex items-center gap-3">
+          <div class="p-2 rounded-lg bg-brand-500/10 border border-brand-500/20 text-brand-400">
+            <i class="ph ph-clock-counter-clockwise text-xl"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-base">Nouveautés</h3>
+            <p class="text-xs text-slate-400">Historique des versions du site</p>
+          </div>
+        </div>
+        <button onclick="closeChangelogModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+          <i class="ph ph-x text-xl"></i>
+        </button>
+      </div>
+      <div id="changelog-list" class="p-5 overflow-y-auto space-y-5"></div>
+    </div>
   </div>
 
   <!-- Guide Modal -->
@@ -351,6 +376,47 @@
     // =========================================================================
     // CONFIGURATION DES APPLICATIONS GIZMO
     // =========================================================================
+    // =========================================================================
+    // VERSIONS DU SITE (la plus récente en premier)
+    // À chaque mise à jour : ajouter une entrée en haut de cette liste.
+    // =========================================================================
+    const CHANGELOG = [
+      {
+        version: "1.3.0",
+        date: "21/10/2026",
+        changes: [
+          "Numéro de version affiché sur le site",
+          "Nouvelle fenêtre « Nouveautés » avec l'historique des versions"
+        ]
+      },
+      {
+        version: "1.2.0",
+        date: "21/10/2026",
+        changes: [
+          "Stimulus Clicker : un accès secret au debug menu a été ajouté 🤫"
+        ]
+      },
+      {
+        version: "1.1.0",
+        date: "21/10/2026",
+        changes: [
+          "Aperçus des jeux sur les cartes et filtres par catégorie",
+          "Favoris et jeux joués récemment",
+          "Lien direct vers chaque jeu (#jeu-N) et bouton retour du navigateur",
+          "Contrôles en jeu : précédent/suivant, recommencer, plein écran",
+          "Bouton « jeu au hasard » et raccourcis clavier (/ et Échap)"
+        ]
+      },
+      {
+        version: "1.0.0",
+        date: "21/10/2026",
+        changes: [
+          "Les 14 mini-jeux Gizmo jouables dans le navigateur"
+        ]
+      }
+    ];
+    const SITE_VERSION = CHANGELOG[0].version;
+
     const GIZMO_APPS = [
       {
         id: 1,
@@ -529,6 +595,9 @@
       document.getElementById('stat-games').innerText = GIZMO_APPS.length;
       document.getElementById('stat-categories').innerText = new Set(GIZMO_APPS.map(a => a.badge)).size;
       document.getElementById('sidebar-count').innerText = GIZMO_APPS.length;
+      document.getElementById('version-badge').innerText = `v${SITE_VERSION}`;
+      document.getElementById('sidebar-version').innerText = `Version ${SITE_VERSION} · ${CHANGELOG[0].date}`;
+      renderChangelog();
 
       try {
         const savedViewport = localStorage.getItem('gizmo-portal-viewport');
@@ -889,6 +958,8 @@
       if (e.key === 'Escape') {
         if (!document.getElementById('guide-modal').classList.contains('hidden')) {
           closeGuideModal();
+        } else if (!document.getElementById('changelog-modal').classList.contains('hidden')) {
+          closeChangelogModal();
         } else if (typing) {
           document.activeElement.blur();
         } else if (activeApp) {
@@ -908,6 +979,32 @@
 
     function closeGuideModal() {
       document.getElementById('guide-modal').classList.add('hidden');
+    }
+
+    // --- Nouveautés ---
+    function renderChangelog() {
+      document.getElementById('changelog-list').innerHTML = CHANGELOG.map((entry, i) => `
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="px-2 py-0.5 text-xs font-semibold font-mono rounded-full border ${
+              i === 0 ? 'bg-brand-600 text-white border-brand-500' : 'bg-slate-800 text-slate-300 border-slate-700'
+            }">v${entry.version}</span>
+            <span class="text-xs text-slate-500">${entry.date}</span>
+            ${i === 0 ? '<span class="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">Actuelle</span>' : ''}
+          </div>
+          <ul class="list-disc list-inside space-y-1 text-xs text-slate-300">
+            ${entry.changes.map(change => `<li>${change}</li>`).join('')}
+          </ul>
+        </div>
+      `).join('');
+    }
+
+    function openChangelogModal() {
+      document.getElementById('changelog-modal').classList.remove('hidden');
+    }
+
+    function closeChangelogModal() {
+      document.getElementById('changelog-modal').classList.add('hidden');
     }
   </script>
 </body>
